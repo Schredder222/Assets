@@ -466,12 +466,18 @@
   window.addEventListener('pointerdown', (e)=>{
     const isTouchLike = (e.pointerType && e.pointerType !== 'mouse') || IS_COARSE;
     if(!isTouchLike) return;
-    const tile = e.target.closest && e.target.closest('.tile');
+
+    // Accept taps on the tile itself OR anywhere in the fill-wrap box
+    let tile = e.target.closest && e.target.closest('.tile');
+    if(!tile){
+      const wrap = e.target.closest && e.target.closest('.fill-wrap');
+      if(wrap) tile = wrap.querySelector('.tile');
+    }
     if(!tile) return;
 
     e.preventDefault();
     pendingTouch = { tile, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, moved:false };
-    suppressNextClick = true; // prevent the synthetic click re-selecting something else
+    suppressNextClick = true; // prevent synthetic click re-selecting something else
   }, { passive:false });
 
   window.addEventListener('pointermove', (e)=>{
@@ -493,7 +499,7 @@
   window.addEventListener('pointerup', (e)=>{
     if(pendingTouch && e.pointerId === pendingTouch.pointerId){
       if(!dragging){
-        // It's a tap: just select the originally pressed tile
+        // It's a tap: select the intended tile (works for bank or placed tiles)
         selectTile(pendingTouch.tile);
       }else{
         // It was a drag
@@ -520,7 +526,14 @@
   // Click fallback (ignore synthetic clicks immediately after a touch)
   document.addEventListener('click',(e)=>{
     if(suppressNextClick){ suppressNextClick = false; return; }
-    const tile = e.target.closest && e.target.closest('.tile');
+
+    // Accept clicks on tile or anywhere in the fill-wrap box
+    let tile = e.target.closest && e.target.closest('.tile');
+    if(!tile){
+      const wrap = e.target.closest && e.target.closest('.fill-wrap');
+      if(wrap) tile = wrap.querySelector('.tile');
+    }
+
     if(tile) { selectTile(tile); return; }
     if(!e.target.closest('.tile, .blank, .bank, .controls')) deselect();
   });
