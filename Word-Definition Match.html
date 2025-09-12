@@ -142,19 +142,25 @@
   .btn[disabled]{opacity:.45;cursor:not-allowed;box-shadow:none}
   .ghost{background:#eee;color:#111;box-shadow:none}
 
-  /* Tablets slightly reduce gap */
+  /* Tablets */
   @media (max-width:640px){
     :root{ --gap:24px; }
   }
 
-  /* Phones: straight lines, half-size text, equal-height boxes */
+  /* Phones: straight lines, smaller text, equal-height boxes */
   @media (max-width:520px){
     :root{
-      --gap:16px;
+      --gap:16px;   /* horizontal gap between columns */
       --dot:14px;
       --minCol:100px;
     }
-    .col{ gap:2px; }
+
+    /* vertical gap between boxes (2px) */
+    .col{ gap:2px !important; }
+
+    /* Fallback for flex-gap: add 2px margin between items on older engines */
+    .col > .item + .item{ margin-top:2px; }
+
     .board{ padding:62px 12px 62px; }
     .item{ min-height:44px; border-radius:10px; }
     .left.item{  padding:10px 30px 10px 12px; }
@@ -163,13 +169,21 @@
     .timer{ padding:5px 10px; }
     .muteBtn{ width:36px; height:36px; padding:6px; }
     .muteBtn img{ width:22px; height:22px; }
-    /* ↓ half-size text for words & definitions */
+
+    /* text size for words & definitions on mobile */
     #leftCol .item p,
-    #rightCol .item p{ font-size:0.7em; }
+    #rightCol .item p{ font-size:0.7em; } /* adjust as needed */
+  }
+
+  /* If flex gap is supported, suppress the margin fallback to avoid double spacing */
+  @supports (gap: 1rem){
+    @media (max-width:520px){
+      .col > .item + .item{ margin-top:0; }
+    }
   }
 
   /* === Congrats overlay (smaller, no border, slow zoom) === */
-  #congratsOverlay{Q
+  #congratsOverlay{
     position:fixed; inset:0; display:none;
     align-items:center; justify-content:center;
     z-index:99999; pointer-events:none;
@@ -841,9 +855,15 @@ checkBtn.addEventListener('click', ()=>{
     const correct = leftId === conn.rightId;
     if(correct){
       const okColor = getComputedStyle(document.documentElement).getPropertyValue('--ok').trim() || '#1E8E3E';
-      conn.pathEl.setAttribute('stroke', okColor);
-      conn.pathEl.setAttribute('stroke-width', 4);
-      conn.pathEl.setAttribute('stroke-opacity', '1');
+      if (conn.pathEl.tagName.toLowerCase() === 'line'){
+        conn.pathEl.setAttribute('stroke', okColor);
+        conn.pathEl.setAttribute('stroke-width', 4);
+        conn.pathEl.setAttribute('stroke-opacity', '1');
+      }else{
+        conn.pathEl.setAttribute('stroke', okColor);
+        conn.pathEl.setAttribute('stroke-width', 4);
+        conn.pathEl.setAttribute('stroke-opacity', '1');
+      }
       countCorrect++;
     }else{
       conn.pathEl.remove();
@@ -856,7 +876,7 @@ checkBtn.addEventListener('click', ()=>{
     correctSound.play();
     freezeTimerWithMessage();
     bgm.pause();
-    showCongrats(); // ⇦ celebratory overlay + sound
+    showCongrats(); // celebratory overlay + sound
   } else {
     incorrectSound.currentTime = 0;
     incorrectSound.play();
@@ -918,7 +938,7 @@ showBtn.addEventListener('click', ()=>{
     if(lH && rH){
       const a = handleCenter(lH);
       const b = handleCenter(rH);
-      const wire = makeWire('--ok', 4);    // green; straight on mobile
+      const wire = makeWire('--ok', 4);    // green; straight on mobile, curved on desktop
       setWireGeometry(wire, a, b);
       wire.setAttribute('stroke-opacity', '1');
       wires.appendChild(wire);
