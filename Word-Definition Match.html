@@ -56,7 +56,7 @@
     font-weight:600; letter-spacing:.3px; box-shadow:0 2px 10px rgba(0,0,0,.12);
   }
 
-  /* Icon-only mute button */
+  /* Icon-only mute button (uses your SVGs) */
   .muteBtn{
     display:none; /* shown after audio starts */
     width:40px; height:40px;
@@ -68,13 +68,8 @@
     box-shadow:0 2px 8px rgba(0,0,0,.08);
     cursor:pointer;
   }
-  /* aria-pressed="false" = playing (show Unmute icon), true = muted (show Mute icon) */
-  .muteBtn[aria-pressed="false"]{
-    background-image:url('https://schredder222.github.io/Assets/Unmute.svg');
-  }
-  .muteBtn[aria-pressed="true"]{
-    background-image:url('https://schredder222.github.io/Assets/Mute.svg');
-  }
+  .muteBtn[aria-pressed="false"]{ background-image:url('https://schredder222.github.io/Assets/Unmute.svg'); }
+  .muteBtn[aria-pressed="true"]{  background-image:url('https://schredder222.github.io/Assets/Mute.svg');  }
 
   .wires{
     position:absolute; inset:0;
@@ -130,14 +125,10 @@
   .left .handle{right:8px}
   .right .handle{left:8px}
 
-  /* Larger invisible halo for touch without changing visual size */
-  .handle::after{
-    content:"";
-    position:absolute;
-    inset:-12px;
-  }
+  /* Larger invisible halo helps precision without changing visual size */
+  .handle::after{ content:""; position:absolute; inset:-10px; }
 
-  /* Optional: subtle glow on the target dot we're locked to */
+  /* Visual hint on the locked target */
   .handle.hot{ box-shadow:0 0 0 6px rgba(138,0,0,.15); }
 
   .controls{
@@ -164,7 +155,7 @@
       --minCol:100px;
     }
     .board{ padding:62px 12px 62px; }
-    .col{ gap:4px; }                 /* tiny vertical gap */
+    .col{ gap:2px; }                 /* even tighter vertical gap (per your ask) */
     .item{
       border-radius:10px;
       align-items:center;
@@ -173,7 +164,6 @@
     .left.item{  padding:10px 30px 10px 12px; }
     .right.item{ padding:10px 12px 10px 30px; }
 
-    /* smaller text, wrap fully so the row can grow to fit */
     .item p{
       white-space:normal;
       font-size:0.86rem;
@@ -265,18 +255,35 @@ const bgm     = document.getElementById('bgm');
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const isMobile = () => window.matchMedia('(max-width:520px)').matches;
 
+/* Track column axis (average X of dots). Recomputed on render/resize. */
+let leftAxisX = null;
+let rightAxisX = null;
+function computeAxisXs(){
+  const L = [...document.querySelectorAll('#leftCol .handle')];
+  const R = [...document.querySelectorAll('#rightCol .handle')];
+  const avg = arr => arr.reduce((s,h)=>s+handleCenter(h).x,0) / (arr.length || 1);
+  leftAxisX  = L.length ? avg(L) : null;
+  rightAxisX = R.length ? avg(R) : null;
+}
+function midGapX(){ return (leftAxisX!=null && rightAxisX!=null) ? (leftAxisX + rightAxisX)/2 : null; }
+
 let leftOrder=[], rightOrder=[];
 let connections=new Map(); // leftId -> { rightId, el }
 let drag=null;
 let dragActive=false;
 
-/* ---- Snapping (hit-test, no guessing) ---- */
-const getHitRadius   = () => isMobile() ? 26 : 18; // must be inside this to lock
-const getLeaveRadius = () => getHitRadius() + 8;   // must exit this to unlock
+/* ---- Desktop magnetic-lane thresholds ---- */
+const LANE_X_TOL = 48;         // px from the column’s dot X to allow locking (desktop)
+const LANE_Y_TOL = 20;         // vertical tolerance to snap a row (desktop)
+const LANE_X_LEAVE = LANE_X_TOL + 10; // hysteresis (horizontal)
+const LANE_Y_LEAVE = LANE_Y_TOL + 8;  // hysteresis (vertical)
+
+/* ---- Mobile circular hit-test ---- */
+const HIT_R_MOBILE   = 26;
+const LEAVE_R_MOBILE = HIT_R_MOBILE + 8;
 
 /* ---- Timer/music ---- */
 let timerStarted=false, timerFrozen=false, timerStartMs=0, timerInterval=null, hasAudioPlayed=false, timerHiddenForAnswers=false;
-
 const fmtTime = (ms)=>{ const t=Math.floor(ms/1000), m=(t/60|0), s=t%60; return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; };
 
 function startTimerAndMusic(){
@@ -365,6 +372,9 @@ function setColumnUniformWidths(){
   const b = rectOf(board);
   wires.setAttribute('width', b.width);
   wires.setAttribute('height', b.height);
+
+  // Update lane axes whenever layout changes
+  computeAxisXs();
 }
 
 /* Equal row heights on mobile so dots align */
@@ -379,6 +389,8 @@ function equaliseRowHeights(){
     const h = Math.max(48, L[i].scrollHeight, R[i].scrollHeight);
     L[i].style.height = R[i].style.height = h + 'px';
   }
+  // Axes might shift after heights equalise
+  computeAxisXs();
 }
 
 /* Handle centre */
@@ -438,21 +450,48 @@ function render(){
   realignAllConnectors();
 }
 
-/* ---------- STRICT HIT-TEST SNAPPING (hover lock) ---------- */
+/* ---------- DESKTOP “MID-GAP ACTIVATION” + LANE LOCK; MOBILE CIRCLE ---------- */
 function handlesOn(side){ return [...document.querySelectorAll(`.${side} .handle`)]; }
-function pickUnderPointer(pt, side){ // returns a handle only if pointer is inside its hit radius
-  const list = handlesOn(side);
+
+function pickMobile(pt, targetSide){
   let best=null, bestDist=Infinity;
-  const r = getHitRadius();
-  for(const h of list){
+  for(const h of handlesOn(targetSide)){
     const c = handleCenter(h);
     const d = Math.hypot(c.x-pt.x, c.y-pt.y);
-    if (d <= r && d < bestDist){ best=h; bestDist=d; }
+    if (d <= HIT_R_MOBILE && d < bestDist){ best=h; bestDist=d; }
   }
-  return best; // may be null if not close enough
+  return best;
 }
 
-/* Drag with hover lock */
+function pickDesktop(pt, targetSide){
+  // Enforce mid-gap activation: only consider targets once pointer crosses mid-gap towards that side.
+  const midX = midGapX();
+  if (midX == null) return null;
+  if (targetSide === 'right' && pt.x <= midX) return null;
+  if (targetSide === 'left'  && pt.x >= midX) return null;
+
+  // Lane lock: narrow horizontal lane around the target column’s dot X; prioritise vertical proximity.
+  let best=null, bestVy=Infinity, bestHx=Infinity;
+  const axisX = (targetSide === 'right') ? rightAxisX : leftAxisX;
+  for(const h of handlesOn(targetSide)){
+    const c = handleCenter(h);
+    const dx = Math.abs(pt.x - c.x);
+    const dy = Math.abs(pt.y - c.y);
+    // Require pointer near the column axis and near a row vertically
+    if (Math.abs(pt.x - axisX) <= LANE_X_TOL && dy <= LANE_Y_TOL){
+      if (dy < bestVy || (dy === bestVy && dx < bestHx)){ best=h; bestVy=dy; bestHx=dx; }
+    }
+  }
+  return best;
+}
+
+function pickCandidate(pt, fromSide){
+  const targetSide = (fromSide === 'left') ? 'right' : 'left';
+  return isMobile() ? pickMobile(pt, targetSide) : pickDesktop(pt, targetSide);
+}
+
+/* Drag with hover lock + hysteresis */
+let dragListenersAttached = false;
 function addStartDragHandler(handleEl, fromSide){
   handleEl.addEventListener('pointerdown', (e)=>{
     e.preventDefault();
@@ -490,19 +529,27 @@ function addStartDragHandler(handleEl, fromSide){
     const onMove = (ev)=>{
       if(!drag) return;
       const pt = boardPointFromClient(ev.clientX, ev.clientY);
-      // Maintain lock unless pointer leaves leave-radius
+
+      // Maintain lock unless cursor exits an expanded leave window (separate mobile/desktop rules)
       if (drag.hover){
         const c = handleCenter(drag.hover);
-        const dist = Math.hypot(c.x-pt.x, c.y-pt.y);
-        if (dist > getLeaveRadius()){ setHover(null); }
+        if (isMobile()){
+          const d = Math.hypot(pt.x - c.x, pt.y - c.y);
+          if (d > LEAVE_R_MOBILE) setHover(null);
+        }else{
+          const dx = Math.abs(pt.x - c.x);
+          const dy = Math.abs(pt.y - c.y);
+          if (dx > LANE_X_LEAVE || dy > LANE_Y_LEAVE) setHover(null);
+        }
       }
-      // If not locked, see if we're inside any target's hit radius
+
+      // If not locked, evaluate new candidate (respecting mid-gap rule on desktop)
       if (!drag.hover){
-        const side = (drag.fromSide === 'left') ? 'right' : 'left';
-        const cand = pickUnderPointer(pt, side);
+        const cand = pickCandidate(pt, drag.fromSide);
         if (cand) setHover(cand);
       }
-      // Aim ghost: to locked target centre if any; otherwise to pointer
+
+      // Aim ghost at locked target centre if any; otherwise at pointer
       if (drag.hover){
         const c = handleCenter(drag.hover);
         ghost.setAttribute('x2', c.x); ghost.setAttribute('y2', c.y);
@@ -514,7 +561,7 @@ function addStartDragHandler(handleEl, fromSide){
     const endDrag = ()=>{
       if(!drag) return;
 
-      const target = drag.hover; // only connect if we were actually inside a dot
+      const target = drag.hover; // only connect if locked
       const fromIdLocal = drag.fromId;
       const fromSideLocal = drag.fromSide;
 
@@ -546,7 +593,7 @@ function addStartDragHandler(handleEl, fromSide){
       document.removeEventListener('pointercancel', onCancel);
       updateCheckState();
 
-      // After drag ends, realign (and re-enable observers)
+      // Reflow after drag
       setColumnUniformWidths(); equaliseRowHeights(); rafRealign();
     };
 
@@ -559,7 +606,7 @@ function addStartDragHandler(handleEl, fromSide){
   });
 }
 
-/* Tap-to-match (simple, no visual outline) */
+/* Tap-to-match (simple, no outline) */
 let pending = null;
 function clearPending(){ pending = null; }
 function setPending(next){ clearPending(); pending = next; }
