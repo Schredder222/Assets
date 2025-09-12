@@ -122,12 +122,6 @@
     inset:-8px;
   }
 
-  /* Tap-to-match selection highlight */
-  .item.pending{
-    outline:2px solid var(--accent);
-    outline-offset:2px;
-  }
-
   .controls{
     position:absolute;left:18px;right:18px;bottom:16px;
     display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap
@@ -359,10 +353,8 @@ function measureTextWidth(text, classSelector){
 }
 
 /* Widths:
-   - Left column width = natural width of its longest label (+buffer).
-   - Right column shrinks first to keep layout inside container.
-   - If still too tight on desktop, allow left to wrap as a last resort.
-   - On mobiles we allow both sides to wrap early for readability. */
+   - Left/right columns get equal widths on mobile for symmetry.
+   - On desktop/tablet, keep smart sizing and only wrap if needed. */
 function setColumnUniformWidths(){
   const leftItems = Array.from(document.querySelectorAll('#leftCol .item'));
   const rightItems= Array.from(document.querySelectorAll('#rightCol .item'));
@@ -370,14 +362,39 @@ function setColumnUniformWidths(){
 
   const isMobile = window.matchMedia('(max-width:520px)').matches;
 
-  // Measure longest LEFT text
+  /* Board metrics */
+  const boardCS = getComputedStyle(board);
+  const padLeft  = parseFloat(boardCS.paddingLeft)||0;
+  const padRight = parseFloat(boardCS.paddingRight)||0;
+  const inner = board.clientWidth - padLeft - padRight;
+
+  const gapPx = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gap'))||0;
+  const totalGaps = gapPx * 2; // three columns => two gaps
+  const minCol = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--minCol'))||120;
+
+  /* ----- MOBILE: force equal widths & allow wrapping both sides ----- */
+  if (isMobile) {
+    leftItems.forEach(i => i.classList.add('wrap'));
+    rightItems.forEach(i=> i.classList.add('wrap'));
+
+    const equalW = Math.max(minCol, Math.floor((inner - totalGaps) / 2));
+    leftItems.forEach(i => i.style.setProperty('--colWidth', equalW + 'px'));
+    rightItems.forEach(i=> i.style.setProperty('--colWidth', equalW + 'px'));
+
+    const b = board.getBoundingClientRect();
+    wires.setAttribute('width', b.width);
+    wires.setAttribute('height', b.height);
+    return; // done for mobile
+  }
+
+  /* ----- DESKTOP/TABLET: previous behaviour ----- */
+  // Measure longest texts
   let leftTextMax = 0;
   leftItems.forEach(item=>{
     const txt = item.querySelector('p').textContent;
     leftTextMax = Math.max(leftTextMax, measureTextWidth(txt, '.item p'));
   });
 
-  // Measure longest RIGHT text
   let rightTextMax = 0;
   rightItems.forEach(item=>{
     const txt = item.querySelector('p').textContent;
@@ -388,52 +405,34 @@ function setColumnUniformWidths(){
   const csLeft  = getComputedStyle(leftItems[0]);
   const padLL = parseFloat(csLeft.paddingLeft)||0;
   const padLR = parseFloat(csLeft.paddingRight)||0;
-
   const csRight = getComputedStyle(rightItems[0]);
   const padRL = parseFloat(csRight.paddingLeft)||0;
   const padRR = parseFloat(csRight.paddingRight)||0;
 
-  // Desired widths with buffer (smaller on mobile to save space)
-  const extra = isMobile ? 14 : 22;
+  // Desired widths with buffer
+  const extra = 22;
   let leftWDesired  = leftTextMax  + padLL + padLR + extra;
   let rightWDesired = rightTextMax + padRL + padRR + extra;
 
-  // Container metrics
-  const boardCS = getComputedStyle(board);
-  const padLeft  = parseFloat(boardCS.paddingLeft)||0;
-  const padRight = parseFloat(boardCS.paddingRight)||0;
-  const inner = board.clientWidth - padLeft - padRight;
-  const gapPx = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gap'))||0;
-  const minCol = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--minCol'))||120;
-
-  // Fit strategy
   let leftW  = Math.max(minCol, leftWDesired);
   let rightW = Math.max(minCol, rightWDesired);
 
-  if (leftW + gapPx + rightW > inner) {
-    rightW = Math.max(minCol, inner - gapPx - leftW);
+  // Fit: shrink right first
+  if (leftW + rightW + totalGaps > inner) {
+    rightW = Math.max(minCol, inner - totalGaps - leftW);
   }
 
-  // Reset wraps
+  // If still too wide, allow left to wrap and shrink it
   leftItems.forEach(i => i.classList.remove('wrap'));
-  rightItems.forEach(i=> i.classList.remove('wrap'));
-
-  if (isMobile) {
-    // On phones, allow both columns to wrap for readability
+  if (leftW + rightW + totalGaps > inner) {
+    leftW = Math.max(minCol, inner - totalGaps - rightW);
     leftItems.forEach(i => i.classList.add('wrap'));
-    rightItems.forEach(i=> i.classList.add('wrap'));
-  } else {
-    // Desktop fallback: if still too wide, reduce left and allow wrapping on left text
-    if (leftW + gapPx + rightW > inner) {
-      leftW = Math.max(minCol, inner - gapPx - rightW);
-      leftItems.forEach(i => i.classList.add('wrap'));
-    }
   }
 
   leftItems.forEach(i => i.style.setProperty('--colWidth', leftW + 'px'));
   rightItems.forEach(i=> i.style.setProperty('--colWidth', rightW + 'px'));
 
-  const b = rectOf(board);
+  const b = board.getBoundingClientRect();
   wires.setAttribute('width', b.width);
   wires.setAttribute('height', b.height);
 }
@@ -599,6 +598,7 @@ function addStartDragHandler(handleEl, fromSide){
 
         connections.set(leftId, { rightId, pathEl: path });
 
+        clearPendingHighlight(); // ensure no box gets outlined
         connectSound.currentTime = 0;
         connectSound.play();
         if (!reduceMotion && navigator.vibrate) navigator.vibrate(10); // haptic on connect
@@ -624,10 +624,17 @@ function addStartDragHandler(handleEl, fromSide){
 
 /* ---- Tap-to-match fallback (runs alongside drag) ---- */
 let pending = null; // { side:'left'|'right', id, el }
-function setPending(next){
+
+/* Remove any visual pending highlight and clear state */
+function clearPendingHighlight(){
   document.querySelectorAll('.item.pending').forEach(el=> el.classList.remove('pending'));
-  pending = next;
-  if (pending?.el) pending.el.classList.add('pending');
+  pending = null;
+}
+
+/* Selection logic with no visual outline */
+function setPending(next){
+  clearPendingHighlight(); // ensure nothing is outlined
+  pending = next;          // keep selection state for tap-to-match
 }
 
 function attachTapToMatch(){
@@ -637,7 +644,7 @@ function attachTapToMatch(){
       if (!pending){ setPending({side:'left', id, el}); return; }
       if (pending.side === 'right'){
         connectByIds(id, pending.id);
-        setPending(null);
+        clearPendingHighlight();
       }else{
         setPending({side:'left', id, el}); // replace selection
       }
@@ -649,7 +656,7 @@ function attachTapToMatch(){
       if (!pending){ setPending({side:'right', id, el}); return; }
       if (pending.side === 'left'){
         connectByIds(pending.id, id);
-        setPending(null);
+        clearPendingHighlight();
       }else{
         setPending({side:'right', id, el});
       }
@@ -678,6 +685,7 @@ function connectByIds(leftId, rightId){
   path.setAttribute('d', curveD(a.x,a.y,b.x,b.y));
   wires.appendChild(path);
   connections.set(leftId, { rightId, pathEl: path });
+  clearPendingHighlight(); // ensure no box gets outlined
   connectSound.currentTime = 0; connectSound.play();
   if (!reduceMotion && navigator.vibrate) navigator.vibrate(10);
   updateCheckState();
@@ -753,7 +761,7 @@ resetBtn.addEventListener('click', ()=>{
 
   wires.querySelectorAll('*').forEach(n=>n.remove());
   connections.clear();
-  setPending(null);
+  clearPendingHighlight();
   updateCheckState();
   rafRealign();
 });
@@ -769,7 +777,7 @@ shuffleBtn.addEventListener('click', ()=>{
   rightOrder = shuffle(PAIRS);
   wires.querySelectorAll('*').forEach(n=>n.remove());
   connections.clear();
-  setPending(null);
+  clearPendingHighlight();
   render();
 });
 
@@ -782,6 +790,7 @@ showBtn.addEventListener('click', ()=>{
 
   wires.querySelectorAll('*').forEach(n=>n.remove());
   connections.clear();
+  clearPendingHighlight();
 
   for(const pair of PAIRS){
     const lH = leftCol.querySelector(`.item[data-id="${pair.id}"] .handle`);
