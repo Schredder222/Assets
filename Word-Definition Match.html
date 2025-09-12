@@ -143,10 +143,6 @@
   .ghost{background:#eee;color:#111;box-shadow:none}
 
   /* Tablets slightly reduce gap */
-  @media (max-width:520px){
-    .col{ gap:1x; }  /* smaller vertical gap on mobile */
-  }
-  
   @media (max-width:640px){
     :root{ --gap:24px; }
   }
@@ -158,6 +154,7 @@
       --dot:14px;
       --minCol:100px;
     }
+    .col{ gap:2px; }
     .board{ padding:62px 12px 62px; }
     .item{ min-height:44px; border-radius:10px; }
     .left.item{  padding:10px 30px 10px 12px; }
