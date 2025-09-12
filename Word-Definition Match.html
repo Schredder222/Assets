@@ -15,6 +15,7 @@
     --dot:10px;       /* dot size (desktop) */
     --dotColor:#000;
     --minCol:120px;   /* minimum per column */
+    --btnGap:0px;     /* extra space above buttons (default desktop = 0) */
   }
   *{box-sizing:border-box}
   body{
@@ -36,9 +37,9 @@
     background:var(--card);
     border-radius:14px;
     box-shadow:0 6px 24px rgba(0,0,0,.08);
-    padding:72px 18px 72px;  /* space under timer */
+    padding:72px 18px 72px;  /* space under timer; bottom will be overridden on mobile */
     overflow:hidden;
-    touch-action: pan-y; /* keep vertical scroll; we disable on handles */
+    touch-action: pan-y;
     -webkit-user-select:none; user-select:none;
     -webkit-touch-callout:none;
   }
@@ -94,16 +95,16 @@
     display:flex;align-items:center;
     line-height:1.25;
     box-shadow:0 2px 10px rgba(0,0,0,.04);
-    width:var(--colWidth);   /* set per-column via JS */
+    width:var(--colWidth);
     max-width:100%;
     overflow:hidden;
   }
-  .left.item { padding:10px 34px 10px 14px; }  /* less left padding */
-  .right.item{ padding:10px 14px 10px 34px; }  /* less right padding */
+  .left.item { padding:10px 34px 10px 14px; }
+  .right.item{ padding:10px 14px 10px 34px; }
 
   .item p{
     margin:0;
-    white-space:nowrap;          /* never wrap by default (desktop) */
+    white-space:nowrap;
     text-overflow:ellipsis;
     overflow:hidden;
   }
@@ -118,18 +119,13 @@
     width:var(--dot);height:var(--dot);border-radius:50%;
     background:var(--dotColor);
     cursor:pointer; z-index:200;
-    touch-action:none; /* important for mobile dragging */
+    touch-action:none;
     -webkit-user-select:none; user-select:none;
   }
   .left .handle{right:8px}
   .right .handle{left:8px}
 
-  /* Invisible halo enlarges tap target without changing visual size */
-  .handle::after{
-    content:"";
-    position:absolute;
-    inset:-8px;
-  }
+  .handle::after{ content:""; position:absolute; inset:-8px; }
 
   .controls{
     position:absolute;left:18px;right:18px;bottom:16px;
@@ -147,21 +143,22 @@
     :root{ --gap:24px; }
   }
 
-  /* Phones: straight lines, smaller text, equal-height boxes */
+  /* Phones: straight lines, smaller text, equal-height boxes, EXTRA BOTTOM GAP via --btnGap */
   @media (max-width:520px){
     :root{
-      --gap:16px;   /* horizontal gap between columns */
+      --gap:16px;          /* horizontal gap between columns */
       --dot:14px;
       --minCol:100px;
+      --btnGap:54px;       /* extra space above the bottom buttons */
     }
 
     /* vertical gap between boxes (2px) */
-    .col{ gap:0.5px !important; }
+    .col{ gap:2px !important; }
+    .col > .item + .item{ margin-top:2px; }  /* fallback if flex gap unsupported */
 
-    /* Fallback for flex-gap: add 2px margin between items on older engines */
-    .col > .item + .item{ margin-top:2px; }
+    /* override board padding bottom to include extra button gap */
+    .board{ padding:62px 12px calc(62px + var(--btnGap)); }
 
-    .board{ padding:100px 12px 62px; }
     .item{ min-height:44px; border-radius:10px; }
     .left.item{  padding:10px 30px 10px 12px; }
     .right.item{ padding:10px 12px 10px 30px; }
@@ -172,10 +169,9 @@
 
     /* text size for words & definitions on mobile */
     #leftCol .item p,
-    #rightCol .item p{ font-size:0.7em; } /* adjust as needed */
+    #rightCol .item p{ font-size:0.7em; }
   }
 
-  /* If flex gap is supported, suppress the margin fallback to avoid double spacing */
   @supports (gap: 1rem){
     @media (max-width:520px){
       .col > .item + .item{ margin-top:0; }
@@ -241,7 +237,7 @@
   <img src="https://schredder222.github.io/Assets/Great%20Job.png" alt="Great job!">
 </div>
 
-<!-- Audio effects (lighter on mobile via preload="metadata") -->
+<!-- Audio effects -->
 <audio id="correctSound" preload="metadata" src="https://cdn.pixabay.com/download/audio/2022/03/24/audio_dcde83efa6.mp3?filename=ui_correct_button2-103167.mp3"></audio>
 <audio id="incorrectSound" preload="metadata" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_b0669294aa.mp3?filename=training-program-incorrect1-88736.mp3"></audio>
 <audio id="clickSound" preload="metadata" src="https://cdn.pixabay.com/download/audio/2024/04/21/audio_1b8d3bcd3d.mp3?filename=click-buttons-ui-menu-sounds-effects-button-7-203601.mp3"></audio>
@@ -283,8 +279,8 @@ const muteIcon = document.getElementById('muteIcon');
 const bgm     = document.getElementById('bgm');
 
 /* Icon URLs */
-const MUTE_ICON_URL   = 'https://schredder222.github.io/Assets/Mute.svg';   // show when muted
-const UNMUTE_ICON_URL = 'https://schredder222.github.io/Assets/Unmute.svg'; // show when unmuted
+const MUTE_ICON_URL   = 'https://schredder222.github.io/Assets/Mute.svg';
+const UNMUTE_ICON_URL = 'https://schredder222.github.io/Assets/Unmute.svg';
 
 /* Accessibility / user preferences */
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -297,7 +293,6 @@ let connections=new Map();
 let drag=null;
 
 /* ---- Settings ---- */
-/* Adaptive snap radius: larger on mobile for easier snapping */
 const getSnapRadius = () => isMobile() ? 26 : 18;
 
 /* ---- Timer & music state ---- */
@@ -319,7 +314,7 @@ function fmtTime(ms){
 function syncMuteUI(){
   const muted = bgm.muted;
   muteBtn.setAttribute('aria-pressed', String(muted));
-  muteIcon.src = muted ? MUTE_ICON_URL : UNMUTE_ICON_URL;   // icon reflects current state
+  muteIcon.src = muted ? MUTE_ICON_URL : UNMUTE_ICON_URL;
   muteBtn.title = muted ? 'Unmute' : 'Mute';
   muteBtn.setAttribute('aria-label', muted ? 'Unmute background music' : 'Mute background music');
 }
@@ -340,7 +335,6 @@ function startTimerAndMusic(){
       }
     }, 250);
 
-    // only lower background music volume (leave sfx at 100%)
     bgm.volume = 0.1;
     const tryPlay = bgm.play();
     if (tryPlay && typeof tryPlay.then === 'function') {
@@ -471,43 +465,35 @@ function uniformBoxHeightsMobile(){
   const all = [...leftItems, ...rightItems];
   if (!all.length) return;
 
-  // reset heights to measure natural size
   all.forEach(i => { i.style.height = 'auto'; });
 
-  // find the tallest
   let maxH = 0;
   all.forEach(i => { maxH = Math.max(maxH, i.getBoundingClientRect().height); });
 
-  // apply uniform height
   const H = Math.ceil(maxH);
   all.forEach(i => { i.style.height = H + 'px'; });
 
-  // update svg fit and lines
   const b = board.getBoundingClientRect();
   wires.setAttribute('width', b.width);
   wires.setAttribute('height', b.height);
   rafRealign();
 }
 
-/* Widths:
-   - Left/right columns get equal widths on mobile for symmetry.
-   - On desktop/tablet, keep smart sizing and only wrap if needed. */
+/* Widths */
 function setColumnUniformWidths(){
   const leftItems = Array.from(document.querySelectorAll('#leftCol .item'));
   const rightItems= Array.from(document.querySelectorAll('#rightCol .item'));
   if (leftItems.length === 0 || rightItems.length === 0) return;
 
-  /* Board metrics */
   const boardCS = getComputedStyle(board);
   const padLeft  = parseFloat(boardCS.paddingLeft)||0;
   const padRight = parseFloat(boardCS.paddingRight)||0;
   const inner = board.clientWidth - padLeft - padRight;
 
   const gapPx = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gap'))||0;
-  const totalGaps = gapPx * 2; // three columns => two gaps
+  const totalGaps = gapPx * 2;
   const minCol = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--minCol'))||120;
 
-  /* ----- MOBILE: force equal widths & allow wrapping both sides ----- */
   if (isMobile()) {
     leftItems.forEach(i => i.classList.add('wrap'));
     rightItems.forEach(i=> i.classList.add('wrap'));
@@ -520,13 +506,10 @@ function setColumnUniformWidths(){
     wires.setAttribute('width', b.width);
     wires.setAttribute('height', b.height);
 
-    // Make all item boxes equal height so the dots line up perfectly
     uniformBoxHeightsMobile();
-    return; // done for mobile
+    return;
   }
 
-  /* ----- DESKTOP/TABLET: measure and fit ----- */
-  // Measure longest texts
   let leftTextMax = 0;
   leftItems.forEach(item=>{
     const txt = item.querySelector('p').textContent;
@@ -539,7 +522,6 @@ function setColumnUniformWidths(){
     rightTextMax = Math.max(rightTextMax, measureTextWidth(txt, '.item p'));
   });
 
-  // Paddings
   const csLeft  = getComputedStyle(leftItems[0]);
   const padLL = parseFloat(csLeft.paddingLeft)||0;
   const padLR = parseFloat(csLeft.paddingRight)||0;
@@ -547,17 +529,14 @@ function setColumnUniformWidths(){
   const padRL = parseFloat(csRight.paddingLeft)||0;
   const padRR = parseFloat(csRight.paddingRight)||0;
 
-  // Desired widths with buffer
   const extra = 22;
   let leftW  = Math.max(minCol, leftTextMax  + padLL + padLR + extra);
   let rightW = Math.max(minCol, rightTextMax + padRL + padRR + extra);
 
-  // Fit: shrink right first
   if (leftW + rightW + totalGaps > inner) {
     rightW = Math.max(minCol, inner - totalGaps - leftW);
   }
 
-  // If still too wide, allow left to wrap and shrink it
   leftItems.forEach(i => i.classList.remove('wrap'));
   if (leftW + rightW + totalGaps > inner) {
     leftW = Math.max(minCol, inner - totalGaps - rightW);
@@ -621,7 +600,7 @@ function findHandleNear(ptBoard, side){
   return (bestDist <= getSnapRadius()) ? best : null;
 }
 
-/* ---- Drag logic (mobile-friendly) ---- */
+/* ---- Drag logic ---- */
 function addStartDragHandler(handleEl, fromSide){
   handleEl.addEventListener('pointerdown', (e)=>{
     e.preventDefault();
@@ -634,7 +613,6 @@ function addStartDragHandler(handleEl, fromSide){
 
     const fromId = handleEl.parentElement.dataset.id;
 
-    // Clear prior connection on same side
     if(fromSide === 'left'){
       if(connections.has(fromId)){
         connections.get(fromId).pathEl?.remove();
@@ -650,7 +628,7 @@ function addStartDragHandler(handleEl, fromSide){
     }
 
     const start = handleCenter(handleEl);
-    const line = makeStraightLine('--accent', 3); // drag preview is always straight
+    const line = makeStraightLine('--accent', 3); // preview straight
     line.setAttribute('x1', start.x); line.setAttribute('y1', start.y);
     line.setAttribute('x2', start.x); line.setAttribute('y2', start.y);
     wires.appendChild(line);
@@ -700,17 +678,16 @@ function addStartDragHandler(handleEl, fromSide){
         const a = handleCenter(lH);
         const b = handleCenter(rH);
 
-        const wire = makeWire('--accent', 3);        // curvy on desktop, straight on mobile
+        const wire = makeWire('--accent', 3);
         setWireGeometry(wire, a, b);
         wires.appendChild(wire);
         drag.lineEl.remove();
 
         connections.set(leftId, { rightId, pathEl: wire });
 
-        clearPendingHighlight(); // ensure no box gets outlined
         connectSound.currentTime = 0;
         connectSound.play();
-        if (!reduceMotion && navigator.vibrate) navigator.vibrate(10); // haptic on connect
+        if (!reduceMotion && navigator.vibrate) navigator.vibrate(10);
       }else{
         drag.lineEl.remove();
       }
@@ -731,19 +708,17 @@ function addStartDragHandler(handleEl, fromSide){
   });
 }
 
-/* ---- Tap-to-match fallback (runs alongside drag) ---- */
-let pending = null; // { side:'left'|'right', id, el }
+/* ---- Tap-to-match fallback ---- */
+let pending = null;
 
-/* Remove any visual pending highlight and clear state */
 function clearPendingHighlight(){
   document.querySelectorAll('.item.pending').forEach(el=> el.classList.remove('pending'));
   pending = null;
 }
 
-/* Selection logic with no visual outline */
 function setPending(next){
-  clearPendingHighlight(); // ensure nothing is outlined
-  pending = next;          // keep selection state for tap-to-match
+  clearPendingHighlight();
+  pending = next;
 }
 
 function attachTapToMatch(){
@@ -755,7 +730,7 @@ function attachTapToMatch(){
         connectByIds(id, pending.id);
         clearPendingHighlight();
       }else{
-        setPending({side:'left', id, el}); // replace selection
+        setPending({side:'left', id, el});
       }
     });
   });
@@ -774,7 +749,6 @@ function attachTapToMatch(){
 }
 
 function connectByIds(leftId, rightId){
-  // clear clashes
   if(connections.has(leftId)){
     connections.get(leftId).pathEl?.remove();
     connections.delete(leftId);
@@ -791,18 +765,17 @@ function connectByIds(leftId, rightId){
   const a = handleCenter(lH);
   const b = handleCenter(rH);
 
-  const wire = makeWire('--accent', 3);      // curvy on desktop, straight on mobile
+  const wire = makeWire('--accent', 3);
   setWireGeometry(wire, a, b);
   wires.appendChild(wire);
 
   connections.set(leftId, { rightId, pathEl: wire });
-  clearPendingHighlight(); // ensure no box gets outlined
   connectSound.currentTime = 0; connectSound.play();
   if (!reduceMotion && navigator.vibrate) navigator.vibrate(10);
   updateCheckState();
 }
 
-/* ---- Event attachment (avoid duplicates) ---- */
+/* ---- Events ---- */
 let ro = null;
 let globalListenersAttached = false;
 
@@ -829,19 +802,17 @@ function updateCheckState(){
 const bigCongratsAudio = new Audio("https://cdn.pixabay.com/download/audio/2024/08/31/audio_aa510c96aa.mp3");
 bigCongratsAudio.preload = "auto";
 
-// Call this to show the overlay and play the sound
 function showCongrats(){
   const ov  = document.getElementById('congratsOverlay');
   if(!ov) return;
   const img = ov.querySelector('img');
-  // restart animation
   img.style.animation = 'none';
   void img.offsetWidth;
   img.style.animation = 'congratsZoom 8s ease-out forwards';
 
   ov.style.display = 'flex';
   try { bigCongratsAudio.currentTime = 0; bigCongratsAudio.play(); } catch {}
-  setTimeout(()=>{ ov.style.display = 'none'; }, 9000); // hide after animation
+  setTimeout(()=>{ ov.style.display = 'none'; }, 9000);
 }
 
 /* ---- Check + Sound ---- */
@@ -855,15 +826,9 @@ checkBtn.addEventListener('click', ()=>{
     const correct = leftId === conn.rightId;
     if(correct){
       const okColor = getComputedStyle(document.documentElement).getPropertyValue('--ok').trim() || '#1E8E3E';
-      if (conn.pathEl.tagName.toLowerCase() === 'line'){
-        conn.pathEl.setAttribute('stroke', okColor);
-        conn.pathEl.setAttribute('stroke-width', 4);
-        conn.pathEl.setAttribute('stroke-opacity', '1');
-      }else{
-        conn.pathEl.setAttribute('stroke', okColor);
-        conn.pathEl.setAttribute('stroke-width', 4);
-        conn.pathEl.setAttribute('stroke-opacity', '1');
-      }
+      conn.pathEl.setAttribute('stroke', okColor);
+      conn.pathEl.setAttribute('stroke-width', 4);
+      conn.pathEl.setAttribute('stroke-opacity', '1');
       countCorrect++;
     }else{
       conn.pathEl.remove();
@@ -876,7 +841,7 @@ checkBtn.addEventListener('click', ()=>{
     correctSound.play();
     freezeTimerWithMessage();
     bgm.pause();
-    showCongrats(); // celebratory overlay + sound
+    showCongrats();
   } else {
     incorrectSound.currentTime = 0;
     incorrectSound.play();
@@ -898,10 +863,8 @@ resetBtn.addEventListener('click', ()=>{
 
   wires.querySelectorAll('*').forEach(n=>n.remove());
   connections.clear();
-  clearPendingHighlight();
   updateCheckState();
   rafRealign();
-  // re-uniform after clearing (mobile)
   uniformBoxHeightsMobile();
 });
 
@@ -916,7 +879,6 @@ shuffleBtn.addEventListener('click', ()=>{
   rightOrder = shuffle(PAIRS);
   wires.querySelectorAll('*').forEach(n=>n.remove());
   connections.clear();
-  clearPendingHighlight();
   render();
   uniformBoxHeightsMobile();
 });
@@ -930,7 +892,6 @@ showBtn.addEventListener('click', ()=>{
 
   wires.querySelectorAll('*').forEach(n=>n.remove());
   connections.clear();
-  clearPendingHighlight();
 
   for(const pair of PAIRS){
     const lH = leftCol.querySelector(`.item[data-id="${pair.id}"] .handle`);
@@ -938,7 +899,7 @@ showBtn.addEventListener('click', ()=>{
     if(lH && rH){
       const a = handleCenter(lH);
       const b = handleCenter(rH);
-      const wire = makeWire('--ok', 4);    // green; straight on mobile, curved on desktop
+      const wire = makeWire('--ok', 4);
       setWireGeometry(wire, a, b);
       wire.setAttribute('stroke-opacity', '1');
       wires.appendChild(wire);
@@ -974,7 +935,6 @@ muteBtn.addEventListener('click', ()=>{
   rightOrder = shuffle(PAIRS);
   render();
 
-  // Recalculate after fonts are ready (prevents early narrow measure)
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(()=>{ setColumnUniformWidths(); rafRealign(); uniformBoxHeightsMobile(); });
   }
