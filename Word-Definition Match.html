@@ -55,10 +55,25 @@
     background:#111; color:#fff; padding:6px 12px; border-radius:999px;
     font-weight:600; letter-spacing:.3px; box-shadow:0 2px 10px rgba(0,0,0,.12);
   }
+
+  /* Icon-only mute button */
   .muteBtn{
-    display:none; /* show only after audio starts */
-    background:#eee; border:none; padding:8px 12px; border-radius:999px;
-    font-weight:600; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.08);
+    display:none; /* shown after audio starts */
+    width:40px; height:40px;
+    border:none; border-radius:50%;
+    background-color:#eee;
+    background-repeat:no-repeat;
+    background-position:center;
+    background-size:22px 22px;
+    box-shadow:0 2px 8px rgba(0,0,0,.08);
+    cursor:pointer;
+  }
+  /* aria-pressed="false" = playing (show Unmute icon), true = muted (show Mute icon) */
+  .muteBtn[aria-pressed="false"]{
+    background-image:url('https://schredder222.github.io/Assets/Unmute.svg');
+  }
+  .muteBtn[aria-pressed="true"]{
+    background-image:url('https://schredder222.github.io/Assets/Mute.svg');
   }
 
   .wires{
@@ -94,7 +109,7 @@
 
   .item p{
     margin:0;
-    white-space:nowrap;          /* never wrap by default (desktop) */
+    white-space:nowrap;          /* desktop default */
     text-overflow:ellipsis;
     overflow:hidden;
   }
@@ -109,7 +124,7 @@
     width:var(--dot);height:var(--dot);border-radius:50%;
     background:var(--dotColor);
     cursor:pointer; z-index:200;
-    touch-action:none; /* important for mobile dragging */
+    touch-action:none;
     -webkit-user-select:none; user-select:none;
   }
   .left .handle{right:8px}
@@ -138,19 +153,39 @@
     :root{ --gap:24px; }
   }
 
-  /* Phones: tighter gap, bigger dots, taller rows, smaller min column */
+  /* Phones: equal widths, equal heights, aligned dots, smaller text */
   @media (max-width:520px){
     :root{
       --gap:16px;
       --dot:14px;
       --minCol:100px;
+      --rowH:56px; /* fixed equal height for every box */
     }
     .board{ padding:62px 12px 62px; }
-    .item{ min-height:48px; border-radius:10px; }
+    .item{
+      height:var(--rowH);           /* equal height -> handles align across columns */
+      border-radius:10px;
+      align-items:center;
+    }
     .left.item{  padding:10px 30px 10px 12px; }
     .right.item{ padding:10px 12px 10px 30px; }
+
+    /* make text a bit smaller + clamp to 2 lines so it fits the fixed height */
+    .item p{
+      white-space:normal;
+      font-size:0.95rem;
+      line-height:1.2;
+      display:-webkit-box;
+      -webkit-line-clamp:2;
+      -webkit-box-orient:vertical;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
     .head{ font-size:16px; margin-bottom:6px; }
     .timer{ padding:5px 10px; }
+
+    .muteBtn{ width:36px; height:36px; background-size:20px 20px; }
   }
 </style>
 </head>
@@ -163,7 +198,8 @@
     <!-- Topbar -->
     <div class="topbar">
       <div class="timer" id="timer">00:00</div>
-      <button class="muteBtn" id="muteBtn" aria-pressed="false">🔊 Mute</button>
+      <!-- Icon-only mute toggle -->
+      <button class="muteBtn" id="muteBtn" aria-pressed="false" aria-label="Mute background music"></button>
     </div>
 
     <svg class="wires" id="wires" aria-hidden="true"></svg>
@@ -598,7 +634,6 @@ function addStartDragHandler(handleEl, fromSide){
 
         connections.set(leftId, { rightId, pathEl: path });
 
-        clearPendingHighlight(); // ensure no box gets outlined
         connectSound.currentTime = 0;
         connectSound.play();
         if (!reduceMotion && navigator.vibrate) navigator.vibrate(10); // haptic on connect
@@ -685,7 +720,7 @@ function connectByIds(leftId, rightId){
   path.setAttribute('d', curveD(a.x,a.y,b.x,b.y));
   wires.appendChild(path);
   connections.set(leftId, { rightId, pathEl: path });
-  clearPendingHighlight(); // ensure no box gets outlined
+  clearPendingHighlight();
   connectSound.currentTime = 0; connectSound.play();
   if (!reduceMotion && navigator.vibrate) navigator.vibrate(10);
   updateCheckState();
@@ -809,7 +844,7 @@ showBtn.addEventListener('click', ()=>{
   hideTimerKeepSpace();
 });
 
-/* ---- Reveal mute button once audio actually starts ---- */
+/* ---- Reveal mute icon once audio actually starts ---- */
 bgm.addEventListener('playing', ()=>{
   if(!hasAudioPlayed){
     hasAudioPlayed = true;
@@ -817,12 +852,12 @@ bgm.addEventListener('playing', ()=>{
   }
 });
 
-/* ---- Mute toggle for background music ---- */
+/* ---- Mute toggle (icon-only) ---- */
 muteBtn.addEventListener('click', ()=>{
   const isMuted = !bgm.muted;
   bgm.muted = isMuted;
   muteBtn.setAttribute('aria-pressed', String(isMuted));
-  muteBtn.textContent = isMuted ? '🔇 Unmute' : '🔊 Mute';
+  muteBtn.setAttribute('aria-label', isMuted ? 'Unmute background music' : 'Mute background music');
 });
 
 /* ---- Init ---- */
