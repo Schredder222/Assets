@@ -37,7 +37,7 @@
     background:var(--card);
     border-radius:14px;
     box-shadow:0 6px 24px rgba(0,0,0,.08);
-    padding:72px 18px 72px;  /* space under timer; bottom will be overridden on mobile */
+    padding:72px 18px 72px;  /* bottom overridden on mobile via --btnGap */
     overflow:hidden;
     touch-action: pan-y;
     -webkit-user-select:none; user-select:none;
@@ -46,7 +46,6 @@
   #leftCol { grid-column:1; }
   #rightCol{ grid-column:3; }
 
-  /* Topbar (timer left + mute icon right) */
   .topbar{
     position:absolute; top:12px; left:18px; right:18px;
     display:flex; align-items:center; justify-content:space-between; gap:12px;
@@ -57,13 +56,12 @@
     font-weight:600; letter-spacing:.3px; box-shadow:0 2px 10px rgba(0,0,0,.12);
   }
 
-  /* Icon-only mute/unmute button */
   .muteBtn{
-    display:none;                /* shown after audio starts */
+    display:none;
     background:transparent;
     border:none;
     padding:6px;
-    width:40px; height:40px;     /* comfortable hit-area */
+    width:40px; height:40px;
     border-radius:999px;
     cursor:pointer;
     line-height:0;
@@ -71,60 +69,33 @@
   .muteBtn:focus-visible{ outline:2px solid #000; outline-offset:2px; }
   .muteBtn img{ width:24px; height:24px; display:block; }
 
-  .wires{
-    position:absolute; inset:0;
-    z-index:100; pointer-events:none;
-  }
+  .wires{ position:absolute; inset:0; z-index:100; pointer-events:none; }
 
   .col{display:flex;flex-direction:column;gap:10px}
   .head{
-    font-weight:600;
-    font-size:18px;
-    letter-spacing:.3px;
-    color:#111;
-    margin-bottom:8px;
-    text-align:center;
+    font-weight:600;font-size:18px;letter-spacing:.3px;color:#111;
+    margin-bottom:8px;text-align:center;
   }
 
   .item{
-    position:relative;
-    background:#fff;
-    border:1px solid #eee;
-    border-radius:12px;
-    min-height:42px;
-    display:flex;align-items:center;
-    line-height:1.25;
+    position:relative;background:#fff;border:1px solid #eee;border-radius:12px;
+    min-height:42px;display:flex;align-items:center;line-height:1.25;
     box-shadow:0 2px 10px rgba(0,0,0,.04);
-    width:var(--colWidth);
-    max-width:100%;
-    overflow:hidden;
+    width:var(--colWidth);max-width:100%;overflow:hidden;
   }
   .left.item { padding:10px 34px 10px 14px; }
   .right.item{ padding:10px 14px 10px 34px; }
 
-  .item p{
-    margin:0;
-    white-space:nowrap;
-    text-overflow:ellipsis;
-    overflow:hidden;
-  }
-  .item.wrap p{
-    white-space:normal;
-    overflow:visible;
-    text-overflow:clip;
-  }
+  .item p{ margin:0; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
+  .item.wrap p{ white-space:normal; overflow:visible; text-overflow:clip; }
 
   .handle{
     position:absolute;top:50%;transform:translateY(-50%);
-    width:var(--dot);height:var(--dot);border-radius:50%;
-    background:var(--dotColor);
-    cursor:pointer; z-index:200;
-    touch-action:none;
-    -webkit-user-select:none; user-select:none;
+    width:var(--dot);height:var(--dot);border-radius:50%;background:var(--dotColor);
+    cursor:pointer; z-index:200; touch-action:none; -webkit-user-select:none; user-select:none;
   }
   .left .handle{right:8px}
   .right .handle{left:8px}
-
   .handle::after{ content:""; position:absolute; inset:-8px; }
 
   .controls{
@@ -143,7 +114,7 @@
     :root{ --gap:24px; }
   }
 
-  /* Phones: straight lines, smaller text, equal-height boxes, EXTRA BOTTOM GAP via --btnGap */
+  /* Phones: straight lines, small text, equal-height boxes, extra bottom gap via --btnGap */
   @media (max-width:520px){
     :root{
       --gap:16px;          /* horizontal gap between columns */
@@ -153,10 +124,10 @@
     }
 
     /* vertical gap between boxes (2px) */
-    .col{ gap:2px !important; }
+    .col{ gap:0.5px !important; }
     .col > .item + .item{ margin-top:2px; }  /* fallback if flex gap unsupported */
 
-    /* override board padding bottom to include extra button gap */
+    /* include the extra button gap in board padding */
     .board{ padding:62px 12px calc(62px + var(--btnGap)); }
 
     .item{ min-height:44px; border-radius:10px; }
@@ -167,7 +138,7 @@
     .muteBtn{ width:36px; height:36px; padding:6px; }
     .muteBtn img{ width:22px; height:22px; }
 
-    /* text size for words & definitions on mobile */
+    /* text size on mobile */
     #leftCol .item p,
     #rightCol .item p{ font-size:0.7em; }
   }
@@ -178,7 +149,7 @@
     }
   }
 
-  /* === Congrats overlay (smaller, no border, slow zoom) === */
+  /* === Congrats overlay === */
   #congratsOverlay{
     position:fixed; inset:0; display:none;
     align-items:center; justify-content:center;
@@ -202,10 +173,8 @@
   <p class="note">Match the keywords from the video with their definitions by dragging lines between the dots. Then click “Check answers”.</p>
 
   <div class="board" id="board">
-    <!-- Topbar -->
     <div class="topbar">
       <div class="timer" id="timer">00:00</div>
-      <!-- Icon-only mute/unmute -->
       <button class="muteBtn" id="muteBtn" aria-pressed="false" aria-label="Mute background music" title="Mute">
         <img id="muteIcon" alt="" src="https://schredder222.github.io/Assets/Unmute.svg" />
       </button>
@@ -245,6 +214,7 @@
 
 <!-- Background music (loop) -->
 <audio id="bgm" preload="metadata" loop src="https://cdn.pixabay.com/download/audio/2025/09/03/audio_a8c05eb5c8.mp3"></audio>
+<!-- Tip: if you want quicker start, change preload to "auto" -->
 
 <script>
 /* ---- Data ---- */
@@ -278,24 +248,18 @@ const muteBtn = document.getElementById('muteBtn');
 const muteIcon = document.getElementById('muteIcon');
 const bgm     = document.getElementById('bgm');
 
-/* Icon URLs */
 const MUTE_ICON_URL   = 'https://schredder222.github.io/Assets/Mute.svg';
 const UNMUTE_ICON_URL = 'https://schredder222.github.io/Assets/Unmute.svg';
 
-/* Accessibility / user preferences */
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-/* View helpers */
 const isMobile = () => window.matchMedia('(max-width:520px)').matches;
 
 let leftOrder=[], rightOrder=[];
 let connections=new Map();
 let drag=null;
 
-/* ---- Settings ---- */
 const getSnapRadius = () => isMobile() ? 26 : 18;
 
-/* ---- Timer & music state ---- */
 let timerStarted = false;
 let timerFrozen  = false;
 let timerStartMs = 0;
@@ -310,7 +274,6 @@ function fmtTime(ms){
   return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 }
 
-/* Sync mute icon + a11y label with current state */
 function syncMuteUI(){
   const muted = bgm.muted;
   muteBtn.setAttribute('aria-pressed', String(muted));
@@ -357,7 +320,6 @@ function freezeTimerWithMessage(){
     timerEl.textContent = `Completed in ${fmtTime(elapsed)}`;
   }
 }
-
 function hideTimerKeepSpace(){
   timerHiddenForAnswers = true;
   timerStarted = false;
@@ -365,7 +327,6 @@ function hideTimerKeepSpace(){
   if(timerInterval){ clearInterval(timerInterval); timerInterval = null; }
   timerEl.style.visibility = 'hidden';
 }
-
 function showTimerResetToZero(){
   timerEl.style.visibility = 'visible';
   timerEl.textContent = '00:00';
@@ -373,7 +334,6 @@ function showTimerResetToZero(){
   timerFrozen = false;
   timerHiddenForAnswers = false;
 }
-
 function showTimerIfHidden(){
   if (timerEl.style.visibility === 'hidden') {
     timerEl.style.visibility = 'visible';
@@ -381,12 +341,10 @@ function showTimerIfHidden(){
   }
 }
 
-/* ---- Utils ---- */
 const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
 const rectOf = el => el.getBoundingClientRect();
 function boardPointFromClient(x,y){ const b = rectOf(board); return { x:x - b.left, y:y - b.top }; }
 
-/* Create row item */
 function createItem(colEl, text, id, side){
   const div = document.createElement('div');
   div.className = 'item ' + side;
@@ -396,7 +354,6 @@ function createItem(colEl, text, id, side){
   colEl.appendChild(div);
 }
 
-/* ---- Accurate text measurement (offscreen) ---- */
 function measureTextWidth(text, classSelector){
   let meas = document.getElementById('measSpan');
   if(!meas){
@@ -418,7 +375,7 @@ function measureTextWidth(text, classSelector){
   return meas.offsetWidth;
 }
 
-/* ------ Wire helpers (curvy on desktop, straight on mobile) ------ */
+/* Wires: curved on desktop, straight on mobile */
 function makeStraightLine(colorVar='--accent', width=3){
   const ln = document.createElementNS('http://www.w3.org/2000/svg','line');
   const color = getComputedStyle(document.documentElement).getPropertyValue(colorVar).trim();
@@ -457,22 +414,18 @@ function setWireGeometry(wireEl, a, b){
   }
 }
 
-/* ---- Equal-height boxes on mobile (to align dots row-by-row) ---- */
+/* Equal-height boxes on mobile */
 function uniformBoxHeightsMobile(){
   if (!isMobile()) return;
   const leftItems  = Array.from(document.querySelectorAll('#leftCol .item'));
   const rightItems = Array.from(document.querySelectorAll('#rightCol .item'));
   const all = [...leftItems, ...rightItems];
   if (!all.length) return;
-
   all.forEach(i => { i.style.height = 'auto'; });
-
   let maxH = 0;
   all.forEach(i => { maxH = Math.max(maxH, i.getBoundingClientRect().height); });
-
   const H = Math.ceil(maxH);
   all.forEach(i => { i.style.height = H + 'px'; });
-
   const b = board.getBoundingClientRect();
   wires.setAttribute('width', b.width);
   wires.setAttribute('height', b.height);
@@ -505,7 +458,6 @@ function setColumnUniformWidths(){
     const b = board.getBoundingClientRect();
     wires.setAttribute('width', b.width);
     wires.setAttribute('height', b.height);
-
     uniformBoxHeightsMobile();
     return;
   }
@@ -551,14 +503,14 @@ function setColumnUniformWidths(){
   wires.setAttribute('height', b.height);
 }
 
-/* ---- Drag helpers ---- */
+/* Drag helpers */
 function handleCenter(handleEl){
   const b = rectOf(board);
   const r = rectOf(handleEl);
   return { x: r.left - b.left + r.width/2, y: r.top - b.top + r.height/2 };
 }
 
-/* ---- Realign curves/lines (throttled) ---- */
+/* Realign wires (throttled) */
 let rafId = null;
 function rafRealign(){
   if (rafId) return;
@@ -575,7 +527,7 @@ function realignAllWires(){
   }
 }
 
-/* ---- Rendering ---- */
+/* Rendering */
 function render(){
   leftCol.querySelectorAll('.item').forEach(n=>n.remove());
   rightCol.querySelectorAll('.item').forEach(n=>n.remove());
@@ -588,7 +540,7 @@ function render(){
   realignAllWires();
 }
 
-/* --- Proximity helper (snap near dot) --- */
+/* Snap helper */
 function findHandleNear(ptBoard, side){
   const list = Array.from(document.querySelectorAll(`.${side} .handle`));
   let best = null, bestDist = Infinity;
@@ -600,19 +552,18 @@ function findHandleNear(ptBoard, side){
   return (bestDist <= getSnapRadius()) ? best : null;
 }
 
-/* ---- Drag logic ---- */
+/* Drag logic */
 function addStartDragHandler(handleEl, fromSide){
   handleEl.addEventListener('pointerdown', (e)=>{
     e.preventDefault();
-    if (handleEl.setPointerCapture) {
-      try { handleEl.setPointerCapture(e.pointerId); } catch(_){}
-    }
+    if (handleEl.setPointerCapture) { try { handleEl.setPointerCapture(e.pointerId); } catch(_){} }
 
     showTimerIfHidden();
-    startTimerAndMusic();
+    startTimerAndMusic();   // ✅ starts on first drag
 
     const fromId = handleEl.parentElement.dataset.id;
 
+    // Clear prior connection on same side
     if(fromSide === 'left'){
       if(connections.has(fromId)){
         connections.get(fromId).pathEl?.remove();
@@ -651,13 +602,9 @@ function addStartDragHandler(handleEl, fromSide){
       let leftId=null, rightId=null, ok=false;
 
       if(drag.fromSide === 'left' && overRight){
-        leftId  = drag.fromId;
-        rightId = overRight.parentElement.dataset.id;
-        ok = true;
+        leftId  = drag.fromId; rightId = overRight.parentElement.dataset.id; ok = true;
       }else if(drag.fromSide === 'right' && overLeft){
-        leftId  = overLeft.parentElement.dataset.id;
-        rightId = drag.fromId;
-        ok = true;
+        leftId  = overLeft.parentElement.dataset.id; rightId = drag.fromId; ok = true;
       }
 
       if(ok){
@@ -685,8 +632,7 @@ function addStartDragHandler(handleEl, fromSide){
 
         connections.set(leftId, { rightId, pathEl: wire });
 
-        connectSound.currentTime = 0;
-        connectSound.play();
+        connectSound.currentTime = 0; connectSound.play();
         if (!reduceMotion && navigator.vibrate) navigator.vibrate(10);
       }else{
         drag.lineEl.remove();
@@ -708,14 +654,13 @@ function addStartDragHandler(handleEl, fromSide){
   });
 }
 
-/* ---- Tap-to-match fallback ---- */
+/* Tap-to-match (now also starts timer/music on first tap) */
 let pending = null;
 
 function clearPendingHighlight(){
   document.querySelectorAll('.item.pending').forEach(el=> el.classList.remove('pending'));
   pending = null;
 }
-
 function setPending(next){
   clearPendingHighlight();
   pending = next;
@@ -724,6 +669,10 @@ function setPending(next){
 function attachTapToMatch(){
   [...leftCol.querySelectorAll('.item')].forEach(el=>{
     el.addEventListener('click', ()=>{
+      /* ✅ ensure audio/timer start on first tap */
+      showTimerIfHidden();
+      startTimerAndMusic();
+
       const id = el.dataset.id;
       if (!pending){ setPending({side:'left', id, el}); return; }
       if (pending.side === 'right'){
@@ -736,6 +685,10 @@ function attachTapToMatch(){
   });
   [...rightCol.querySelectorAll('.item')].forEach(el=>{
     el.addEventListener('click', ()=>{
+      /* ✅ ensure audio/timer start on first tap */
+      showTimerIfHidden();
+      startTimerAndMusic();
+
       const id = el.dataset.id;
       if (!pending){ setPending({side:'right', id, el}); return; }
       if (pending.side === 'left'){
@@ -775,7 +728,7 @@ function connectByIds(leftId, rightId){
   updateCheckState();
 }
 
-/* ---- Events ---- */
+/* Events */
 let ro = null;
 let globalListenersAttached = false;
 
@@ -798,30 +751,26 @@ function updateCheckState(){
   checkBtn.disabled = connections.size !== PAIRS.length;
 }
 
-/* === Congrats overlay audio + trigger === */
+/* Congrats overlay audio + trigger */
 const bigCongratsAudio = new Audio("https://cdn.pixabay.com/download/audio/2024/08/31/audio_aa510c96aa.mp3");
 bigCongratsAudio.preload = "auto";
-
 function showCongrats(){
   const ov  = document.getElementById('congratsOverlay');
   if(!ov) return;
   const img = ov.querySelector('img');
-  img.style.animation = 'none';
-  void img.offsetWidth;
+  img.style.animation = 'none'; void img.offsetWidth;
   img.style.animation = 'congratsZoom 8s ease-out forwards';
-
   ov.style.display = 'flex';
   try { bigCongratsAudio.currentTime = 0; bigCongratsAudio.play(); } catch {}
   setTimeout(()=>{ ov.style.display = 'none'; }, 9000);
 }
 
-/* ---- Check + Sound ---- */
+/* Buttons */
 checkBtn.addEventListener('click', ()=>{
   showTimerIfHidden();
   startTimerAndMusic();
 
   let countCorrect = 0;
-
   for(const [leftId, conn] of [...connections]){
     const correct = leftId === conn.rightId;
     if(correct){
@@ -837,22 +786,18 @@ checkBtn.addEventListener('click', ()=>{
   }
 
   if (countCorrect === PAIRS.length) {
-    correctSound.currentTime = 0;
-    correctSound.play();
+    correctSound.currentTime = 0; correctSound.play();
     freezeTimerWithMessage();
     bgm.pause();
     showCongrats();
   } else {
-    incorrectSound.currentTime = 0;
-    incorrectSound.play();
+    incorrectSound.currentTime = 0; incorrectSound.play();
   }
-
   updateCheckState();
 });
 
 resetBtn.addEventListener('click', ()=>{
-  clickSound.currentTime = 0;
-  clickSound.play();
+  clickSound.currentTime = 0; clickSound.play();
 
   if (timerHiddenForAnswers || timerFrozen) {
     showTimerResetToZero();
@@ -872,8 +817,7 @@ shuffleBtn.addEventListener('click', ()=>{
   showTimerIfHidden();
   startTimerAndMusic();
 
-  clickSound.currentTime = 0;
-  clickSound.play();
+  clickSound.currentTime = 0; clickSound.play();
 
   leftOrder  = shuffle(PAIRS);
   rightOrder = shuffle(PAIRS);
@@ -887,8 +831,7 @@ showBtn.addEventListener('click', ()=>{
   showTimerIfHidden();
   startTimerAndMusic();
 
-  clickSound.currentTime = 0;
-  clickSound.play();
+  clickSound.currentTime = 0; clickSound.play();
 
   wires.querySelectorAll('*').forEach(n=>n.remove());
   connections.clear();
@@ -912,7 +855,7 @@ showBtn.addEventListener('click', ()=>{
   uniformBoxHeightsMobile();
 });
 
-/* ---- Reveal mute icon once audio actually starts ---- */
+/* Reveal mute icon once audio actually starts */
 bgm.addEventListener('playing', ()=>{
   if(!hasAudioPlayed){
     hasAudioPlayed = true;
@@ -921,14 +864,14 @@ bgm.addEventListener('playing', ()=>{
   }
 });
 
-/* ---- Mute toggle for background music ---- */
+/* Mute toggle */
 muteBtn.addEventListener('click', ()=>{
   const isMuted = !bgm.muted;
   bgm.muted = isMuted;
   syncMuteUI();
 });
 
-/* ---- Init ---- */
+/* Init */
 (function init(){
   timerEl.textContent = '00:00';
   leftOrder  = shuffle(PAIRS);
