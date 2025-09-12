@@ -43,7 +43,7 @@
     line-height: 1;
     box-sizing: content-box;
     top: var(--yshift);
-    touch-action:none; /* custom touch drag */
+    touch-action:none; /* for custom touch drag */
   }
   .blank *{ line-height:1 }
 
@@ -84,11 +84,8 @@
     padding:.35rem .6rem; border:1px solid #ccc; border-radius:.55rem; background:#fff;
     cursor:grab; white-space:nowrap; font-weight:600; text-transform:lowercase; color:#193873;
     transition:transform .08s ease, border .08s ease, background .08s ease;
-    touch-action:none; -webkit-user-drag:none; /* keep off for touch */
+    touch-action:none; -webkit-user-drag:none;
   }
-  /* Allow WebKit desktop to drag elements */
-  html.desktop .tile{ -webkit-user-drag: element; }
-
   .tile:active{cursor:grabbing; transform:scale(.98)}
   .tile.selected{ border:2px solid #555; background:#f9f9f9; }
 
@@ -212,7 +209,6 @@
 
   /* Detect coarse pointers (touch) */
   const IS_COARSE = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || ('ontouchstart' in window);
-  if(!IS_COARSE){ document.documentElement.classList.add('desktop'); } // enables -webkit-user-drag: element
 
   let selectedTile=null;
   function setPlacingMode(on){ document.body.classList.toggle('placing', !!on); }
@@ -233,23 +229,10 @@
 
     // Always enable native desktop drag
     t.draggable = true;
-
     t.addEventListener('dragstart', e=>{
-      // Ensure data payload for all browsers
       if(e.dataTransfer){
         e.dataTransfer.setData('text/plain', word);
         e.dataTransfer.effectAllowed = 'move';
-
-        // Robust drag image so Chrome/Safari reliably start dragging DIVs
-        const img = t.cloneNode(true);
-        img.style.position = 'absolute';
-        img.style.left = '-9999px';
-        document.body.appendChild(img);
-        try {
-          e.dataTransfer.setDragImage(img, img.offsetWidth/2, img.offsetHeight/2);
-        } catch {}
-        // Remove clone on next tick
-        setTimeout(()=>{ if(img && img.parentNode) img.parentNode.removeChild(img); }, 0);
       }
       selectTile(t);
     });
@@ -386,8 +369,12 @@
     scoreEl.textContent='';
   }
 
-  /* ---------- TOUCH/POINTER DRAG FALLBACK (with pointer capture + AUTO-SCROLL) ---------- */
+  /* ---------- TOUCH/POINTER: tap-vs-drag with auto-scroll ---------- */
   let dragging = null;      // { tile, ghost, offsetX, offsetY, pointerId }
+  let pendingTouch = null;  // { tile, pointerId, startX, startY, moved }
+  let suppressNextClick = false;
+  const TAP_DRAG_THRESHOLD = 6; // px
+
   let autoScrollDir = 0;    // -1 up, 1 down, 0 none
   let autoScrollRAF = null;
 
@@ -415,14 +402,13 @@
   }
 
   function startTouchDrag(tile, e){
-    if(dragging) endTouchDrag(e);
-    selectTile(tile);
-
+    // Create ghost
     const ghost = document.createElement('div');
     ghost.className = 'drag-ghost';
     ghost.textContent = tile.textContent;
     document.body.appendChild(ghost);
 
+    // Hide real tile (keep layout)
     tile.style.visibility = 'hidden';
 
     const rect = tile.getBoundingClientRect();
@@ -435,12 +421,15 @@
 
     try { tile.setPointerCapture(e.pointerId); } catch {}
     document.body.style.touchAction = 'none';
+    selectTile(tile);
   }
+
   function moveGhost(x, y){
     if(!dragging) return;
     const { ghost, offsetX, offsetY } = dragging;
     ghost.style.transform = `translate(${Math.round(x - offsetX)}px, ${Math.round(y - offsetY)}px)`;
   }
+
   function targetFromPoint(x, y){
     const { ghost } = dragging || {};
     if(ghost) ghost.style.visibility = 'hidden';
@@ -448,6 +437,7 @@
     if(ghost) ghost.style.visibility = '';
     return el;
   }
+
   function endTouchDrag(e){
     if(!dragging) return;
     const { tile, ghost } = dragging;
@@ -463,7 +453,7 @@
       bankTiles.appendChild(tile);
       play(dropAudio);
       selectTile(tile);
-    }
+    } // else: leave it in place, just keep selection
 
     tile.style.visibility = '';
     ghost.remove();
@@ -472,35 +462,51 @@
     stopAutoScroll();
   }
 
-  // Touch/stylus only (desktop unaffected)
+  // Touch/stylus tap-vs-drag
   window.addEventListener('pointerdown', (e)=>{
     const isTouchLike = (e.pointerType && e.pointerType !== 'mouse') || IS_COARSE;
     if(!isTouchLike) return;
-    const tile = e.target.closest('.tile');
+    const tile = e.target.closest && e.target.closest('.tile');
     if(!tile) return;
+
     e.preventDefault();
-    startTouchDrag(tile, e);
+    pendingTouch = { tile, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, moved:false };
+    suppressNextClick = true; // prevent the synthetic click re-selecting something else
   }, { passive:false });
 
   window.addEventListener('pointermove', (e)=>{
-    const isTouchLike = (e.pointerType && e.pointerType !== 'mouse') || IS_COARSE;
-    if(!isTouchLike || !dragging || (dragging.pointerId!==e.pointerId)) return;
-    e.preventDefault();
-    moveGhost(e.clientX, e.clientY);
-    setAutoScrollFromY(e.clientY);
+    if(!pendingTouch || e.pointerId !== pendingTouch.pointerId) return;
+    const dx = e.clientX - pendingTouch.startX;
+    const dy = e.clientY - pendingTouch.startY;
+    const movedEnough = Math.hypot(dx, dy) > TAP_DRAG_THRESHOLD;
+
+    if(!dragging && movedEnough){
+      pendingTouch.moved = true;
+      startTouchDrag(pendingTouch.tile, e);
+    } else if(dragging){
+      e.preventDefault();
+      moveGhost(e.clientX, e.clientY);
+      setAutoScrollFromY(e.clientY);
+    }
   }, { passive:false });
 
   window.addEventListener('pointerup', (e)=>{
-    const isTouchLike = (e.pointerType && e.pointerType !== 'mouse') || IS_COARSE;
-    if(!isTouchLike || !dragging || (dragging.pointerId!==e.pointerId)) return;
-    e.preventDefault();
-    endTouchDrag(e);
+    if(pendingTouch && e.pointerId === pendingTouch.pointerId){
+      if(!dragging){
+        // It's a tap: just select the originally pressed tile
+        selectTile(pendingTouch.tile);
+      }else{
+        // It was a drag
+        endTouchDrag(e);
+      }
+      pendingTouch = null;
+      setTimeout(()=>{ suppressNextClick = false; }, 0);
+    }
   }, { passive:false });
 
-  window.addEventListener('pointercancel', (e)=>{
-    const isTouchLike = (e.pointerType && e.pointerType !== 'mouse') || IS_COARSE;
-    if(!isTouchLike || !dragging || (dragging.pointerId!==e.pointerId)) return;
-    endTouchDrag(e);
+  window.addEventListener('pointercancel', ()=>{
+    pendingTouch = null;
+    if(dragging){ document.body.style.touchAction=''; stopAutoScroll(); dragging=null; }
   });
 
   /* ---- Selection helpers ---- */
@@ -511,8 +517,9 @@
     if(tile) selectTile(tile);
   }, true);
 
-  // Click fallback
+  // Click fallback (ignore synthetic clicks immediately after a touch)
   document.addEventListener('click',(e)=>{
+    if(suppressNextClick){ suppressNextClick = false; return; }
     const tile = e.target.closest && e.target.closest('.tile');
     if(tile) { selectTile(tile); return; }
     if(!e.target.closest('.tile, .blank, .bank, .controls')) deselect();
@@ -521,7 +528,7 @@
   /* Controls */
   checkBtn.onclick=checkAnswers;
   showBtn.onclick =()=>{ play(clickAudio); showAnswers(); };
-  resetBtn.onclick=()=>{ play(dropAudio); resetAll(); };
+  resetBtn.onclick=()=>{ play(clickAudio); resetAll(); };
 
   /* Init */
   initBank();
