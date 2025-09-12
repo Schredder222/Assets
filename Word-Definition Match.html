@@ -104,8 +104,8 @@
     max-width:100%;
     overflow:hidden;
   }
-  .left.item { padding:10px 34px 10px 14px; }  /* less left padding */
-  .right.item{ padding:10px 14px 10px 34px; }  /* less right padding */
+  .left.item { padding:10px 34px 10px 14px; }
+  .right.item{ padding:10px 14px 10px 34px; }
 
   .item p{
     margin:0;
@@ -130,12 +130,15 @@
   .left .handle{right:8px}
   .right .handle{left:8px}
 
-  /* Invisible halo enlarges tap target without changing visual size */
+  /* Larger invisible halo for touch without changing visual size */
   .handle::after{
     content:"";
     position:absolute;
-    inset:-8px;
+    inset:-12px;
   }
+
+  /* Optional: subtle glow on the target dot we're locked to */
+  .handle.hot{ box-shadow:0 0 0 6px rgba(138,0,0,.15); }
 
   .controls{
     position:absolute;left:18px;right:18px;bottom:16px;
@@ -153,38 +156,35 @@
     :root{ --gap:24px; }
   }
 
-  /* Phones: equal widths, equal heights, aligned dots, smaller text */
+  /* Phones: equal widths, per-row equal heights, aligned dots, smaller text, tighter gaps */
   @media (max-width:520px){
     :root{
       --gap:16px;
       --dot:14px;
       --minCol:100px;
-      --rowH:56px; /* fixed equal height for every box */
     }
     .board{ padding:62px 12px 62px; }
+    .col{ gap:4px; }                 /* tiny vertical gap */
     .item{
-      height:var(--rowH);           /* equal height -> handles align across columns */
       border-radius:10px;
       align-items:center;
+      min-height:48px;               /* baseline; final height equalised by JS */
     }
     .left.item{  padding:10px 30px 10px 12px; }
     .right.item{ padding:10px 12px 10px 30px; }
 
-    /* make text a bit smaller + clamp to 2 lines so it fits the fixed height */
+    /* smaller text, wrap fully so the row can grow to fit */
     .item p{
       white-space:normal;
-      font-size:0.95rem;
-      line-height:1.2;
-      display:-webkit-box;
-      -webkit-line-clamp:2;
-      -webkit-box-orient:vertical;
-      overflow:hidden;
-      text-overflow:ellipsis;
+      font-size:0.86rem;
+      line-height:1.25;
+      overflow:visible;
+      text-overflow:clip;
+      word-break:break-word;
     }
 
     .head{ font-size:16px; margin-bottom:6px; }
     .timer{ padding:5px 10px; }
-
     .muteBtn{ width:36px; height:36px; background-size:20px 20px; }
   }
 </style>
@@ -198,7 +198,6 @@
     <!-- Topbar -->
     <div class="topbar">
       <div class="timer" id="timer">00:00</div>
-      <!-- Icon-only mute toggle -->
       <button class="muteBtn" id="muteBtn" aria-pressed="false" aria-label="Mute background music"></button>
     </div>
 
@@ -223,7 +222,7 @@
   </div>
 </div>
 
-<!-- Audio effects (lighter on mobile via preload="metadata") -->
+<!-- Audio effects -->
 <audio id="correctSound" preload="metadata" src="https://cdn.pixabay.com/download/audio/2022/03/24/audio_dcde83efa6.mp3?filename=ui_correct_button2-103167.mp3"></audio>
 <audio id="incorrectSound" preload="metadata" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_b0669294aa.mp3?filename=training-program-incorrect1-88736.mp3"></audio>
 <audio id="clickSound" preload="metadata" src="https://cdn.pixabay.com/download/audio/2024/04/21/audio_1b8d3bcd3d.mp3?filename=click-buttons-ui-menu-sounds-effects-button-7-203601.mp3"></audio>
@@ -263,96 +262,42 @@ const timerEl = document.getElementById('timer');
 const muteBtn = document.getElementById('muteBtn');
 const bgm     = document.getElementById('bgm');
 
-/* Accessibility / user preferences */
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const isMobile = () => window.matchMedia('(max-width:520px)').matches;
 
 let leftOrder=[], rightOrder=[];
-let connections=new Map();
+let connections=new Map(); // leftId -> { rightId, el }
 let drag=null;
+let dragActive=false;
 
-/* ---- Settings ---- */
-/* Adaptive snap radius: larger on mobile for easier snapping */
-const getSnapRadius = () => window.matchMedia('(max-width:520px)').matches ? 26 : 18;
+/* ---- Snapping (hit-test, no guessing) ---- */
+const getHitRadius   = () => isMobile() ? 26 : 18; // must be inside this to lock
+const getLeaveRadius = () => getHitRadius() + 8;   // must exit this to unlock
 
-/* ---- Timer & music state ---- */
-let timerStarted = false;
-let timerFrozen  = false;
-let timerStartMs = 0;
-let timerInterval = null;
-let hasAudioPlayed = false;
-let timerHiddenForAnswers = false;
+/* ---- Timer/music ---- */
+let timerStarted=false, timerFrozen=false, timerStartMs=0, timerInterval=null, hasAudioPlayed=false, timerHiddenForAnswers=false;
 
-function fmtTime(ms){
-  const total = Math.floor(ms/1000);
-  const m = Math.floor(total/60);
-  const s = total % 60;
-  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-}
+const fmtTime = (ms)=>{ const t=Math.floor(ms/1000), m=(t/60|0), s=t%60; return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; };
 
 function startTimerAndMusic(){
   if(!timerStarted){
-    timerStarted = true;
-    timerFrozen = false;
-    timerStartMs = Date.now();
-    timerEl.style.visibility = 'visible';
-    timerHiddenForAnswers = false;
+    timerStarted = true; timerFrozen=false; timerStartMs=Date.now();
+    timerEl.style.visibility='visible'; timerHiddenForAnswers=false;
+    timerEl.textContent='00:00';
+    timerInterval = setInterval(()=>{ if(!timerFrozen){ timerEl.textContent = fmtTime(Date.now()-timerStartMs); } }, 250);
 
-    timerEl.textContent = '00:00';
-    timerInterval = setInterval(()=>{
-      if(!timerFrozen){
-        const elapsed = Date.now() - timerStartMs;
-        timerEl.textContent = fmtTime(elapsed);
-      }
-    }, 250);
-
-    // only lower background music volume (leave sfx at 100%)
     bgm.volume = 0.1;
-    const tryPlay = bgm.play();
-    if (tryPlay && typeof tryPlay.then === 'function') {
-      tryPlay.then(()=>{
-        if(!hasAudioPlayed){
-          hasAudioPlayed = true;
-          muteBtn.style.display = 'inline-block';
-        }
-      }).catch(()=>{});
-    }
+    const p = bgm.play();
+    if (p && typeof p.then==='function'){ p.then(()=>{ if(!hasAudioPlayed){ hasAudioPlayed=true; muteBtn.style.display='inline-block'; } }).catch(()=>{}); }
   }
 }
-
-function freezeTimerWithMessage(){
-  if(timerStarted && !timerFrozen){
-    timerFrozen = true;
-    const elapsed = Date.now() - timerStartMs;
-    if(timerInterval){ clearInterval(timerInterval); timerInterval = null; }
-    timerEl.textContent = `Completed in ${fmtTime(elapsed)}`;
-  }
-}
-
-function hideTimerKeepSpace(){
-  timerHiddenForAnswers = true;
-  timerStarted = false;
-  timerFrozen = true;
-  if(timerInterval){ clearInterval(timerInterval); timerInterval = null; }
-  timerEl.style.visibility = 'hidden';
-}
-
-function showTimerResetToZero(){
-  timerEl.style.visibility = 'visible';
-  timerEl.textContent = '00:00';
-  timerStarted = false;
-  timerFrozen = false;
-  timerHiddenForAnswers = false;
-}
-
-function showTimerIfHidden(){
-  if (timerEl.style.visibility === 'hidden') {
-    timerEl.style.visibility = 'visible';
-    timerHiddenForAnswers = false;
-  }
-}
+function freezeTimerWithMessage(){ if(timerStarted && !timerFrozen){ timerFrozen=true; clearInterval(timerInterval); timerInterval=null; timerEl.textContent=`Completed in ${fmtTime(Date.now()-timerStartMs)}`; } }
+function hideTimerKeepSpace(){ timerHiddenForAnswers=true; timerStarted=false; timerFrozen=true; clearInterval(timerInterval); timerInterval=null; timerEl.style.visibility='hidden'; }
+function showTimerResetToZero(){ timerEl.style.visibility='visible'; timerEl.textContent='00:00'; timerStarted=false; timerFrozen=false; timerHiddenForAnswers=false; }
+function showTimerIfHidden(){ if (timerEl.style.visibility==='hidden'){ timerEl.style.visibility='visible'; timerHiddenForAnswers=false; } }
 
 /* ---- Utils ---- */
-const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]]}return a};
 const rectOf = el => el.getBoundingClientRect();
 function boardPointFromClient(x,y){ const b = rectOf(board); return { x:x - b.left, y:y - b.top }; }
 
@@ -366,290 +311,247 @@ function createItem(colEl, text, id, side){
   colEl.appendChild(div);
 }
 
-/* ---- Accurate text measurement (offscreen) ---- */
+/* Measurement */
 function measureTextWidth(text, classSelector){
   let meas = document.getElementById('measSpan');
   if(!meas){
-    meas = document.createElement('span');
-    meas.id = 'measSpan';
-    meas.style.position = 'absolute';
-    meas.style.left = '-99999px';
-    meas.style.top = '-99999px';
-    meas.style.whiteSpace = 'nowrap';
+    meas = document.createElement('span'); meas.id='measSpan';
+    Object.assign(meas.style,{position:'absolute',left:'-99999px',top:'-99999px',whiteSpace:'nowrap'});
     document.body.appendChild(meas);
   }
   const sample = document.querySelector(classSelector);
   const cs = sample ? getComputedStyle(sample) : getComputedStyle(document.body);
-  meas.style.fontFamily = cs.fontFamily;
-  meas.style.fontSize   = cs.fontSize;
-  meas.style.fontWeight = cs.fontWeight;
-  meas.style.letterSpacing = cs.letterSpacing;
+  meas.style.fontFamily = cs.fontFamily; meas.style.fontSize=cs.fontSize; meas.style.fontWeight=cs.fontWeight; meas.style.letterSpacing=cs.letterSpacing;
   meas.textContent = text;
   return meas.offsetWidth;
 }
 
-/* Widths:
-   - Left/right columns get equal widths on mobile for symmetry.
-   - On desktop/tablet, keep smart sizing and only wrap if needed. */
+/* Column widths (equal on mobile) */
 function setColumnUniformWidths(){
-  const leftItems = Array.from(document.querySelectorAll('#leftCol .item'));
-  const rightItems= Array.from(document.querySelectorAll('#rightCol .item'));
-  if (leftItems.length === 0 || rightItems.length === 0) return;
+  const leftItems = [...document.querySelectorAll('#leftCol .item')];
+  const rightItems= [...document.querySelectorAll('#rightCol .item')];
+  if (!leftItems.length || !rightItems.length) return;
 
-  const isMobile = window.matchMedia('(max-width:520px)').matches;
-
-  /* Board metrics */
+  const mobile = isMobile();
   const boardCS = getComputedStyle(board);
-  const padLeft  = parseFloat(boardCS.paddingLeft)||0;
-  const padRight = parseFloat(boardCS.paddingRight)||0;
-  const inner = board.clientWidth - padLeft - padRight;
-
+  const inner = board.clientWidth - parseFloat(boardCS.paddingLeft||0) - parseFloat(boardCS.paddingRight||0);
   const gapPx = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gap'))||0;
-  const totalGaps = gapPx * 2; // three columns => two gaps
+  const totalGaps = gapPx * 2;
   const minCol = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--minCol'))||120;
 
-  /* ----- MOBILE: force equal widths & allow wrapping both sides ----- */
-  if (isMobile) {
+  if (mobile) {
     leftItems.forEach(i => i.classList.add('wrap'));
     rightItems.forEach(i=> i.classList.add('wrap'));
-
     const equalW = Math.max(minCol, Math.floor((inner - totalGaps) / 2));
-    leftItems.forEach(i => i.style.setProperty('--colWidth', equalW + 'px'));
-    rightItems.forEach(i=> i.style.setProperty('--colWidth', equalW + 'px'));
-
-    const b = board.getBoundingClientRect();
-    wires.setAttribute('width', b.width);
-    wires.setAttribute('height', b.height);
-    return; // done for mobile
+    [...leftItems, ...rightItems].forEach(i => i.style.setProperty('--colWidth', equalW + 'px'));
+  } else {
+    let leftTextMax=0, rightTextMax=0;
+    leftItems.forEach(it=> leftTextMax  = Math.max(leftTextMax,  measureTextWidth(it.querySelector('p').textContent, '.item p')));
+    rightItems.forEach(it=> rightTextMax = Math.max(rightTextMax, measureTextWidth(it.querySelector('p').textContent, '.item p')));
+    const padL = getComputedStyle(leftItems[0]), padR = getComputedStyle(rightItems[0]);
+    const leftW  = Math.max(minCol, leftTextMax  + parseFloat(padL.paddingLeft||0) + parseFloat(padL.paddingRight||0) + 22);
+    let   rightW = Math.max(minCol, rightTextMax + parseFloat(padR.paddingLeft||0) + parseFloat(padR.paddingRight||0) + 22);
+    let   finalL = leftW, finalR = rightW;
+    if (finalL + finalR + totalGaps > inner){ finalR = Math.max(minCol, inner - totalGaps - finalL); }
+    leftItems.forEach(i => i.classList.remove('wrap'));
+    if (finalL + finalR + totalGaps > inner){
+      finalL = Math.max(minCol, inner - totalGaps - finalR);
+      leftItems.forEach(i => i.classList.add('wrap'));
+    }
+    leftItems.forEach(i => i.style.setProperty('--colWidth', finalL + 'px'));
+    rightItems.forEach(i=> i.style.setProperty('--colWidth', finalR + 'px'));
   }
 
-  /* ----- DESKTOP/TABLET: previous behaviour ----- */
-  // Measure longest texts
-  let leftTextMax = 0;
-  leftItems.forEach(item=>{
-    const txt = item.querySelector('p').textContent;
-    leftTextMax = Math.max(leftTextMax, measureTextWidth(txt, '.item p'));
-  });
-
-  let rightTextMax = 0;
-  rightItems.forEach(item=>{
-    const txt = item.querySelector('p').textContent;
-    rightTextMax = Math.max(rightTextMax, measureTextWidth(txt, '.item p'));
-  });
-
-  // Paddings
-  const csLeft  = getComputedStyle(leftItems[0]);
-  const padLL = parseFloat(csLeft.paddingLeft)||0;
-  const padLR = parseFloat(csLeft.paddingRight)||0;
-  const csRight = getComputedStyle(rightItems[0]);
-  const padRL = parseFloat(csRight.paddingLeft)||0;
-  const padRR = parseFloat(csRight.paddingRight)||0;
-
-  // Desired widths with buffer
-  const extra = 22;
-  let leftWDesired  = leftTextMax  + padLL + padLR + extra;
-  let rightWDesired = rightTextMax + padRL + padRR + extra;
-
-  let leftW  = Math.max(minCol, leftWDesired);
-  let rightW = Math.max(minCol, rightWDesired);
-
-  // Fit: shrink right first
-  if (leftW + rightW + totalGaps > inner) {
-    rightW = Math.max(minCol, inner - totalGaps - leftW);
-  }
-
-  // If still too wide, allow left to wrap and shrink it
-  leftItems.forEach(i => i.classList.remove('wrap'));
-  if (leftW + rightW + totalGaps > inner) {
-    leftW = Math.max(minCol, inner - totalGaps - rightW);
-    leftItems.forEach(i => i.classList.add('wrap'));
-  }
-
-  leftItems.forEach(i => i.style.setProperty('--colWidth', leftW + 'px'));
-  rightItems.forEach(i=> i.style.setProperty('--colWidth', rightW + 'px'));
-
-  const b = board.getBoundingClientRect();
+  const b = rectOf(board);
   wires.setAttribute('width', b.width);
   wires.setAttribute('height', b.height);
 }
 
-/* ---- Drag helpers ---- */
-function handleCenter(handleEl){
-  const b = rectOf(board);
-  const r = rectOf(handleEl);
-  return { x: r.left - b.left + r.width/2, y: r.top - b.top + r.height/2 };
-}
-
-function makeStraightLine(colorVar='--accent', width=3){
-  const ln = document.createElementNS('http://www.w3.org/2000/svg','line');
-  const color = getComputedStyle(document.documentElement).getPropertyValue(colorVar).trim();
-  ln.setAttribute('stroke', color || 'red');
-  ln.setAttribute('stroke-width', width);
-  ln.setAttribute('stroke-linecap','round');
-  return ln;
-}
-
-function curveD(x1,y1,x2,y2){
-  const dx = Math.max(60, Math.abs(x2 - x1) * 0.5);
-  const c1x = x1 + dx, c1y = y1;
-  const c2x = x2 - dx, c2y = y2;
-  return `M ${x1} ${y1} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${x2} ${y2}`;
-}
-function makeCurvyPath(colorVar='--accent', width=3){
-  const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  const color = getComputedStyle(document.documentElement).getPropertyValue(colorVar).trim();
-  p.setAttribute('fill','none');
-  p.setAttribute('stroke', color || 'red');
-  p.setAttribute('stroke-width', width);
-  p.setAttribute('stroke-linecap','round');
-  p.setAttribute('stroke-opacity','0.95');
-  return p;
-}
-
-/* ---- Realign curves (throttled) ---- */
-let rafId = null;
-function rafRealign(){
-  if (rafId) return;
-  rafId = requestAnimationFrame(()=>{ rafId = null; realignAllCurves(); });
-}
-function realignAllCurves(){
-  for(const [leftId, conn] of connections){
-    const lH = leftCol.querySelector(`.item[data-id="${leftId}"] .handle`);
-    const rH = rightCol.querySelector(`.item[data-id="${conn.rightId}"] .handle`);
-    if(!lH || !rH || !conn.pathEl) continue;
-    const a = handleCenter(lH);
-    const b = handleCenter(rH);
-    conn.pathEl.setAttribute('d', curveD(a.x,a.y,b.x,b.y));
+/* Equal row heights on mobile so dots align */
+function equaliseRowHeights(){
+  const mobile = isMobile();
+  const L=[...document.querySelectorAll('#leftCol .item')];
+  const R=[...document.querySelectorAll('#rightCol .item')];
+  const n = Math.min(L.length,R.length);
+  for(let i=0;i<n;i++){ L[i].style.height = R[i].style.height = 'auto'; }
+  if (!mobile) return;
+  for(let i=0;i<n;i++){
+    const h = Math.max(48, L[i].scrollHeight, R[i].scrollHeight);
+    L[i].style.height = R[i].style.height = h + 'px';
   }
 }
 
-/* ---- Rendering ---- */
+/* Handle centre */
+function handleCenter(handleEl){
+  const b = rectOf(board), r = rectOf(handleEl);
+  return { x: r.left - b.left + r.width/2, y: r.top - b.top + r.height/2 };
+}
+
+/* Mobile: straight lines; Desktop: curves */
+function makeConnectorElement(colorVar='--accent', width=3){
+  const color = getComputedStyle(document.documentElement).getPropertyValue(colorVar).trim() || 'red';
+  if (isMobile()){
+    const ln = document.createElementNS('http://www.w3.org/2000/svg','line');
+    ln.setAttribute('stroke', color); ln.setAttribute('stroke-width', width); ln.setAttribute('stroke-linecap','round');
+    return ln;
+  }else{
+    const p = document.createElementNS('http://www.w3.org/2000/svg','path');
+    p.setAttribute('fill','none'); p.setAttribute('stroke', color); p.setAttribute('stroke-width', width); p.setAttribute('stroke-linecap','round'); p.setAttribute('stroke-opacity','0.95');
+    return p;
+  }
+}
+function curveD(x1,y1,x2,y2){ const dx=Math.max(60, Math.abs(x2-x1)*0.5); return `M ${x1} ${y1} C ${x1+dx} ${y1}, ${x2-dx} ${y2}, ${x2} ${y2}`; }
+function placeConnector(el, a, b, colorVar='--accent', width=3){
+  const color = getComputedStyle(document.documentElement).getPropertyValue(colorVar).trim() || 'red';
+  if (el.tagName.toLowerCase()==='line'){
+    el.setAttribute('x1', a.x); el.setAttribute('y1', a.y);
+    el.setAttribute('x2', b.x); el.setAttribute('y2', b.y);
+  }else{
+    el.setAttribute('d', curveD(a.x,a.y,b.x,b.y));
+  }
+  el.setAttribute('stroke', color); el.setAttribute('stroke-width', width);
+}
+
+/* Realign */
+let rafId = null;
+function rafRealign(){ if (rafId) return; rafId = requestAnimationFrame(()=>{ rafId=null; realignAllConnectors(); }); }
+function realignAllConnectors(){
+  for(const [leftId, conn] of connections){
+    const lH = leftCol.querySelector(`.item[data-id="${leftId}"] .handle`);
+    const rH = rightCol.querySelector(`.item[data-id="${conn.rightId}"] .handle`);
+    if(!lH || !rH || !conn.el) continue;
+    placeConnector(conn.el, handleCenter(lH), handleCenter(rH));
+  }
+}
+
+/* Render */
 function render(){
   leftCol.querySelectorAll('.item').forEach(n=>n.remove());
   rightCol.querySelectorAll('.item').forEach(n=>n.remove());
   leftOrder.forEach(({id,left})  => createItem(leftCol, left,  id,'left'));
   rightOrder.forEach(({id,right})=> createItem(rightCol,right, id,'right'));
   setColumnUniformWidths();
+  equaliseRowHeights();
   attachEvents();
   attachTapToMatch();
   updateCheckState();
-  realignAllCurves();
+  realignAllConnectors();
 }
 
-/* --- Proximity helper (snap near dot) --- */
-function findHandleNear(ptBoard, side){
-  const list = Array.from(document.querySelectorAll(`.${side} .handle`));
-  let best = null, bestDist = Infinity;
+/* ---------- STRICT HIT-TEST SNAPPING (hover lock) ---------- */
+function handlesOn(side){ return [...document.querySelectorAll(`.${side} .handle`)]; }
+function pickUnderPointer(pt, side){ // returns a handle only if pointer is inside its hit radius
+  const list = handlesOn(side);
+  let best=null, bestDist=Infinity;
+  const r = getHitRadius();
   for(const h of list){
     const c = handleCenter(h);
-    const d = Math.hypot(c.x - ptBoard.x, c.y - ptBoard.y);
-    if(d < bestDist){ bestDist = d; best = h; }
+    const d = Math.hypot(c.x-pt.x, c.y-pt.y);
+    if (d <= r && d < bestDist){ best=h; bestDist=d; }
   }
-  return (bestDist <= getSnapRadius()) ? best : null;
+  return best; // may be null if not close enough
 }
 
-/* ---- Drag logic (mobile-friendly) ---- */
+/* Drag with hover lock */
 function addStartDragHandler(handleEl, fromSide){
   handleEl.addEventListener('pointerdown', (e)=>{
     e.preventDefault();
-    if (handleEl.setPointerCapture) {
-      try { handleEl.setPointerCapture(e.pointerId); } catch(_){}
-    }
+    try{ handleEl.setPointerCapture && handleEl.setPointerCapture(e.pointerId); }catch(_){}
+    dragActive = true;
 
-    showTimerIfHidden();
-    startTimerAndMusic();
+    showTimerIfHidden(); startTimerAndMusic();
 
     const fromId = handleEl.parentElement.dataset.id;
 
-    // Clear prior connection on same side
+    // Clear any existing connection on this side
     if(fromSide === 'left'){
-      if(connections.has(fromId)){
-        connections.get(fromId).pathEl?.remove();
-        connections.delete(fromId);
-      }
+      if(connections.has(fromId)){ connections.get(fromId).el?.remove(); connections.delete(fromId); }
     }else{
-      for(const [lId, conn] of [...connections]){
-        if(conn.rightId === fromId){
-          conn.pathEl?.remove();
-          connections.delete(lId);
-        }
-      }
+      for(const [lId, conn] of [...connections]){ if(conn.rightId === fromId){ conn.el?.remove(); connections.delete(lId); } }
     }
 
     const start = handleCenter(handleEl);
-    const line = makeStraightLine('--accent', 3);
-    line.setAttribute('x1', start.x); line.setAttribute('y1', start.y);
-    line.setAttribute('x2', start.x); line.setAttribute('y2', start.y);
-    wires.appendChild(line);
+    const ghost = document.createElementNS('http://www.w3.org/2000/svg','line');
+    const color = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || 'red';
+    ghost.setAttribute('stroke', color); ghost.setAttribute('stroke-width', 3); ghost.setAttribute('stroke-linecap','round');
+    ghost.setAttribute('x1', start.x); ghost.setAttribute('y1', start.y);
+    ghost.setAttribute('x2', start.x); ghost.setAttribute('y2', start.y);
+    wires.appendChild(ghost);
 
-    drag = { fromSide, fromId, startXY:start, lineEl: line };
+    drag = { fromSide, fromId, lineEl: ghost, hover: null };
+
+    const setHover = (next)=>{
+      if (drag.hover === next) return;
+      if (drag.hover) drag.hover.classList.remove('hot');
+      drag.hover = next;
+      if (drag.hover) drag.hover.classList.add('hot');
+    };
 
     const onMove = (ev)=>{
       if(!drag) return;
       const pt = boardPointFromClient(ev.clientX, ev.clientY);
-      drag.lineEl.setAttribute('x2', pt.x);
-      drag.lineEl.setAttribute('y2', pt.y);
+      // Maintain lock unless pointer leaves leave-radius
+      if (drag.hover){
+        const c = handleCenter(drag.hover);
+        const dist = Math.hypot(c.x-pt.x, c.y-pt.y);
+        if (dist > getLeaveRadius()){ setHover(null); }
+      }
+      // If not locked, see if we're inside any target's hit radius
+      if (!drag.hover){
+        const side = (drag.fromSide === 'left') ? 'right' : 'left';
+        const cand = pickUnderPointer(pt, side);
+        if (cand) setHover(cand);
+      }
+      // Aim ghost: to locked target centre if any; otherwise to pointer
+      if (drag.hover){
+        const c = handleCenter(drag.hover);
+        ghost.setAttribute('x2', c.x); ghost.setAttribute('y2', c.y);
+      }else{
+        ghost.setAttribute('x2', pt.x); ghost.setAttribute('y2', pt.y);
+      }
     };
 
-    const endDrag = (clientX, clientY)=>{
+    const endDrag = ()=>{
       if(!drag) return;
-      const pt = boardPointFromClient(clientX, clientY);
-      const overRight = (drag.fromSide === 'left') ? findHandleNear(pt,'right') : null;
-      const overLeft  = (drag.fromSide === 'right') ? findHandleNear(pt,'left')  : null;
+
+      const target = drag.hover; // only connect if we were actually inside a dot
+      const fromIdLocal = drag.fromId;
+      const fromSideLocal = drag.fromSide;
+
+      if (drag.hover) drag.hover.classList.remove('hot');
+      drag.lineEl.remove();
 
       let leftId=null, rightId=null, ok=false;
-
-      if(drag.fromSide === 'left' && overRight){
-        leftId  = drag.fromId;
-        rightId = overRight.parentElement.dataset.id;
-        ok = true;
-      }else if(drag.fromSide === 'right' && overLeft){
-        leftId  = overLeft.parentElement.dataset.id;
-        rightId = drag.fromId;
-        ok = true;
-      }
+      if(fromSideLocal === 'left' && target){ leftId=fromIdLocal; rightId=target.parentElement.dataset.id; ok=true; }
+      if(fromSideLocal === 'right' && target){ leftId=target.parentElement.dataset.id; rightId=fromIdLocal; ok=true; }
 
       if(ok){
-        if(connections.has(leftId)){
-          const old = connections.get(leftId);
-          old.pathEl?.remove();
-          connections.delete(leftId);
-        }
-        for(const [lId, conn] of [...connections]){
-          if(conn.rightId === rightId){
-            conn.pathEl?.remove();
-            connections.delete(lId);
-          }
-        }
+        if(connections.has(leftId)){ connections.get(leftId).el?.remove(); connections.delete(leftId); }
+        for(const [lId, conn] of [...connections]){ if(conn.rightId === rightId){ conn.el?.remove(); connections.delete(lId); } }
 
         const lH = leftCol.querySelector(`.item[data-id="${leftId}"] .handle`);
         const rH = rightCol.querySelector(`.item[data-id="${rightId}"] .handle`);
-        const a = handleCenter(lH);
-        const b = handleCenter(rH);
+        const el = makeConnectorElement('--accent', 3);
+        placeConnector(el, handleCenter(lH), handleCenter(rH), '--accent', 3);
+        wires.appendChild(el);
+        connections.set(leftId, { rightId, el });
 
-        const path = makeCurvyPath('--accent', 3);
-        path.setAttribute('d', curveD(a.x,a.y,b.x,b.y));
-        wires.appendChild(path);
-        drag.lineEl.remove();
-
-        connections.set(leftId, { rightId, pathEl: path });
-
-        connectSound.currentTime = 0;
-        connectSound.play();
-        if (!reduceMotion && navigator.vibrate) navigator.vibrate(10); // haptic on connect
-      }else{
-        drag.lineEl.remove();
+        connectSound.currentTime = 0; connectSound.play();
+        if (!reduceMotion && navigator.vibrate) navigator.vibrate(10);
       }
 
-      drag = null;
+      drag = null; dragActive=false;
       document.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerup', onUp);
       document.removeEventListener('pointercancel', onCancel);
       updateCheckState();
+
+      // After drag ends, realign (and re-enable observers)
+      setColumnUniformWidths(); equaliseRowHeights(); rafRealign();
     };
 
-    const onUp = (ev)=> endDrag(ev.clientX, ev.clientY);
-    const onCancel = (ev)=> endDrag(ev.clientX, ev.clientY);
+    const onUp = ()=> endDrag();
+    const onCancel = ()=> endDrag();
 
     document.addEventListener('pointermove', onMove, {passive:false});
     document.addEventListener('pointerup', onUp, {passive:false});
@@ -657,202 +559,126 @@ function addStartDragHandler(handleEl, fromSide){
   });
 }
 
-/* ---- Tap-to-match fallback (runs alongside drag) ---- */
-let pending = null; // { side:'left'|'right', id, el }
-
-/* Remove any visual pending highlight and clear state */
-function clearPendingHighlight(){
-  document.querySelectorAll('.item.pending').forEach(el=> el.classList.remove('pending'));
-  pending = null;
-}
-
-/* Selection logic with no visual outline */
-function setPending(next){
-  clearPendingHighlight(); // ensure nothing is outlined
-  pending = next;          // keep selection state for tap-to-match
-}
+/* Tap-to-match (simple, no visual outline) */
+let pending = null;
+function clearPending(){ pending = null; }
+function setPending(next){ clearPending(); pending = next; }
 
 function attachTapToMatch(){
   [...leftCol.querySelectorAll('.item')].forEach(el=>{
     el.addEventListener('click', ()=>{
       const id = el.dataset.id;
-      if (!pending){ setPending({side:'left', id, el}); return; }
-      if (pending.side === 'right'){
-        connectByIds(id, pending.id);
-        clearPendingHighlight();
-      }else{
-        setPending({side:'left', id, el}); // replace selection
-      }
+      if (!pending){ setPending({side:'left', id}); return; }
+      if (pending.side === 'right'){ connectByIds(id, pending.id); clearPending(); }
+      else setPending({side:'left', id});
     });
   });
   [...rightCol.querySelectorAll('.item')].forEach(el=>{
     el.addEventListener('click', ()=>{
       const id = el.dataset.id;
-      if (!pending){ setPending({side:'right', id, el}); return; }
-      if (pending.side === 'left'){
-        connectByIds(pending.id, id);
-        clearPendingHighlight();
-      }else{
-        setPending({side:'right', id, el});
-      }
+      if (!pending){ setPending({side:'right', id}); return; }
+      if (pending.side === 'left'){ connectByIds(pending.id, id); clearPending(); }
+      else setPending({side:'right', id});
     });
   });
 }
 
 function connectByIds(leftId, rightId){
-  // clear clashes
-  if(connections.has(leftId)){
-    connections.get(leftId).pathEl?.remove();
-    connections.delete(leftId);
-  }
-  for(const [lId, conn] of [...connections]){
-    if(conn.rightId === rightId){
-      conn.pathEl?.remove();
-      connections.delete(lId);
-    }
-  }
+  if(connections.has(leftId)){ connections.get(leftId).el?.remove(); connections.delete(leftId); }
+  for(const [lId, conn] of [...connections]){ if(conn.rightId === rightId){ conn.el?.remove(); connections.delete(lId); } }
   const lH = leftCol.querySelector(`.item[data-id="${leftId}"] .handle`);
   const rH = rightCol.querySelector(`.item[data-id="${rightId}"] .handle`);
   if(!lH || !rH) return;
-  const a = handleCenter(lH);
-  const b = handleCenter(rH);
-  const path = makeCurvyPath('--accent', 3);
-  path.setAttribute('d', curveD(a.x,a.y,b.x,b.y));
-  wires.appendChild(path);
-  connections.set(leftId, { rightId, pathEl: path });
-  clearPendingHighlight();
+  const el = makeConnectorElement('--accent', 3);
+  placeConnector(el, handleCenter(lH), handleCenter(rH), '--accent', 3);
+  wires.appendChild(el);
+  connections.set(leftId, { rightId, el });
   connectSound.currentTime = 0; connectSound.play();
   if (!reduceMotion && navigator.vibrate) navigator.vibrate(10);
   updateCheckState();
 }
 
-/* ---- Event attachment (avoid duplicates) ---- */
-let ro = null;
-let globalListenersAttached = false;
-
+/* Attach/responsive observers (pause during drag to avoid jitter) */
+let ro = null, globalListenersAttached = false;
 function attachEvents(){
   leftCol.querySelectorAll('.item .handle').forEach(h=> addStartDragHandler(h,'left'));
   rightCol.querySelectorAll('.item .handle').forEach(h=> addStartDragHandler(h,'right'));
 
   if (!ro){
-    ro = new ResizeObserver(()=>{ setColumnUniformWidths(); rafRealign(); });
+    ro = new ResizeObserver(()=>{
+      if (dragActive) return; // avoid layout shifts while dragging
+      setColumnUniformWidths();
+      equaliseRowHeights();
+      rafRealign();
+    });
     ro.observe(board);
   }
   if (!globalListenersAttached){
     globalListenersAttached = true;
-    window.addEventListener('scroll', rafRealign, {passive:true});
-    window.addEventListener('resize', ()=>{ setColumnUniformWidths(); rafRealign(); }, {passive:true});
+    window.addEventListener('scroll', ()=>{ if(!dragActive) rafRealign(); }, {passive:true});
+    window.addEventListener('resize', ()=>{
+      if (dragActive) return;
+      setColumnUniformWidths(); equaliseRowHeights(); rafRealign();
+    }, {passive:true});
   }
 }
 
-function updateCheckState(){
-  checkBtn.disabled = connections.size !== PAIRS.length;
-}
+function updateCheckState(){ checkBtn.disabled = connections.size !== PAIRS.length; }
 
-/* ---- Check + Sound ---- */
+/* Buttons */
 checkBtn.addEventListener('click', ()=>{
-  showTimerIfHidden();
-  startTimerAndMusic();
-
-  let countCorrect = 0;
-
+  showTimerIfHidden(); startTimerAndMusic();
+  let ok=0;
   for(const [leftId, conn] of [...connections]){
     const correct = leftId === conn.rightId;
     if(correct){
       const okColor = getComputedStyle(document.documentElement).getPropertyValue('--ok').trim() || '#1E8E3E';
-      conn.pathEl.setAttribute('stroke', okColor);
-      conn.pathEl.setAttribute('stroke-width', 4);
-      conn.pathEl.setAttribute('stroke-opacity', '1');
-      countCorrect++;
+      conn.el.setAttribute('stroke', okColor);
+      conn.el.setAttribute('stroke-width', 4);
+      conn.el.setAttribute('stroke-opacity', '1');
+      ok++;
     }else{
-      conn.pathEl.remove();
-      connections.delete(leftId);
+      conn.el.remove(); connections.delete(leftId);
     }
   }
-
-  if (countCorrect === PAIRS.length) {
-    correctSound.currentTime = 0;
-    correctSound.play();
-    freezeTimerWithMessage();
-    bgm.pause();
-  } else {
-    incorrectSound.currentTime = 0;
-    incorrectSound.play();
-  }
-
+  if (ok === PAIRS.length){ correctSound.currentTime=0; correctSound.play(); freezeTimerWithMessage(); bgm.pause(); }
+  else { incorrectSound.currentTime=0; incorrectSound.play(); }
   updateCheckState();
 });
 
 resetBtn.addEventListener('click', ()=>{
-  clickSound.currentTime = 0;
-  clickSound.play();
-
-  if (timerHiddenForAnswers || timerFrozen) {
-    showTimerResetToZero();
-    bgm.pause();
-  } else {
-    showTimerIfHidden();
-  }
-
+  clickSound.currentTime=0; clickSound.play();
+  if (timerHiddenForAnswers || timerFrozen){ showTimerResetToZero(); bgm.pause(); } else { showTimerIfHidden(); }
   wires.querySelectorAll('*').forEach(n=>n.remove());
-  connections.clear();
-  clearPendingHighlight();
-  updateCheckState();
-  rafRealign();
+  connections.clear(); clearPending(); updateCheckState(); rafRealign();
 });
 
 shuffleBtn.addEventListener('click', ()=>{
-  showTimerIfHidden();
-  startTimerAndMusic();
-
-  clickSound.currentTime = 0;
-  clickSound.play();
-
-  leftOrder  = shuffle(PAIRS);
-  rightOrder = shuffle(PAIRS);
+  showTimerIfHidden(); startTimerAndMusic();
+  clickSound.currentTime=0; clickSound.play();
+  leftOrder=shuffle(PAIRS); rightOrder=shuffle(PAIRS);
   wires.querySelectorAll('*').forEach(n=>n.remove());
-  connections.clear();
-  clearPendingHighlight();
-  render();
+  connections.clear(); clearPending(); render();
 });
 
 showBtn.addEventListener('click', ()=>{
-  showTimerIfHidden();
-  startTimerAndMusic();
-
-  clickSound.currentTime = 0;
-  clickSound.play();
-
-  wires.querySelectorAll('*').forEach(n=>n.remove());
-  connections.clear();
-  clearPendingHighlight();
-
+  showTimerIfHidden(); startTimerAndMusic();
+  clickSound.currentTime=0; clickSound.play();
+  wires.querySelectorAll('*').forEach(n=>n.remove()); connections.clear(); clearPending();
   for(const pair of PAIRS){
     const lH = leftCol.querySelector(`.item[data-id="${pair.id}"] .handle`);
     const rH = rightCol.querySelector(`.item[data-id="${pair.id}"] .handle`);
     if(lH && rH){
-      const a = handleCenter(lH);
-      const b = handleCenter(rH);
-      const path = makeCurvyPath('--ok', 4);
-      path.setAttribute('d', curveD(a.x,a.y,b.x,b.y));
-      wires.appendChild(path);
+      const el = makeConnectorElement('--ok', 4);
+      placeConnector(el, handleCenter(lH), handleCenter(rH), '--ok', 4);
+      wires.appendChild(el);
     }
   }
-  checkBtn.disabled = true;
-
-  bgm.pause();
-  hideTimerKeepSpace();
+  checkBtn.disabled=true; bgm.pause(); hideTimerKeepSpace();
 });
 
-/* ---- Reveal mute icon once audio actually starts ---- */
-bgm.addEventListener('playing', ()=>{
-  if(!hasAudioPlayed){
-    hasAudioPlayed = true;
-    muteBtn.style.display = 'inline-block';
-  }
-});
-
-/* ---- Mute toggle (icon-only) ---- */
+/* Mute button */
+bgm.addEventListener('playing', ()=>{ if(!hasAudioPlayed){ hasAudioPlayed=true; muteBtn.style.display='inline-block'; } });
 muteBtn.addEventListener('click', ()=>{
   const isMuted = !bgm.muted;
   bgm.muted = isMuted;
@@ -860,18 +686,17 @@ muteBtn.addEventListener('click', ()=>{
   muteBtn.setAttribute('aria-label', isMuted ? 'Unmute background music' : 'Mute background music');
 });
 
-/* ---- Init ---- */
+/* Init */
 (function init(){
-  timerEl.textContent = '00:00';
-  leftOrder  = shuffle(PAIRS);
+  timerEl.textContent='00:00';
+  leftOrder = shuffle(PAIRS);
   rightOrder = shuffle(PAIRS);
   render();
 
-  // Recalculate widths again after fonts are ready (prevents early narrow measure)
   if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(()=>{ setColumnUniformWidths(); rafRealign(); });
+    document.fonts.ready.then(()=>{ setColumnUniformWidths(); equaliseRowHeights(); rafRealign(); });
   }
-  window.addEventListener('load', ()=>{ setColumnUniformWidths(); rafRealign(); });
+  window.addEventListener('load', ()=>{ setColumnUniformWidths(); equaliseRowHeights(); rafRealign(); });
 })();
 </script>
 </body>
