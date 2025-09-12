@@ -56,8 +56,9 @@
     font-weight:600; letter-spacing:.3px; box-shadow:0 2px 10px rgba(0,0,0,.12);
   }
 
+  /* Icon-only mute/unmute button */
   .muteBtn{
-    display:none;
+    display:none;                /* shown after audio actually starts */
     background:transparent;
     border:none;
     padding:6px;
@@ -213,8 +214,7 @@
 <audio id="connectSound" preload="metadata" src="https://cdn.pixabay.com/download/audio/2025/05/23/audio_ec08d1525d.mp3?filename=click-345983.mp3"></audio>
 
 <!-- Background music (loop) -->
-<audio id="bgm" preload="metadata" loop src="https://cdn.pixabay.com/download/audio/2025/09/03/audio_a8c05eb5c8.mp3"></audio>
-<!-- Tip: if you want quicker start, change preload to "auto" -->
+<audio id="bgm" preload="auto" loop src="https://cdn.pixabay.com/download/audio/2025/09/03/audio_a8c05eb5c8.mp3"></audio>
 
 <script>
 /* ---- Data ---- */
@@ -258,13 +258,15 @@ let leftOrder=[], rightOrder=[];
 let connections=new Map();
 let drag=null;
 
+/* ---- Snap radius ---- */
 const getSnapRadius = () => isMobile() ? 26 : 18;
 
+/* ---- Timer & music state ---- */
 let timerStarted = false;
 let timerFrozen  = false;
 let timerStartMs = 0;
 let timerInterval = null;
-let hasAudioPlayed = false;
+let hasAudioPlayed = false;  // becomes true only when bgm.play() resolves
 let timerHiddenForAnswers = false;
 
 function fmtTime(ms){
@@ -274,6 +276,22 @@ function fmtTime(ms){
   return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 }
 
+/* Try to start BGM on *every* user gesture until success */
+function maybeStartBgm(){
+  if (hasAudioPlayed) return;
+  try { if (bgm.currentTime !== 0) bgm.currentTime = 0; } catch {}
+  bgm.volume = 0.1;
+  const p = bgm.play();
+  if (p && typeof p.then === 'function') {
+    p.then(()=>{
+      hasAudioPlayed = true;
+      muteBtn.style.display = 'inline-flex';
+      syncMuteUI();
+    }).catch(()=>{/* blocked; we'll try again on next gesture */});
+  }
+}
+
+/* Sync mute icon + a11y label */
 function syncMuteUI(){
   const muted = bgm.muted;
   muteBtn.setAttribute('aria-pressed', String(muted));
@@ -282,6 +300,7 @@ function syncMuteUI(){
   muteBtn.setAttribute('aria-label', muted ? 'Unmute background music' : 'Mute background music');
 }
 
+/* Start timer (once) AND attempt bgm on every call */
 function startTimerAndMusic(){
   if(!timerStarted){
     timerStarted = true;
@@ -297,19 +316,8 @@ function startTimerAndMusic(){
         timerEl.textContent = fmtTime(elapsed);
       }
     }, 250);
-
-    bgm.volume = 0.1;
-    const tryPlay = bgm.play();
-    if (tryPlay && typeof tryPlay.then === 'function') {
-      tryPlay.then(()=>{
-        if(!hasAudioPlayed){
-          hasAudioPlayed = true;
-          muteBtn.style.display = 'inline-flex';
-          syncMuteUI();
-        }
-      }).catch(()=>{});
-    }
   }
+  maybeStartBgm();  // <-- keep trying until it works
 }
 
 function freezeTimerWithMessage(){
@@ -341,6 +349,7 @@ function showTimerIfHidden(){
   }
 }
 
+/* Utils */
 const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
 const rectOf = el => el.getBoundingClientRect();
 function boardPointFromClient(x,y){ const b = rectOf(board); return { x:x - b.left, y:y - b.top }; }
@@ -354,6 +363,7 @@ function createItem(colEl, text, id, side){
   colEl.appendChild(div);
 }
 
+/* Offscreen measurement */
 function measureTextWidth(text, classSelector){
   let meas = document.getElementById('measSpan');
   if(!meas){
@@ -375,7 +385,7 @@ function measureTextWidth(text, classSelector){
   return meas.offsetWidth;
 }
 
-/* Wires: curved on desktop, straight on mobile */
+/* Wires */
 function makeStraightLine(colorVar='--accent', width=3){
   const ln = document.createElementNS('http://www.w3.org/2000/svg','line');
   const color = getComputedStyle(document.documentElement).getPropertyValue(colorVar).trim();
@@ -414,7 +424,7 @@ function setWireGeometry(wireEl, a, b){
   }
 }
 
-/* Equal-height boxes on mobile */
+/* Equal-height on mobile */
 function uniformBoxHeightsMobile(){
   if (!isMobile()) return;
   const leftItems  = Array.from(document.querySelectorAll('#leftCol .item'));
@@ -458,6 +468,7 @@ function setColumnUniformWidths(){
     const b = board.getBoundingClientRect();
     wires.setAttribute('width', b.width);
     wires.setAttribute('height', b.height);
+
     uniformBoxHeightsMobile();
     return;
   }
@@ -559,7 +570,7 @@ function addStartDragHandler(handleEl, fromSide){
     if (handleEl.setPointerCapture) { try { handleEl.setPointerCapture(e.pointerId); } catch(_){} }
 
     showTimerIfHidden();
-    startTimerAndMusic();   // ✅ starts on first drag
+    startTimerAndMusic();   // timer + keep trying BGM
 
     const fromId = handleEl.parentElement.dataset.id;
 
@@ -654,7 +665,7 @@ function addStartDragHandler(handleEl, fromSide){
   });
 }
 
-/* Tap-to-match (now also starts timer/music on first tap) */
+/* Tap-to-match */
 let pending = null;
 
 function clearPendingHighlight(){
@@ -669,10 +680,8 @@ function setPending(next){
 function attachTapToMatch(){
   [...leftCol.querySelectorAll('.item')].forEach(el=>{
     el.addEventListener('click', ()=>{
-      /* ✅ ensure audio/timer start on first tap */
       showTimerIfHidden();
-      startTimerAndMusic();
-
+      startTimerAndMusic();  // timer + keep trying BGM
       const id = el.dataset.id;
       if (!pending){ setPending({side:'left', id, el}); return; }
       if (pending.side === 'right'){
@@ -685,10 +694,8 @@ function attachTapToMatch(){
   });
   [...rightCol.querySelectorAll('.item')].forEach(el=>{
     el.addEventListener('click', ()=>{
-      /* ✅ ensure audio/timer start on first tap */
       showTimerIfHidden();
-      startTimerAndMusic();
-
+      startTimerAndMusic();  // timer + keep trying BGM
       const id = el.dataset.id;
       if (!pending){ setPending({side:'right', id, el}); return; }
       if (pending.side === 'left'){
@@ -751,7 +758,7 @@ function updateCheckState(){
   checkBtn.disabled = connections.size !== PAIRS.length;
 }
 
-/* Congrats overlay audio + trigger */
+/* Congrats audio */
 const bigCongratsAudio = new Audio("https://cdn.pixabay.com/download/audio/2024/08/31/audio_aa510c96aa.mp3");
 bigCongratsAudio.preload = "auto";
 function showCongrats(){
@@ -769,7 +776,6 @@ function showCongrats(){
 checkBtn.addEventListener('click', ()=>{
   showTimerIfHidden();
   startTimerAndMusic();
-
   let countCorrect = 0;
   for(const [leftId, conn] of [...connections]){
     const correct = leftId === conn.rightId;
@@ -784,7 +790,6 @@ checkBtn.addEventListener('click', ()=>{
       connections.delete(leftId);
     }
   }
-
   if (countCorrect === PAIRS.length) {
     correctSound.currentTime = 0; correctSound.play();
     freezeTimerWithMessage();
@@ -870,6 +875,18 @@ muteBtn.addEventListener('click', ()=>{
   bgm.muted = isMuted;
   syncMuteUI();
 });
+
+/* === Unlock audio on very first user gesture anywhere === */
+function unlockAudioOnce(){
+  maybeStartBgm();
+  document.removeEventListener('pointerdown', unlockAudioOnce);
+}
+document.addEventListener('pointerdown', unlockAudioOnce, {once:true, passive:true});
+document.addEventListener('keydown', (e)=>{
+  if (e.key === 'Enter' || e.key === ' '){
+    maybeStartBgm();
+  }
+}, {once:true});
 
 /* Init */
 (function init(){
