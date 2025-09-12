@@ -20,10 +20,7 @@
   .passage p{line-height:1.6}
 
   /* Image above passage */
-  .city-image {
-    display:block; max-width:100%; height:auto;
-    margin:0 auto 1rem; border-radius:12px;
-  }
+  .city-image{display:block;max-width:100%;height:auto;margin:0 auto 1rem;border-radius:12px}
 
   /* ===== Blanks ===== */
   .blank{
@@ -38,92 +35,86 @@
     border-radius:.25rem;
     color:#777;
     text-align:center;
-    padding: var(--pt) var(--px) var(--pb);
-    height: calc(1em + var(--pb));
-    line-height: 1;
-    box-sizing: content-box;
-    top: var(--yshift);
+    padding:var(--pt) var(--px) var(--pb);
+    height:calc(1em + var(--pb));
+    line-height:1;
+    box-sizing:content-box;
+    top:var(--yshift);
     touch-action:none; /* for custom touch drag */
   }
-  .blank *{ line-height:1 }
+  .blank *{line-height:1}
 
   .blank .hit{position:absolute;left:-.25em;right:-.25em;top:-.60em;bottom:-.45em;background:transparent;pointer-events:none;}
   .blank.empty::after{
-    content:""; position:absolute; left:.25em; right:.25em; height:2px;
-    background:var(--accent); bottom:var(--pb); border-radius:2px; pointer-events:none;
+    content:"";position:absolute;left:.25em;right:.25em;height:2px;background:var(--accent);bottom:var(--pb);border-radius:2px;pointer-events:none;
   }
-  .blank.filled::after{ content:none; }
+  .blank.filled::after{content:none;}
 
   /* Fixed-size wrapper that receives correctness outline */
   .fill-wrap{
-    display:inline-flex; align-items:center; justify-content:center;
-    width:100%; height:1em;
-    position:relative; top:-0.10em;
-    border-radius:.25rem; box-sizing:content-box;
+    display:inline-flex;align-items:center;justify-content:center;
+    width:100%;height:1em;position:relative;top:-0.10em;border-radius:.25rem;box-sizing:content-box;
   }
-  .fill-wrap.correct{ outline:2px solid var(--ok); }
-  .fill-wrap.incorrect{ outline:2px solid var(--bad); }
+  .fill-wrap.correct{outline:2px solid var(--ok);}
+  .fill-wrap.incorrect{outline:2px solid var(--bad);}
 
-  .placing .blank{ cursor:copy; }
+  .placing .blank{cursor:copy;}
 
   .blank .tile,
   .blank .answer-text{
-    display:inline-block;
-    border:0!important; background:transparent!important; padding:0!important; box-shadow:none!important; color:#193873;
-    line-height:1; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;
+    display:inline-block;border:0!important;background:transparent!important;padding:0!important;box-shadow:none!important;color:#193873;
+    line-height:1;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
   }
-  .answer-text{ font-weight:600; text-transform:lowercase; }
+  .answer-text{font-weight:600;text-transform:lowercase}
 
-  .bank{ margin-top:14px; background:#fff; border:1px dashed #c9c4ac; border-radius:12px; padding:12px; }
-  .bank-title{ font-weight:600; margin:0 0 .5rem; }
-  .bank-tiles{ display:flex; flex-wrap:wrap; gap:.5rem; min-height:2.2rem; }
-  .score{ margin-top:.75rem; font-weight:600; }
+  .bank{margin-top:14px;background:#fff;border:1px dashed #c9c4ac;border-radius:12px;padding:12px}
+  .bank-title{font-weight:600;margin:0 0 .5rem}
+  .bank-tiles{display:flex;flex-wrap:wrap;gap:.5rem;min-height:2.2rem}
+  .score{margin-top:.75rem;font-weight:600}
 
   .tile{
-    display:inline-flex; align-items:center; justify-content:center;
-    padding:.35rem .6rem; border:1px solid #ccc; border-radius:.55rem; background:#fff;
-    cursor:grab; white-space:nowrap; font-weight:600; text-transform:lowercase; color:#193873;
-    transition:transform .08s ease, border .08s ease, background .08s ease;
-    touch-action:none; -webkit-user-drag:none;
+    display:inline-flex;align-items:center;justify-content:center;
+    padding:.35rem .6rem;border:1px solid #ccc;border-radius:.55rem;background:#fff;
+    cursor:grab;white-space:nowrap;font-weight:600;text-transform:lowercase;color:#193873;
+    transition:transform .08s ease,border .08s ease,background .08s ease;
+    touch-action:none;-webkit-user-drag:none; /* off by default (touch) */
   }
-  .tile:active{cursor:grabbing; transform:scale(.98)}
-  .tile.selected{ border:2px solid #555; background:#f9f9f9; }
+  /* On desktop, explicitly allow WebKit element dragging (Safari/Chrome) */
+  html.desktop .tile{-webkit-user-drag:element;}
 
-  .controls{display:flex; gap:.5rem; margin:1rem 0 0}
+  .tile:active{cursor:grabbing;transform:scale(.98)}
+  .tile.selected{border:2px solid #555;background:#f9f9f9}
+
+  .controls{display:flex;gap:.5rem;margin:1rem 0 0}
   button{
-    border:none; padding:10px 16px; border-radius:10px; font-weight:600; letter-spacing:.2px; cursor:pointer;
-    transition:background .2s, transform .15s;
+    border:none;padding:10px 16px;border-radius:10px;font-weight:600;letter-spacing:.2px;cursor:pointer;
+    transition:background .2s,transform .15s;
   }
-  button.red{ background:#8A0000; color:#fff; box-shadow:0 3px 10px rgba(138,0,0,.25); }
-  button.red:hover{ background:#a80000; transform:translateY(-1px); }
-  button.red:active{ background:#700000; transform:translateY(1px); box-shadow:0 2px 6px rgba(0,0,0,.2); }
-  button.ghost{ background:#eee; color:#111; box-shadow:none; }
-  button.ghost:hover{ background:#ddd; }
+  button.red{background:#8A0000;color:#fff;box-shadow:0 3px 10px rgba(138,0,0,.25)}
+  button.red:hover{background:#a80000;transform:translateY(-1px)}
+  button.red:active{background:#700000;transform:translateY(1px);box-shadow:0 2px 6px rgba(0,0,0,.2)}
+  button.ghost{background:#eee;color:#111;box-shadow:none}
+  button.ghost:hover{background:#ddd}
 
   /* Touch drag ghost */
   .drag-ghost{
-    position:fixed; left:0; top:0; transform:translate(-9999px,-9999px);
-    padding:.35rem .6rem; border:1px solid #ccc; border-radius:.55rem; background:#fff;
-    font:600 1rem 'Josefin Sans',sans-serif; white-space:nowrap; color:#193873;
-    pointer-events:none; opacity:.95; z-index:9999;
+    position:fixed;left:0;top:0;transform:translate(-9999px,-9999px);
+    padding:.35rem .6rem;border:1px solid #ccc;border-radius:.55rem;background:#fff;
+    font:600 1rem 'Josefin Sans',sans-serif;white-space:nowrap;color:#193873;
+    pointer-events:none;opacity:.95;z-index:9999;
   }
 
   /* === Congrats overlay (smaller, no border, slow zoom) === */
   #congratsOverlay{
-    position:fixed; inset:0; display:none;
-    align-items:center; justify-content:center;
-    z-index:99999; pointer-events:none;
+    position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:99999;pointer-events:none;
   }
   #congratsOverlay img{
-    width:min(60vw, 400px);
-    height:auto;
-    animation:none; will-change: transform, opacity;
-    border:none; outline:none; box-shadow:none;
+    width:min(60vw,400px);height:auto;animation:none;will-change:transform,opacity;border:none;outline:none;box-shadow:none;
   }
-  @keyframes congratsZoom {
-    0%   { transform: scale(0.70); opacity:0; }
-    8%   { opacity:1; }
-    100% { transform: scale(1.0); opacity:1; }
+  @keyframes congratsZoom{
+    0%{transform:scale(0.70);opacity:0}
+    8%{opacity:1}
+    100%{transform:scale(1.0);opacity:1}
   }
 </style>
 </head>
@@ -207,8 +198,9 @@
   const shuffle=a=>a.slice().sort(()=>Math.random()-.5);
   const findTile=word=>Array.from(document.querySelectorAll('.tile')).find(t=>t.dataset.value===word);
 
-  /* Detect coarse pointers (touch) */
+  /* Detect coarse pointers (touch); tag desktop for WebKit dragging */
   const IS_COARSE = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || ('ontouchstart' in window);
+  if(!IS_COARSE){ document.documentElement.classList.add('desktop'); } // enables -webkit-user-drag: element
 
   let selectedTile=null;
   function setPlacingMode(on){ document.body.classList.toggle('placing', !!on); }
@@ -229,10 +221,18 @@
 
     // Always enable native desktop drag
     t.draggable = true;
+
     t.addEventListener('dragstart', e=>{
       if(e.dataTransfer){
         e.dataTransfer.setData('text/plain', word);
         e.dataTransfer.effectAllowed = 'move';
+
+        /* Provide a drag image so Chrome/Safari reliably initiate drag on DIVs */
+        const img = t.cloneNode(true);
+        img.style.position='absolute'; img.style.left='-9999px'; img.style.top='-9999px';
+        document.body.appendChild(img);
+        try{ e.dataTransfer.setDragImage(img, img.offsetWidth/2, img.offsetHeight/2); }catch{}
+        setTimeout(()=>{ if(img && img.parentNode) img.parentNode.removeChild(img); }, 0);
       }
       selectTile(t);
     });
@@ -249,21 +249,13 @@
   }
 
   function makeEmpty(b){
-    b.innerHTML='';
-    ensureHit(b);
-    b.classList.add('empty');
-    b.classList.remove('filled');
+    b.innerHTML=''; ensureHit(b);
+    b.classList.add('empty'); b.classList.remove('filled');
   }
-
   function makeFilled(b,node){
-    b.innerHTML='';
-    b.classList.remove('empty');
-    ensureHit(b);
-    const wrap=document.createElement('span');
-    wrap.className='fill-wrap';
-    wrap.appendChild(node);
-    b.appendChild(wrap);
-    b.classList.add('filled');
+    b.innerHTML=''; b.classList.remove('empty'); ensureHit(b);
+    const wrap=document.createElement('span'); wrap.className='fill-wrap';
+    wrap.appendChild(node); b.appendChild(wrap); b.classList.add('filled');
   }
 
   function initBank(){
@@ -344,17 +336,13 @@
 
   function showAnswers(){
     blanks.forEach(b=>{
-      b.innerHTML='';
-      ensureHit(b);
-      const wrap=document.createElement('span');
-      wrap.className='fill-wrap correct';
+      b.innerHTML=''; ensureHit(b);
+      const wrap=document.createElement('span'); wrap.className='fill-wrap correct';
       wrap.innerHTML=`<span class="answer-text">${b.dataset.answer}</span>`;
-      b.appendChild(wrap);
-      b.classList.add('filled');
+      b.appendChild(wrap); b.classList.add('filled');
     });
     deselect();
-    scoreEl.textContent='Answers revealed.';
-    setPlacingMode(false);
+    scoreEl.textContent='Answers revealed.'; setPlacingMode(false);
   }
 
   function resetAll(){
@@ -370,171 +358,124 @@
   }
 
   /* ---------- TOUCH/POINTER: tap-vs-drag with auto-scroll ---------- */
-  let dragging = null;      // { tile, ghost, offsetX, offsetY, pointerId }
-  let pendingTouch = null;  // { tile, pointerId, startX, startY, moved }
-  let suppressNextClick = false;
-  const TAP_DRAG_THRESHOLD = 6; // px
+  let dragging=null;      // { tile, ghost, offsetX, offsetY, pointerId }
+  let pendingTouch=null;  // { tile, pointerId, startX, startY, moved }
+  let suppressNextClick=false;
+  const TAP_DRAG_THRESHOLD=6; // px
 
-  let autoScrollDir = 0;    // -1 up, 1 down, 0 none
-  let autoScrollRAF = null;
-
+  let autoScrollDir=0; let autoScrollRAF=null;
   function startAutoScrollLoop(){
     if(autoScrollRAF!=null) return;
-    const tick = ()=>{
-      if(!dragging || autoScrollDir===0){ autoScrollRAF = null; return; }
-      window.scrollBy(0, autoScrollDir * 12);
-      autoScrollRAF = requestAnimationFrame(tick);
+    const tick=()=>{
+      if(!dragging || autoScrollDir===0){ autoScrollRAF=null; return; }
+      window.scrollBy(0, autoScrollDir*12);
+      autoScrollRAF=requestAnimationFrame(tick);
     };
-    autoScrollRAF = requestAnimationFrame(tick);
+    autoScrollRAF=requestAnimationFrame(tick);
   }
-  function stopAutoScroll(){
-    autoScrollDir = 0;
-    if(autoScrollRAF!=null){ cancelAnimationFrame(autoScrollRAF); autoScrollRAF=null; }
-  }
+  function stopAutoScroll(){ autoScrollDir=0; if(autoScrollRAF!=null){ cancelAnimationFrame(autoScrollRAF); autoScrollRAF=null; } }
   function setAutoScrollFromY(y){
-    const margin = 80;
-    const bottom = window.innerHeight - margin;
-    let dir = 0;
-    if(y < margin) dir = -1;
-    else if(y > bottom) dir = 1;
-    autoScrollDir = dir;
-    if(dir!==0) startAutoScrollLoop(); else stopAutoScroll();
+    const margin=80, bottom=window.innerHeight-margin;
+    autoScrollDir = y<margin ? -1 : (y>bottom ? 1 : 0);
+    if(autoScrollDir!==0) startAutoScrollLoop(); else stopAutoScroll();
   }
 
-  function startTouchDrag(tile, e){
-    // Create ghost
-    const ghost = document.createElement('div');
-    ghost.className = 'drag-ghost';
-    ghost.textContent = tile.textContent;
-    document.body.appendChild(ghost);
+  function startTouchDrag(tile,e){
+    const ghost=document.createElement('div');
+    ghost.className='drag-ghost'; ghost.textContent=tile.textContent; document.body.appendChild(ghost);
+    tile.style.visibility='hidden';
 
-    // Hide real tile (keep layout)
-    tile.style.visibility = 'hidden';
+    const rect=tile.getBoundingClientRect();
+    const offsetX=e.clientX-rect.left, offsetY=e.clientY-rect.top;
 
-    const rect = tile.getBoundingClientRect();
-    const offsetX = e.clientX - rect.left;
-    const offsetY = e.clientY - rect.top;
-
-    dragging = { tile, ghost, offsetX, offsetY, pointerId: e.pointerId };
-    moveGhost(e.clientX, e.clientY);
-    setAutoScrollFromY(e.clientY);
-
-    try { tile.setPointerCapture(e.pointerId); } catch {}
-    document.body.style.touchAction = 'none';
+    dragging={tile,ghost,offsetX,offsetY,pointerId:e.pointerId};
+    moveGhost(e.clientX,e.clientY); setAutoScrollFromY(e.clientY);
+    try{ tile.setPointerCapture(e.pointerId); }catch{}
+    document.body.style.touchAction='none';
     selectTile(tile);
   }
-
-  function moveGhost(x, y){
+  function moveGhost(x,y){
     if(!dragging) return;
-    const { ghost, offsetX, offsetY } = dragging;
-    ghost.style.transform = `translate(${Math.round(x - offsetX)}px, ${Math.round(y - offsetY)}px)`;
+    const {ghost,offsetX,offsetY}=dragging;
+    ghost.style.transform=`translate(${Math.round(x-offsetX)}px, ${Math.round(y-offsetY)}px)`;
   }
-
-  function targetFromPoint(x, y){
-    const { ghost } = dragging || {};
-    if(ghost) ghost.style.visibility = 'hidden';
-    const el = document.elementFromPoint(x, y);
-    if(ghost) ghost.style.visibility = '';
+  function targetFromPoint(x,y){
+    const {ghost}=dragging||{};
+    if(ghost) ghost.style.visibility='hidden';
+    const el=document.elementFromPoint(x,y);
+    if(ghost) ghost.style.visibility='';
     return el;
   }
-
   function endTouchDrag(e){
     if(!dragging) return;
-    const { tile, ghost } = dragging;
-    const x = e.clientX, y = e.clientY;
-    const dropTarget = targetFromPoint(x, y);
-    const blank = dropTarget && dropTarget.closest && dropTarget.closest('.blank');
-    const bank = dropTarget && dropTarget.closest && dropTarget.closest('#bank');
+    const {tile,ghost}=dragging;
+    const x=e.clientX,y=e.clientY;
+    const dropTarget=targetFromPoint(x,y);
+    const blank=dropTarget && dropTarget.closest && dropTarget.closest('.blank');
+    const bank=dropTarget && dropTarget.closest && dropTarget.closest('#bank');
 
-    if(blank){
-      placeTile(tile, blank);
-    }else if(bank){
+    if(blank){ placeTile(tile,blank); }
+    else if(bank){
       const src=tile.closest('.blank'); if(src) makeEmpty(src);
-      bankTiles.appendChild(tile);
-      play(dropAudio);
-      selectTile(tile);
-    } // else: leave it in place, just keep selection
+      bankTiles.appendChild(tile); play(dropAudio); selectTile(tile);
+    }
 
-    tile.style.visibility = '';
-    ghost.remove();
-    dragging = null;
-    document.body.style.touchAction = '';
-    stopAutoScroll();
+    tile.style.visibility=''; ghost.remove(); dragging=null;
+    document.body.style.touchAction=''; stopAutoScroll();
   }
 
-  // Touch/stylus tap-vs-drag
-  window.addEventListener('pointerdown', (e)=>{
-    const isTouchLike = (e.pointerType && e.pointerType !== 'mouse') || IS_COARSE;
+  // Touch/stylus tap-vs-drag (also works for placed tiles via .fill-wrap)
+  window.addEventListener('pointerdown',(e)=>{
+    const isTouchLike=(e.pointerType && e.pointerType!=='mouse') || IS_COARSE;
     if(!isTouchLike) return;
-
-    // Accept taps on the tile itself OR anywhere in the fill-wrap box
-    let tile = e.target.closest && e.target.closest('.tile');
+    let tile=e.target.closest && e.target.closest('.tile');
     if(!tile){
-      const wrap = e.target.closest && e.target.closest('.fill-wrap');
-      if(wrap) tile = wrap.querySelector('.tile');
+      const wrap=e.target.closest && e.target.closest('.fill-wrap');
+      if(wrap) tile=wrap.querySelector('.tile');
     }
     if(!tile) return;
-
     e.preventDefault();
-    pendingTouch = { tile, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, moved:false };
-    suppressNextClick = true; // prevent synthetic click re-selecting something else
-  }, { passive:false });
+    pendingTouch={tile,pointerId:e.pointerId,startX:e.clientX,startY:e.clientY,moved:false};
+    suppressNextClick=true;
+  },{passive:false});
 
-  window.addEventListener('pointermove', (e)=>{
-    if(!pendingTouch || e.pointerId !== pendingTouch.pointerId) return;
-    const dx = e.clientX - pendingTouch.startX;
-    const dy = e.clientY - pendingTouch.startY;
-    const movedEnough = Math.hypot(dx, dy) > TAP_DRAG_THRESHOLD;
+  window.addEventListener('pointermove',(e)=>{
+    if(!pendingTouch || e.pointerId!==pendingTouch.pointerId) return;
+    const dx=e.clientX-pendingTouch.startX, dy=e.clientY-pendingTouch.startY;
+    const movedEnough=Math.hypot(dx,dy)>TAP_DRAG_THRESHOLD;
+    if(!dragging && movedEnough){ pendingTouch.moved=true; startTouchDrag(pendingTouch.tile,e); }
+    else if(dragging){ e.preventDefault(); moveGhost(e.clientX,e.clientY); setAutoScrollFromY(e.clientY); }
+  },{passive:false});
 
-    if(!dragging && movedEnough){
-      pendingTouch.moved = true;
-      startTouchDrag(pendingTouch.tile, e);
-    } else if(dragging){
-      e.preventDefault();
-      moveGhost(e.clientX, e.clientY);
-      setAutoScrollFromY(e.clientY);
+  window.addEventListener('pointerup',(e)=>{
+    if(pendingTouch && e.pointerId===pendingTouch.pointerId){
+      if(!dragging){ selectTile(pendingTouch.tile); }
+      else{ endTouchDrag(e); }
+      pendingTouch=null; setTimeout(()=>{ suppressNextClick=false; },0);
     }
-  }, { passive:false });
+  },{passive:false});
 
-  window.addEventListener('pointerup', (e)=>{
-    if(pendingTouch && e.pointerId === pendingTouch.pointerId){
-      if(!dragging){
-        // It's a tap: select the intended tile (works for bank or placed tiles)
-        selectTile(pendingTouch.tile);
-      }else{
-        // It was a drag
-        endTouchDrag(e);
-      }
-      pendingTouch = null;
-      setTimeout(()=>{ suppressNextClick = false; }, 0);
-    }
-  }, { passive:false });
-
-  window.addEventListener('pointercancel', ()=>{
-    pendingTouch = null;
-    if(dragging){ document.body.style.touchAction=''; stopAutoScroll(); dragging=null; }
+  window.addEventListener('pointercancel',()=>{
+    pendingTouch=null; if(dragging){ document.body.style.touchAction=''; stopAutoScroll(); dragging=null; }
   });
 
   /* ---- Selection helpers ---- */
   // Mouse: select on pointerdown (capture) — doesn't interfere with native drag
   document.addEventListener('pointerdown',(e)=>{
-    if(e.pointerType !== 'mouse') return;
+    if(e.pointerType!=='mouse') return;
     const tile=e.target.closest && e.target.closest('.tile');
     if(tile) selectTile(tile);
   }, true);
 
   // Click fallback (ignore synthetic clicks immediately after a touch)
   document.addEventListener('click',(e)=>{
-    if(suppressNextClick){ suppressNextClick = false; return; }
-
-    // Accept clicks on tile or anywhere in the fill-wrap box
-    let tile = e.target.closest && e.target.closest('.tile');
+    if(suppressNextClick){ suppressNextClick=false; return; }
+    let tile=e.target.closest && e.target.closest('.tile');
     if(!tile){
-      const wrap = e.target.closest && e.target.closest('.fill-wrap');
-      if(wrap) tile = wrap.querySelector('.tile');
+      const wrap=e.target.closest && e.target.closest('.fill-wrap');
+      if(wrap) tile=wrap.querySelector('.tile');
     }
-
-    if(tile) { selectTile(tile); return; }
+    if(tile){ selectTile(tile); return; }
     if(!e.target.closest('.tile, .blank, .bank, .controls')) deselect();
   });
 
