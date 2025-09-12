@@ -45,7 +45,7 @@
   #leftCol { grid-column:1; }
   #rightCol{ grid-column:3; }
 
-  /* Topbar (timer left + mute right) */
+  /* Topbar (timer left + mute icon right) */
   .topbar{
     position:absolute; top:12px; left:18px; right:18px;
     display:flex; align-items:center; justify-content:space-between; gap:12px;
@@ -56,20 +56,19 @@
     font-weight:600; letter-spacing:.3px; box-shadow:0 2px 10px rgba(0,0,0,.12);
   }
 
-  /* Icon-only mute button (uses your SVGs) */
+  /* Icon-only mute/unmute button */
   .muteBtn{
-    display:none; /* shown after audio starts */
-    width:40px; height:40px;
-    border:none; border-radius:50%;
-    background-color:#eee;
-    background-repeat:no-repeat;
-    background-position:center;
-    background-size:22px 22px;
-    box-shadow:0 2px 8px rgba(0,0,0,.08);
+    display:none;                /* shown after audio starts */
+    background:transparent;
+    border:none;
+    padding:6px;
+    width:40px; height:40px;     /* comfortable hit-area */
+    border-radius:999px;
     cursor:pointer;
+    line-height:0;
   }
-  .muteBtn[aria-pressed="false"]{ background-image:url('https://schredder222.github.io/Assets/Unmute.svg'); }
-  .muteBtn[aria-pressed="true"]{  background-image:url('https://schredder222.github.io/Assets/Mute.svg');  }
+  .muteBtn:focus-visible{ outline:2px solid #000; outline-offset:2px; }
+  .muteBtn img{ width:24px; height:24px; display:block; }
 
   .wires{
     position:absolute; inset:0;
@@ -99,12 +98,12 @@
     max-width:100%;
     overflow:hidden;
   }
-  .left.item { padding:10px 34px 10px 14px; }
-  .right.item{ padding:10px 14px 10px 34px; }
+  .left.item { padding:10px 34px 10px 14px; }  /* less left padding */
+  .right.item{ padding:10px 14px 10px 34px; }  /* less right padding */
 
   .item p{
     margin:0;
-    white-space:nowrap;          /* desktop default */
+    white-space:nowrap;          /* never wrap by default (desktop) */
     text-overflow:ellipsis;
     overflow:hidden;
   }
@@ -119,17 +118,18 @@
     width:var(--dot);height:var(--dot);border-radius:50%;
     background:var(--dotColor);
     cursor:pointer; z-index:200;
-    touch-action:none;
+    touch-action:none; /* important for mobile dragging */
     -webkit-user-select:none; user-select:none;
   }
   .left .handle{right:8px}
   .right .handle{left:8px}
 
-  /* Larger invisible halo helps precision without changing visual size */
-  .handle::after{ content:""; position:absolute; inset:-10px; }
-
-  /* Visual hint on the locked target */
-  .handle.hot{ box-shadow:0 0 0 6px rgba(138,0,0,.15); }
+  /* Invisible halo enlarges tap target without changing visual size */
+  .handle::after{
+    content:"";
+    position:absolute;
+    inset:-8px;
+  }
 
   .controls{
     position:absolute;left:18px;right:18px;bottom:16px;
@@ -147,7 +147,7 @@
     :root{ --gap:24px; }
   }
 
-  /* Phones: equal widths, per-row equal heights, aligned dots, smaller text, tighter gaps */
+  /* Phones: tighter gap, bigger dots, taller rows, smaller min column */
   @media (max-width:520px){
     :root{
       --gap:16px;
@@ -155,27 +155,30 @@
       --minCol:100px;
     }
     .board{ padding:62px 12px 62px; }
-    .col{ gap:2px; }                 /* even tighter vertical gap (per your ask) */
-    .item{
-      border-radius:10px;
-      align-items:center;
-      min-height:48px;               /* baseline; final height equalised by JS */
-    }
+    .item{ min-height:48px; border-radius:10px; }
     .left.item{  padding:10px 30px 10px 12px; }
     .right.item{ padding:10px 12px 10px 30px; }
-
-    .item p{
-      white-space:normal;
-      font-size:0.86rem;
-      line-height:1.25;
-      overflow:visible;
-      text-overflow:clip;
-      word-break:break-word;
-    }
-
     .head{ font-size:16px; margin-bottom:6px; }
     .timer{ padding:5px 10px; }
-    .muteBtn{ width:36px; height:36px; background-size:20px 20px; }
+    .muteBtn{ width:36px; height:36px; padding:6px; }
+    .muteBtn img{ width:22px; height:22px; }
+  }
+
+  /* === Congrats overlay (smaller, no border, slow zoom) === */
+  #congratsOverlay{
+    position:fixed; inset:0; display:none;
+    align-items:center; justify-content:center;
+    z-index:99999; pointer-events:none;
+  }
+  #congratsOverlay img{
+    width:min(60vw, 400px); height:auto;
+    animation:none; will-change: transform, opacity;
+    border:none; outline:none; box-shadow:none;
+  }
+  @keyframes congratsZoom{
+    0%   { transform: scale(0.70); opacity:0; }
+    8%   { opacity:1; }
+    100% { transform: scale(1.0); opacity:1; }
   }
 </style>
 </head>
@@ -188,7 +191,10 @@
     <!-- Topbar -->
     <div class="topbar">
       <div class="timer" id="timer">00:00</div>
-      <button class="muteBtn" id="muteBtn" aria-pressed="false" aria-label="Mute background music"></button>
+      <!-- Icon-only mute/unmute -->
+      <button class="muteBtn" id="muteBtn" aria-pressed="false" aria-label="Mute background music" title="Mute">
+        <img id="muteIcon" alt="" src="https://schredder222.github.io/Assets/Unmute.svg" />
+      </button>
     </div>
 
     <svg class="wires" id="wires" aria-hidden="true"></svg>
@@ -212,7 +218,12 @@
   </div>
 </div>
 
-<!-- Audio effects -->
+<!-- Congrats overlay -->
+<div id="congratsOverlay" aria-hidden="true" style="display:none">
+  <img src="https://schredder222.github.io/Assets/Great%20Job.png" alt="Great job!">
+</div>
+
+<!-- Audio effects (lighter on mobile via preload="metadata") -->
 <audio id="correctSound" preload="metadata" src="https://cdn.pixabay.com/download/audio/2022/03/24/audio_dcde83efa6.mp3?filename=ui_correct_button2-103167.mp3"></audio>
 <audio id="incorrectSound" preload="metadata" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_b0669294aa.mp3?filename=training-program-incorrect1-88736.mp3"></audio>
 <audio id="clickSound" preload="metadata" src="https://cdn.pixabay.com/download/audio/2024/04/21/audio_1b8d3bcd3d.mp3?filename=click-buttons-ui-menu-sounds-effects-button-7-203601.mp3"></audio>
@@ -250,61 +261,113 @@ const connectSound = document.getElementById('connectSound');
 
 const timerEl = document.getElementById('timer');
 const muteBtn = document.getElementById('muteBtn');
+const muteIcon = document.getElementById('muteIcon');
 const bgm     = document.getElementById('bgm');
 
-const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-const isMobile = () => window.matchMedia('(max-width:520px)').matches;
+/* Icon URLs */
+const MUTE_ICON_URL   = 'https://schredder222.github.io/Assets/Mute.svg';   // show when muted
+const UNMUTE_ICON_URL = 'https://schredder222.github.io/Assets/Unmute.svg'; // show when unmuted
 
-/* Track column axis (average X of dots). Recomputed on render/resize. */
-let leftAxisX = null;
-let rightAxisX = null;
-function computeAxisXs(){
-  const L = [...document.querySelectorAll('#leftCol .handle')];
-  const R = [...document.querySelectorAll('#rightCol .handle')];
-  const avg = arr => arr.reduce((s,h)=>s+handleCenter(h).x,0) / (arr.length || 1);
-  leftAxisX  = L.length ? avg(L) : null;
-  rightAxisX = R.length ? avg(R) : null;
-}
-function midGapX(){ return (leftAxisX!=null && rightAxisX!=null) ? (leftAxisX + rightAxisX)/2 : null; }
+/* Accessibility / user preferences */
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 let leftOrder=[], rightOrder=[];
-let connections=new Map(); // leftId -> { rightId, el }
+let connections=new Map();
 let drag=null;
-let dragActive=false;
 
-/* ---- Desktop magnetic-lane thresholds ---- */
-const LANE_X_TOL = 48;         // px from the column’s dot X to allow locking (desktop)
-const LANE_Y_TOL = 20;         // vertical tolerance to snap a row (desktop)
-const LANE_X_LEAVE = LANE_X_TOL + 10; // hysteresis (horizontal)
-const LANE_Y_LEAVE = LANE_Y_TOL + 8;  // hysteresis (vertical)
+/* ---- Settings ---- */
+/* Adaptive snap radius: larger on mobile for easier snapping */
+const getSnapRadius = () => window.matchMedia('(max-width:520px)').matches ? 26 : 18;
 
-/* ---- Mobile circular hit-test ---- */
-const HIT_R_MOBILE   = 26;
-const LEAVE_R_MOBILE = HIT_R_MOBILE + 8;
+/* ---- Timer & music state ---- */
+let timerStarted = false;
+let timerFrozen  = false;
+let timerStartMs = 0;
+let timerInterval = null;
+let hasAudioPlayed = false;
+let timerHiddenForAnswers = false;
 
-/* ---- Timer/music ---- */
-let timerStarted=false, timerFrozen=false, timerStartMs=0, timerInterval=null, hasAudioPlayed=false, timerHiddenForAnswers=false;
-const fmtTime = (ms)=>{ const t=Math.floor(ms/1000), m=(t/60|0), s=t%60; return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; };
+function fmtTime(ms){
+  const total = Math.floor(ms/1000);
+  const m = Math.floor(total/60);
+  const s = total % 60;
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+/* Sync mute icon + a11y label with current state */
+function syncMuteUI(){
+  const muted = bgm.muted;
+  muteBtn.setAttribute('aria-pressed', String(muted));
+  muteIcon.src = muted ? MUTE_ICON_URL : UNMUTE_ICON_URL;   // icon reflects current state
+  muteBtn.title = muted ? 'Unmute' : 'Mute';
+  muteBtn.setAttribute('aria-label', muted ? 'Unmute background music' : 'Mute background music');
+}
 
 function startTimerAndMusic(){
   if(!timerStarted){
-    timerStarted = true; timerFrozen=false; timerStartMs=Date.now();
-    timerEl.style.visibility='visible'; timerHiddenForAnswers=false;
-    timerEl.textContent='00:00';
-    timerInterval = setInterval(()=>{ if(!timerFrozen){ timerEl.textContent = fmtTime(Date.now()-timerStartMs); } }, 250);
+    timerStarted = true;
+    timerFrozen = false;
+    timerStartMs = Date.now();
+    timerEl.style.visibility = 'visible';
+    timerHiddenForAnswers = false;
 
+    timerEl.textContent = '00:00';
+    timerInterval = setInterval(()=>{
+      if(!timerFrozen){
+        const elapsed = Date.now() - timerStartMs;
+        timerEl.textContent = fmtTime(elapsed);
+      }
+    }, 250);
+
+    // only lower background music volume (leave sfx at 100%)
     bgm.volume = 0.1;
-    const p = bgm.play();
-    if (p && typeof p.then==='function'){ p.then(()=>{ if(!hasAudioPlayed){ hasAudioPlayed=true; muteBtn.style.display='inline-block'; } }).catch(()=>{}); }
+    const tryPlay = bgm.play();
+    if (tryPlay && typeof tryPlay.then === 'function') {
+      tryPlay.then(()=>{
+        if(!hasAudioPlayed){
+          hasAudioPlayed = true;
+          muteBtn.style.display = 'inline-flex';
+          syncMuteUI();
+        }
+      }).catch(()=>{});
+    }
   }
 }
-function freezeTimerWithMessage(){ if(timerStarted && !timerFrozen){ timerFrozen=true; clearInterval(timerInterval); timerInterval=null; timerEl.textContent=`Completed in ${fmtTime(Date.now()-timerStartMs)}`; } }
-function hideTimerKeepSpace(){ timerHiddenForAnswers=true; timerStarted=false; timerFrozen=true; clearInterval(timerInterval); timerInterval=null; timerEl.style.visibility='hidden'; }
-function showTimerResetToZero(){ timerEl.style.visibility='visible'; timerEl.textContent='00:00'; timerStarted=false; timerFrozen=false; timerHiddenForAnswers=false; }
-function showTimerIfHidden(){ if (timerEl.style.visibility==='hidden'){ timerEl.style.visibility='visible'; timerHiddenForAnswers=false; } }
+
+function freezeTimerWithMessage(){
+  if(timerStarted && !timerFrozen){
+    timerFrozen = true;
+    const elapsed = Date.now() - timerStartMs;
+    if(timerInterval){ clearInterval(timerInterval); timerInterval = null; }
+    timerEl.textContent = `Completed in ${fmtTime(elapsed)}`;
+  }
+}
+
+function hideTimerKeepSpace(){
+  timerHiddenForAnswers = true;
+  timerStarted = false;
+  timerFrozen = true;
+  if(timerInterval){ clearInterval(timerInterval); timerInterval = null; }
+  timerEl.style.visibility = 'hidden';
+}
+
+function showTimerResetToZero(){
+  timerEl.style.visibility = 'visible';
+  timerEl.textContent = '00:00';
+  timerStarted = false;
+  timerFrozen = false;
+  timerHiddenForAnswers = false;
+}
+
+function showTimerIfHidden(){
+  if (timerEl.style.visibility === 'hidden') {
+    timerEl.style.visibility = 'visible';
+    timerHiddenForAnswers = false;
+  }
+}
 
 /* ---- Utils ---- */
-const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
 const rectOf = el => el.getBoundingClientRect();
 function boardPointFromClient(x,y){ const b = rectOf(board); return { x:x - b.left, y:y - b.top }; }
 
@@ -318,287 +381,291 @@ function createItem(colEl, text, id, side){
   colEl.appendChild(div);
 }
 
-/* Measurement */
+/* ---- Accurate text measurement (offscreen) ---- */
 function measureTextWidth(text, classSelector){
   let meas = document.getElementById('measSpan');
   if(!meas){
-    meas = document.createElement('span'); meas.id='measSpan';
-    Object.assign(meas.style,{position:'absolute',left:'-99999px',top:'-99999px',whiteSpace:'nowrap'});
+    meas = document.createElement('span');
+    meas.id = 'measSpan';
+    meas.style.position = 'absolute';
+    meas.style.left = '-99999px';
+    meas.style.top = '-99999px';
+    meas.style.whiteSpace = 'nowrap';
     document.body.appendChild(meas);
   }
   const sample = document.querySelector(classSelector);
   const cs = sample ? getComputedStyle(sample) : getComputedStyle(document.body);
-  meas.style.fontFamily = cs.fontFamily; meas.style.fontSize=cs.fontSize; meas.style.fontWeight=cs.fontWeight; meas.style.letterSpacing=cs.letterSpacing;
+  meas.style.fontFamily = cs.fontFamily;
+  meas.style.fontSize   = cs.fontSize;
+  meas.style.fontWeight = cs.fontWeight;
+  meas.style.letterSpacing = cs.letterSpacing;
   meas.textContent = text;
   return meas.offsetWidth;
 }
 
-/* Column widths (equal on mobile) */
+/* Widths:
+   - Left/right columns get equal widths on mobile for symmetry.
+   - On desktop/tablet, keep smart sizing and only wrap if needed. */
 function setColumnUniformWidths(){
-  const leftItems = [...document.querySelectorAll('#leftCol .item')];
-  const rightItems= [...document.querySelectorAll('#rightCol .item')];
-  if (!leftItems.length || !rightItems.length) return;
+  const leftItems = Array.from(document.querySelectorAll('#leftCol .item'));
+  const rightItems= Array.from(document.querySelectorAll('#rightCol .item'));
+  if (leftItems.length === 0 || rightItems.length === 0) return;
 
-  const mobile = isMobile();
+  const isMobile = window.matchMedia('(max-width:520px)').matches;
+
+  /* Board metrics */
   const boardCS = getComputedStyle(board);
-  const inner = board.clientWidth - parseFloat(boardCS.paddingLeft||0) - parseFloat(boardCS.paddingRight||0);
+  const padLeft  = parseFloat(boardCS.paddingLeft)||0;
+  const padRight = parseFloat(boardCS.paddingRight)||0;
+  const inner = board.clientWidth - padLeft - padRight;
+
   const gapPx = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gap'))||0;
-  const totalGaps = gapPx * 2;
+  const totalGaps = gapPx * 2; // three columns => two gaps
   const minCol = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--minCol'))||120;
 
-  if (mobile) {
+  /* ----- MOBILE: force equal widths & allow wrapping both sides ----- */
+  if (isMobile) {
     leftItems.forEach(i => i.classList.add('wrap'));
     rightItems.forEach(i=> i.classList.add('wrap'));
+
     const equalW = Math.max(minCol, Math.floor((inner - totalGaps) / 2));
-    [...leftItems, ...rightItems].forEach(i => i.style.setProperty('--colWidth', equalW + 'px'));
-  } else {
-    let leftTextMax=0, rightTextMax=0;
-    leftItems.forEach(it=> leftTextMax  = Math.max(leftTextMax,  measureTextWidth(it.querySelector('p').textContent, '.item p')));
-    rightItems.forEach(it=> rightTextMax = Math.max(rightTextMax, measureTextWidth(it.querySelector('p').textContent, '.item p')));
-    const padL = getComputedStyle(leftItems[0]), padR = getComputedStyle(rightItems[0]);
-    const leftW  = Math.max(minCol, leftTextMax  + parseFloat(padL.paddingLeft||0) + parseFloat(padL.paddingRight||0) + 22);
-    let   rightW = Math.max(minCol, rightTextMax + parseFloat(padR.paddingLeft||0) + parseFloat(padR.paddingRight||0) + 22);
-    let   finalL = leftW, finalR = rightW;
-    if (finalL + finalR + totalGaps > inner){ finalR = Math.max(minCol, inner - totalGaps - finalL); }
-    leftItems.forEach(i => i.classList.remove('wrap'));
-    if (finalL + finalR + totalGaps > inner){
-      finalL = Math.max(minCol, inner - totalGaps - finalR);
-      leftItems.forEach(i => i.classList.add('wrap'));
-    }
-    leftItems.forEach(i => i.style.setProperty('--colWidth', finalL + 'px'));
-    rightItems.forEach(i=> i.style.setProperty('--colWidth', finalR + 'px'));
+    leftItems.forEach(i => i.style.setProperty('--colWidth', equalW + 'px'));
+    rightItems.forEach(i=> i.style.setProperty('--colWidth', equalW + 'px'));
+
+    const b = board.getBoundingClientRect();
+    wires.setAttribute('width', b.width);
+    wires.setAttribute('height', b.height);
+    return; // done for mobile
   }
 
-  const b = rectOf(board);
+  /* ----- DESKTOP/TABLET: measure and fit ----- */
+  // Measure longest texts
+  let leftTextMax = 0;
+  leftItems.forEach(item=>{
+    const txt = item.querySelector('p').textContent;
+    leftTextMax = Math.max(leftTextMax, measureTextWidth(txt, '.item p'));
+  });
+
+  let rightTextMax = 0;
+  rightItems.forEach(item=>{
+    const txt = item.querySelector('p').textContent;
+    rightTextMax = Math.max(rightTextMax, measureTextWidth(txt, '.item p'));
+  });
+
+  // Paddings
+  const csLeft  = getComputedStyle(leftItems[0]);
+  const padLL = parseFloat(csLeft.paddingLeft)||0;
+  const padLR = parseFloat(csLeft.paddingRight)||0;
+  const csRight = getComputedStyle(rightItems[0]);
+  const padRL = parseFloat(csRight.paddingLeft)||0;
+  const padRR = parseFloat(csRight.paddingRight)||0;
+
+  // Desired widths with buffer
+  const extra = 22;
+  let leftWDesired  = leftTextMax  + padLL + padLR + extra;
+  let rightWDesired = rightTextMax + padRL + padRR + extra;
+
+  let leftW  = Math.max(minCol, leftWDesired);
+  let rightW = Math.max(minCol, rightWDesired);
+
+  // Fit: shrink right first
+  if (leftW + rightW + totalGaps > inner) {
+    rightW = Math.max(minCol, inner - totalGaps - leftW);
+  }
+
+  // If still too wide, allow left to wrap and shrink it
+  leftItems.forEach(i => i.classList.remove('wrap'));
+  if (leftW + rightW + totalGaps > inner) {
+    leftW = Math.max(minCol, inner - totalGaps - rightW);
+    leftItems.forEach(i => i.classList.add('wrap'));
+  }
+
+  leftItems.forEach(i => i.style.setProperty('--colWidth', leftW + 'px'));
+  rightItems.forEach(i=> i.style.setProperty('--colWidth', rightW + 'px'));
+
+  const b = board.getBoundingClientRect();
   wires.setAttribute('width', b.width);
   wires.setAttribute('height', b.height);
-
-  // Update lane axes whenever layout changes
-  computeAxisXs();
 }
 
-/* Equal row heights on mobile so dots align */
-function equaliseRowHeights(){
-  const mobile = isMobile();
-  const L=[...document.querySelectorAll('#leftCol .item')];
-  const R=[...document.querySelectorAll('#rightCol .item')];
-  const n = Math.min(L.length,R.length);
-  for(let i=0;i<n;i++){ L[i].style.height = R[i].style.height = 'auto'; }
-  if (!mobile) return;
-  for(let i=0;i<n;i++){
-    const h = Math.max(48, L[i].scrollHeight, R[i].scrollHeight);
-    L[i].style.height = R[i].style.height = h + 'px';
-  }
-  // Axes might shift after heights equalise
-  computeAxisXs();
-}
-
-/* Handle centre */
+/* ---- Drag helpers ---- */
 function handleCenter(handleEl){
-  const b = rectOf(board), r = rectOf(handleEl);
+  const b = rectOf(board);
+  const r = rectOf(handleEl);
   return { x: r.left - b.left + r.width/2, y: r.top - b.top + r.height/2 };
 }
 
-/* Mobile: straight lines; Desktop: curves */
-function makeConnectorElement(colorVar='--accent', width=3){
-  const color = getComputedStyle(document.documentElement).getPropertyValue(colorVar).trim() || 'red';
-  if (isMobile()){
-    const ln = document.createElementNS('http://www.w3.org/2000/svg','line');
-    ln.setAttribute('stroke', color); ln.setAttribute('stroke-width', width); ln.setAttribute('stroke-linecap','round');
-    return ln;
-  }else{
-    const p = document.createElementNS('http://www.w3.org/2000/svg','path');
-    p.setAttribute('fill','none'); p.setAttribute('stroke', color); p.setAttribute('stroke-width', width); p.setAttribute('stroke-linecap','round'); p.setAttribute('stroke-opacity','0.95');
-    return p;
-  }
-}
-function curveD(x1,y1,x2,y2){ const dx=Math.max(60, Math.abs(x2-x1)*0.5); return `M ${x1} ${y1} C ${x1+dx} ${y1}, ${x2-dx} ${y2}, ${x2} ${y2}`; }
-function placeConnector(el, a, b, colorVar='--accent', width=3){
-  const color = getComputedStyle(document.documentElement).getPropertyValue(colorVar).trim() || 'red';
-  if (el.tagName.toLowerCase()==='line'){
-    el.setAttribute('x1', a.x); el.setAttribute('y1', a.y);
-    el.setAttribute('x2', b.x); el.setAttribute('y2', b.y);
-  }else{
-    el.setAttribute('d', curveD(a.x,a.y,b.x,b.y));
-  }
-  el.setAttribute('stroke', color); el.setAttribute('stroke-width', width);
+function makeStraightLine(colorVar='--accent', width=3){
+  const ln = document.createElementNS('http://www.w3.org/2000/svg','line');
+  const color = getComputedStyle(document.documentElement).getPropertyValue(colorVar).trim();
+  ln.setAttribute('stroke', color || 'red');
+  ln.setAttribute('stroke-width', width);
+  ln.setAttribute('stroke-linecap','round');
+  return ln;
 }
 
-/* Realign */
+function curveD(x1,y1,x2,y2){
+  const dx = Math.max(60, Math.abs(x2 - x1) * 0.5);
+  const c1x = x1 + dx, c1y = y1;
+  const c2x = x2 - dx, c2y = y2;
+  return `M ${x1} ${y1} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${x2} ${y2}`;
+}
+function makeCurvyPath(colorVar='--accent', width=3){
+  const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  const color = getComputedStyle(document.documentElement).getPropertyValue(colorVar).trim();
+  p.setAttribute('fill','none');
+  p.setAttribute('stroke', color || 'red');
+  p.setAttribute('stroke-width', width);
+  p.setAttribute('stroke-linecap','round');
+  p.setAttribute('stroke-opacity','0.95');
+  return p;
+}
+
+/* ---- Realign curves (throttled) ---- */
 let rafId = null;
-function rafRealign(){ if (rafId) return; rafId = requestAnimationFrame(()=>{ rafId=null; realignAllConnectors(); }); }
-function realignAllConnectors(){
+function rafRealign(){
+  if (rafId) return;
+  rafId = requestAnimationFrame(()=>{ rafId = null; realignAllCurves(); });
+}
+function realignAllCurves(){
   for(const [leftId, conn] of connections){
     const lH = leftCol.querySelector(`.item[data-id="${leftId}"] .handle`);
     const rH = rightCol.querySelector(`.item[data-id="${conn.rightId}"] .handle`);
-    if(!lH || !rH || !conn.el) continue;
-    placeConnector(conn.el, handleCenter(lH), handleCenter(rH));
+    if(!lH || !rH || !conn.pathEl) continue;
+    const a = handleCenter(lH);
+    const b = handleCenter(rH);
+    conn.pathEl.setAttribute('d', curveD(a.x,a.y,b.x,b.y));
   }
 }
 
-/* Render */
+/* ---- Rendering ---- */
 function render(){
   leftCol.querySelectorAll('.item').forEach(n=>n.remove());
   rightCol.querySelectorAll('.item').forEach(n=>n.remove());
   leftOrder.forEach(({id,left})  => createItem(leftCol, left,  id,'left'));
   rightOrder.forEach(({id,right})=> createItem(rightCol,right, id,'right'));
   setColumnUniformWidths();
-  equaliseRowHeights();
   attachEvents();
   attachTapToMatch();
   updateCheckState();
-  realignAllConnectors();
+  realignAllCurves();
 }
 
-/* ---------- DESKTOP “MID-GAP ACTIVATION” + LANE LOCK; MOBILE CIRCLE ---------- */
-function handlesOn(side){ return [...document.querySelectorAll(`.${side} .handle`)]; }
-
-function pickMobile(pt, targetSide){
-  let best=null, bestDist=Infinity;
-  for(const h of handlesOn(targetSide)){
+/* --- Proximity helper (snap near dot) --- */
+function findHandleNear(ptBoard, side){
+  const list = Array.from(document.querySelectorAll(`.${side} .handle`));
+  let best = null, bestDist = Infinity;
+  for(const h of list){
     const c = handleCenter(h);
-    const d = Math.hypot(c.x-pt.x, c.y-pt.y);
-    if (d <= HIT_R_MOBILE && d < bestDist){ best=h; bestDist=d; }
+    const d = Math.hypot(c.x - ptBoard.x, c.y - ptBoard.y);
+    if(d < bestDist){ bestDist = d; best = h; }
   }
-  return best;
+  return (bestDist <= getSnapRadius()) ? best : null;
 }
 
-function pickDesktop(pt, targetSide){
-  // Enforce mid-gap activation: only consider targets once pointer crosses mid-gap towards that side.
-  const midX = midGapX();
-  if (midX == null) return null;
-  if (targetSide === 'right' && pt.x <= midX) return null;
-  if (targetSide === 'left'  && pt.x >= midX) return null;
-
-  // Lane lock: narrow horizontal lane around the target column’s dot X; prioritise vertical proximity.
-  let best=null, bestVy=Infinity, bestHx=Infinity;
-  const axisX = (targetSide === 'right') ? rightAxisX : leftAxisX;
-  for(const h of handlesOn(targetSide)){
-    const c = handleCenter(h);
-    const dx = Math.abs(pt.x - c.x);
-    const dy = Math.abs(pt.y - c.y);
-    // Require pointer near the column axis and near a row vertically
-    if (Math.abs(pt.x - axisX) <= LANE_X_TOL && dy <= LANE_Y_TOL){
-      if (dy < bestVy || (dy === bestVy && dx < bestHx)){ best=h; bestVy=dy; bestHx=dx; }
-    }
-  }
-  return best;
-}
-
-function pickCandidate(pt, fromSide){
-  const targetSide = (fromSide === 'left') ? 'right' : 'left';
-  return isMobile() ? pickMobile(pt, targetSide) : pickDesktop(pt, targetSide);
-}
-
-/* Drag with hover lock + hysteresis */
-let dragListenersAttached = false;
+/* ---- Drag logic (mobile-friendly) ---- */
 function addStartDragHandler(handleEl, fromSide){
   handleEl.addEventListener('pointerdown', (e)=>{
     e.preventDefault();
-    try{ handleEl.setPointerCapture && handleEl.setPointerCapture(e.pointerId); }catch(_){}
-    dragActive = true;
+    if (handleEl.setPointerCapture) {
+      try { handleEl.setPointerCapture(e.pointerId); } catch(_){}
+    }
 
-    showTimerIfHidden(); startTimerAndMusic();
+    showTimerIfHidden();
+    startTimerAndMusic();
 
     const fromId = handleEl.parentElement.dataset.id;
 
-    // Clear any existing connection on this side
+    // Clear prior connection on same side
     if(fromSide === 'left'){
-      if(connections.has(fromId)){ connections.get(fromId).el?.remove(); connections.delete(fromId); }
+      if(connections.has(fromId)){
+        connections.get(fromId).pathEl?.remove();
+        connections.delete(fromId);
+      }
     }else{
-      for(const [lId, conn] of [...connections]){ if(conn.rightId === fromId){ conn.el?.remove(); connections.delete(lId); } }
+      for(const [lId, conn] of [...connections]){
+        if(conn.rightId === fromId){
+          conn.pathEl?.remove();
+          connections.delete(lId);
+        }
+      }
     }
 
     const start = handleCenter(handleEl);
-    const ghost = document.createElementNS('http://www.w3.org/2000/svg','line');
-    const color = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || 'red';
-    ghost.setAttribute('stroke', color); ghost.setAttribute('stroke-width', 3); ghost.setAttribute('stroke-linecap','round');
-    ghost.setAttribute('x1', start.x); ghost.setAttribute('y1', start.y);
-    ghost.setAttribute('x2', start.x); ghost.setAttribute('y2', start.y);
-    wires.appendChild(ghost);
+    const line = makeStraightLine('--accent', 3);
+    line.setAttribute('x1', start.x); line.setAttribute('y1', start.y);
+    line.setAttribute('x2', start.x); line.setAttribute('y2', start.y);
+    wires.appendChild(line);
 
-    drag = { fromSide, fromId, lineEl: ghost, hover: null };
-
-    const setHover = (next)=>{
-      if (drag.hover === next) return;
-      if (drag.hover) drag.hover.classList.remove('hot');
-      drag.hover = next;
-      if (drag.hover) drag.hover.classList.add('hot');
-    };
+    drag = { fromSide, fromId, startXY:start, lineEl: line };
 
     const onMove = (ev)=>{
       if(!drag) return;
       const pt = boardPointFromClient(ev.clientX, ev.clientY);
-
-      // Maintain lock unless cursor exits an expanded leave window (separate mobile/desktop rules)
-      if (drag.hover){
-        const c = handleCenter(drag.hover);
-        if (isMobile()){
-          const d = Math.hypot(pt.x - c.x, pt.y - c.y);
-          if (d > LEAVE_R_MOBILE) setHover(null);
-        }else{
-          const dx = Math.abs(pt.x - c.x);
-          const dy = Math.abs(pt.y - c.y);
-          if (dx > LANE_X_LEAVE || dy > LANE_Y_LEAVE) setHover(null);
-        }
-      }
-
-      // If not locked, evaluate new candidate (respecting mid-gap rule on desktop)
-      if (!drag.hover){
-        const cand = pickCandidate(pt, drag.fromSide);
-        if (cand) setHover(cand);
-      }
-
-      // Aim ghost at locked target centre if any; otherwise at pointer
-      if (drag.hover){
-        const c = handleCenter(drag.hover);
-        ghost.setAttribute('x2', c.x); ghost.setAttribute('y2', c.y);
-      }else{
-        ghost.setAttribute('x2', pt.x); ghost.setAttribute('y2', pt.y);
-      }
+      drag.lineEl.setAttribute('x2', pt.x);
+      drag.lineEl.setAttribute('y2', pt.y);
     };
 
-    const endDrag = ()=>{
+    const endDrag = (clientX, clientY)=>{
       if(!drag) return;
-
-      const target = drag.hover; // only connect if locked
-      const fromIdLocal = drag.fromId;
-      const fromSideLocal = drag.fromSide;
-
-      if (drag.hover) drag.hover.classList.remove('hot');
-      drag.lineEl.remove();
+      const pt = boardPointFromClient(clientX, clientY);
+      const overRight = (drag.fromSide === 'left') ? findHandleNear(pt,'right') : null;
+      const overLeft  = (drag.fromSide === 'right') ? findHandleNear(pt,'left')  : null;
 
       let leftId=null, rightId=null, ok=false;
-      if(fromSideLocal === 'left' && target){ leftId=fromIdLocal; rightId=target.parentElement.dataset.id; ok=true; }
-      if(fromSideLocal === 'right' && target){ leftId=target.parentElement.dataset.id; rightId=fromIdLocal; ok=true; }
+
+      if(drag.fromSide === 'left' && overRight){
+        leftId  = drag.fromId;
+        rightId = overRight.parentElement.dataset.id;
+        ok = true;
+      }else if(drag.fromSide === 'right' && overLeft){
+        leftId  = overLeft.parentElement.dataset.id;
+        rightId = drag.fromId;
+        ok = true;
+      }
 
       if(ok){
-        if(connections.has(leftId)){ connections.get(leftId).el?.remove(); connections.delete(leftId); }
-        for(const [lId, conn] of [...connections]){ if(conn.rightId === rightId){ conn.el?.remove(); connections.delete(lId); } }
+        if(connections.has(leftId)){
+          const old = connections.get(leftId);
+          old.pathEl?.remove();
+          connections.delete(leftId);
+        }
+        for(const [lId, conn] of [...connections]){
+          if(conn.rightId === rightId){
+            conn.pathEl?.remove();
+            connections.delete(lId);
+          }
+        }
 
         const lH = leftCol.querySelector(`.item[data-id="${leftId}"] .handle`);
         const rH = rightCol.querySelector(`.item[data-id="${rightId}"] .handle`);
-        const el = makeConnectorElement('--accent', 3);
-        placeConnector(el, handleCenter(lH), handleCenter(rH), '--accent', 3);
-        wires.appendChild(el);
-        connections.set(leftId, { rightId, el });
+        const a = handleCenter(lH);
+        const b = handleCenter(rH);
 
-        connectSound.currentTime = 0; connectSound.play();
-        if (!reduceMotion && navigator.vibrate) navigator.vibrate(10);
+        const path = makeCurvyPath('--accent', 3);
+        path.setAttribute('d', curveD(a.x,a.y,b.x,b.y));
+        wires.appendChild(path);
+        drag.lineEl.remove();
+
+        connections.set(leftId, { rightId, pathEl: path });
+
+        clearPendingHighlight(); // ensure no box gets outlined
+        connectSound.currentTime = 0;
+        connectSound.play();
+        if (!reduceMotion && navigator.vibrate) navigator.vibrate(10); // haptic on connect
+      }else{
+        drag.lineEl.remove();
       }
 
-      drag = null; dragActive=false;
+      drag = null;
       document.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerup', onUp);
       document.removeEventListener('pointercancel', onCancel);
       updateCheckState();
-
-      // Reflow after drag
-      setColumnUniformWidths(); equaliseRowHeights(); rafRealign();
     };
 
-    const onUp = ()=> endDrag();
-    const onCancel = ()=> endDrag();
+    const onUp = (ev)=> endDrag(ev.clientX, ev.clientY);
+    const onCancel = (ev)=> endDrag(ev.clientX, ev.clientY);
 
     document.addEventListener('pointermove', onMove, {passive:false});
     document.addEventListener('pointerup', onUp, {passive:false});
@@ -606,144 +673,241 @@ function addStartDragHandler(handleEl, fromSide){
   });
 }
 
-/* Tap-to-match (simple, no outline) */
-let pending = null;
-function clearPending(){ pending = null; }
-function setPending(next){ clearPending(); pending = next; }
+/* ---- Tap-to-match fallback (runs alongside drag) ---- */
+let pending = null; // { side:'left'|'right', id, el }
+
+/* Remove any visual pending highlight and clear state */
+function clearPendingHighlight(){
+  document.querySelectorAll('.item.pending').forEach(el=> el.classList.remove('pending'));
+  pending = null;
+}
+
+/* Selection logic with no visual outline */
+function setPending(next){
+  clearPendingHighlight(); // ensure nothing is outlined
+  pending = next;          // keep selection state for tap-to-match
+}
 
 function attachTapToMatch(){
   [...leftCol.querySelectorAll('.item')].forEach(el=>{
     el.addEventListener('click', ()=>{
       const id = el.dataset.id;
-      if (!pending){ setPending({side:'left', id}); return; }
-      if (pending.side === 'right'){ connectByIds(id, pending.id); clearPending(); }
-      else setPending({side:'left', id});
+      if (!pending){ setPending({side:'left', id, el}); return; }
+      if (pending.side === 'right'){
+        connectByIds(id, pending.id);
+        clearPendingHighlight();
+      }else{
+        setPending({side:'left', id, el}); // replace selection
+      }
     });
   });
   [...rightCol.querySelectorAll('.item')].forEach(el=>{
     el.addEventListener('click', ()=>{
       const id = el.dataset.id;
-      if (!pending){ setPending({side:'right', id}); return; }
-      if (pending.side === 'left'){ connectByIds(pending.id, id); clearPending(); }
-      else setPending({side:'right', id});
+      if (!pending){ setPending({side:'right', id, el}); return; }
+      if (pending.side === 'left'){
+        connectByIds(pending.id, id);
+        clearPendingHighlight();
+      }else{
+        setPending({side:'right', id, el});
+      }
     });
   });
 }
 
 function connectByIds(leftId, rightId){
-  if(connections.has(leftId)){ connections.get(leftId).el?.remove(); connections.delete(leftId); }
-  for(const [lId, conn] of [...connections]){ if(conn.rightId === rightId){ conn.el?.remove(); connections.delete(lId); } }
+  // clear clashes
+  if(connections.has(leftId)){
+    connections.get(leftId).pathEl?.remove();
+    connections.delete(leftId);
+  }
+  for(const [lId, conn] of [...connections]){
+    if(conn.rightId === rightId){
+      conn.pathEl?.remove();
+      connections.delete(lId);
+    }
+  }
   const lH = leftCol.querySelector(`.item[data-id="${leftId}"] .handle`);
   const rH = rightCol.querySelector(`.item[data-id="${rightId}"] .handle`);
   if(!lH || !rH) return;
-  const el = makeConnectorElement('--accent', 3);
-  placeConnector(el, handleCenter(lH), handleCenter(rH), '--accent', 3);
-  wires.appendChild(el);
-  connections.set(leftId, { rightId, el });
+  const a = handleCenter(lH);
+  const b = handleCenter(rH);
+  const path = makeCurvyPath('--accent', 3);
+  path.setAttribute('d', curveD(a.x,a.y,b.x,b.y));
+  wires.appendChild(path);
+  connections.set(leftId, { rightId, pathEl: path });
+  clearPendingHighlight(); // ensure no box gets outlined
   connectSound.currentTime = 0; connectSound.play();
   if (!reduceMotion && navigator.vibrate) navigator.vibrate(10);
   updateCheckState();
 }
 
-/* Attach/responsive observers (pause during drag to avoid jitter) */
-let ro = null, globalListenersAttached = false;
+/* ---- Event attachment (avoid duplicates) ---- */
+let ro = null;
+let globalListenersAttached = false;
+
 function attachEvents(){
   leftCol.querySelectorAll('.item .handle').forEach(h=> addStartDragHandler(h,'left'));
   rightCol.querySelectorAll('.item .handle').forEach(h=> addStartDragHandler(h,'right'));
 
   if (!ro){
-    ro = new ResizeObserver(()=>{
-      if (dragActive) return; // avoid layout shifts while dragging
-      setColumnUniformWidths();
-      equaliseRowHeights();
-      rafRealign();
-    });
+    ro = new ResizeObserver(()=>{ setColumnUniformWidths(); rafRealign(); });
     ro.observe(board);
   }
   if (!globalListenersAttached){
     globalListenersAttached = true;
-    window.addEventListener('scroll', ()=>{ if(!dragActive) rafRealign(); }, {passive:true});
-    window.addEventListener('resize', ()=>{
-      if (dragActive) return;
-      setColumnUniformWidths(); equaliseRowHeights(); rafRealign();
-    }, {passive:true});
+    window.addEventListener('scroll', rafRealign, {passive:true});
+    window.addEventListener('resize', ()=>{ setColumnUniformWidths(); rafRealign(); }, {passive:true});
   }
 }
 
-function updateCheckState(){ checkBtn.disabled = connections.size !== PAIRS.length; }
+function updateCheckState(){
+  checkBtn.disabled = connections.size !== PAIRS.length;
+}
 
-/* Buttons */
+/* === Congrats overlay audio + trigger === */
+const bigCongratsAudio = new Audio("https://cdn.pixabay.com/download/audio/2024/08/31/audio_aa510c96aa.mp3");
+bigCongratsAudio.preload = "auto";
+
+// Call this to show the overlay and play the sound
+function showCongrats(){
+  const ov  = document.getElementById('congratsOverlay');
+  if(!ov) return;
+  const img = ov.querySelector('img');
+  // restart animation
+  img.style.animation = 'none';
+  void img.offsetWidth;
+  img.style.animation = 'congratsZoom 8s ease-out forwards';
+
+  ov.style.display = 'flex';
+  try { bigCongratsAudio.currentTime = 0; bigCongratsAudio.play(); } catch {}
+  setTimeout(()=>{ ov.style.display = 'none'; }, 9000); // hide after animation
+}
+
+/* ---- Check + Sound ---- */
 checkBtn.addEventListener('click', ()=>{
-  showTimerIfHidden(); startTimerAndMusic();
-  let ok=0;
+  showTimerIfHidden();
+  startTimerAndMusic();
+
+  let countCorrect = 0;
+
   for(const [leftId, conn] of [...connections]){
     const correct = leftId === conn.rightId;
     if(correct){
       const okColor = getComputedStyle(document.documentElement).getPropertyValue('--ok').trim() || '#1E8E3E';
-      conn.el.setAttribute('stroke', okColor);
-      conn.el.setAttribute('stroke-width', 4);
-      conn.el.setAttribute('stroke-opacity', '1');
-      ok++;
+      conn.pathEl.setAttribute('stroke', okColor);
+      conn.pathEl.setAttribute('stroke-width', 4);
+      conn.pathEl.setAttribute('stroke-opacity', '1');
+      countCorrect++;
     }else{
-      conn.el.remove(); connections.delete(leftId);
+      conn.pathEl.remove();
+      connections.delete(leftId);
     }
   }
-  if (ok === PAIRS.length){ correctSound.currentTime=0; correctSound.play(); freezeTimerWithMessage(); bgm.pause(); }
-  else { incorrectSound.currentTime=0; incorrectSound.play(); }
+
+  if (countCorrect === PAIRS.length) {
+    correctSound.currentTime = 0;
+    correctSound.play();
+    freezeTimerWithMessage();
+    bgm.pause();
+    showCongrats(); // ⇦ show celebratory overlay + sound
+  } else {
+    incorrectSound.currentTime = 0;
+    incorrectSound.play();
+  }
+
   updateCheckState();
 });
 
 resetBtn.addEventListener('click', ()=>{
-  clickSound.currentTime=0; clickSound.play();
-  if (timerHiddenForAnswers || timerFrozen){ showTimerResetToZero(); bgm.pause(); } else { showTimerIfHidden(); }
+  clickSound.currentTime = 0;
+  clickSound.play();
+
+  if (timerHiddenForAnswers || timerFrozen) {
+    showTimerResetToZero();
+    bgm.pause();
+  } else {
+    showTimerIfHidden();
+  }
+
   wires.querySelectorAll('*').forEach(n=>n.remove());
-  connections.clear(); clearPending(); updateCheckState(); rafRealign();
+  connections.clear();
+  clearPendingHighlight();
+  updateCheckState();
+  rafRealign();
 });
 
 shuffleBtn.addEventListener('click', ()=>{
-  showTimerIfHidden(); startTimerAndMusic();
-  clickSound.currentTime=0; clickSound.play();
-  leftOrder=shuffle(PAIRS); rightOrder=shuffle(PAIRS);
+  showTimerIfHidden();
+  startTimerAndMusic();
+
+  clickSound.currentTime = 0;
+  clickSound.play();
+
+  leftOrder  = shuffle(PAIRS);
+  rightOrder = shuffle(PAIRS);
   wires.querySelectorAll('*').forEach(n=>n.remove());
-  connections.clear(); clearPending(); render();
+  connections.clear();
+  clearPendingHighlight();
+  render();
 });
 
 showBtn.addEventListener('click', ()=>{
-  showTimerIfHidden(); startTimerAndMusic();
-  clickSound.currentTime=0; clickSound.play();
-  wires.querySelectorAll('*').forEach(n=>n.remove()); connections.clear(); clearPending();
+  showTimerIfHidden();
+  startTimerAndMusic();
+
+  clickSound.currentTime = 0;
+  clickSound.play();
+
+  wires.querySelectorAll('*').forEach(n=>n.remove());
+  connections.clear();
+  clearPendingHighlight();
+
   for(const pair of PAIRS){
     const lH = leftCol.querySelector(`.item[data-id="${pair.id}"] .handle`);
     const rH = rightCol.querySelector(`.item[data-id="${pair.id}"] .handle`);
     if(lH && rH){
-      const el = makeConnectorElement('--ok', 4);
-      placeConnector(el, handleCenter(lH), handleCenter(rH), '--ok', 4);
-      wires.appendChild(el);
+      const a = handleCenter(lH);
+      const b = handleCenter(rH);
+      const path = makeCurvyPath('--ok', 4);
+      path.setAttribute('d', curveD(a.x,a.y,b.x,b.y));
+      wires.appendChild(path);
     }
   }
-  checkBtn.disabled=true; bgm.pause(); hideTimerKeepSpace();
+  checkBtn.disabled = true;
+
+  bgm.pause();
+  hideTimerKeepSpace();
 });
 
-/* Mute button */
-bgm.addEventListener('playing', ()=>{ if(!hasAudioPlayed){ hasAudioPlayed=true; muteBtn.style.display='inline-block'; } });
+/* ---- Reveal mute icon once audio actually starts ---- */
+bgm.addEventListener('playing', ()=>{
+  if(!hasAudioPlayed){
+    hasAudioPlayed = true;
+    muteBtn.style.display = 'inline-flex';
+    syncMuteUI();
+  }
+});
+
+/* ---- Mute toggle for background music ---- */
 muteBtn.addEventListener('click', ()=>{
   const isMuted = !bgm.muted;
   bgm.muted = isMuted;
-  muteBtn.setAttribute('aria-pressed', String(isMuted));
-  muteBtn.setAttribute('aria-label', isMuted ? 'Unmute background music' : 'Mute background music');
+  syncMuteUI();
 });
 
-/* Init */
+/* ---- Init ---- */
 (function init(){
-  timerEl.textContent='00:00';
-  leftOrder = shuffle(PAIRS);
+  timerEl.textContent = '00:00';
+  leftOrder  = shuffle(PAIRS);
   rightOrder = shuffle(PAIRS);
   render();
 
+  // Recalculate widths again after fonts are ready (prevents early narrow measure)
   if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(()=>{ setColumnUniformWidths(); equaliseRowHeights(); rafRealign(); });
+    document.fonts.ready.then(()=>{ setColumnUniformWidths(); rafRealign(); });
   }
-  window.addEventListener('load', ()=>{ setColumnUniformWidths(); equaliseRowHeights(); rafRealign(); });
+  window.addEventListener('load', ()=>{ setColumnUniformWidths(); rafRealign(); });
 })();
 </script>
 </body>
