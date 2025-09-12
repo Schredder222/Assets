@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes, maximum-scale=5" />
+<title>Definition Matching – City Life (A2)</title>
+<style>
+  :root{
+    --bg:#FDFBED;
+    --ink:#222;
+    --accent:#8A0000;
+    --ok:#1E8E3E;
+    --card:#fff;
+    --gap:28px;       /* centre gap (desktop/tablet) */
+    --dot:10px;       /* dot size (desktop) */
+    --dotColor:#000;
+    --minCol:120px;   /* minimum per column */
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"MS Reference Sans Serif", Arial, sans-serif;
+  }
+  .wrap{max-width:1000px;margin:24px auto;padding:16px}
+  h1{font-weight:600;font-size:1.3rem;margin:0 0 10px}
+  .note{font-size:.95rem;color:#444;margin:0 0 16px;line-height:1.45}
+
+  .board{
+    position:relative;
+    display:grid;
+    grid-template-columns:max-content 1fr max-content; /* left | gap | right */
+    column-gap:var(--gap);
+    align-items:start;
+    background:var(--card);
+    border-radius:14px;
+    box-shadow:0 6px 24px rgba(0,0,0,.08);
+    padding:72px 18px 72px;  /* space under timer */
+    overflow:hidden;
+    touch-action: pan-y; /* keep vertical scroll; we disable on handles */
+    -webkit-user-select:none; user-select:none;
+    -webkit-touch-callout:none;
+  }
+  #leftCol { grid-column:1; }
+  #rightCol{ grid-column:3; }
+
+  /* Topbar (timer left + mute right) */
+  .topbar{
+    position:absolute; top:12px; left:18px; right:18px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    z-index:300;
+  }
+  .timer{
+    background:#111; color:#fff; padding:6px 12px; border-radius:999px;
+    font-weight:600; letter-spacing:.3px; box-shadow:0 2px 10px rgba(0,0,0,.12);
+  }
+  .muteBtn{
+    display:none; /* show only after audio starts */
+    background:#eee; border:none; padding:8px 12px; border-radius:999px;
+    font-weight:600; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.08);
+  }
+
+  .wires{
+    position:absolute; inset:0;
+    z-index:100; pointer-events:none;
+  }
+
+  .col{display:flex;flex-direction:column;gap:10px}
+  .head{
+    font-weight:600;
+    font-size:18px;
+    letter-spacing:.3px;
+    color:#111;
+    margin-bottom:8px;
+    text-align:center;
+  }
+
+  .item{
+    position:relative;
+    background:#fff;
+    border:1px solid #eee;
+    border-radius:12px;
+    min-height:42px;
+    display:flex;align-items:center;
+    line-height:1.25;
+    box-shadow:0 2px 10px rgba(0,0,0,.04);
+    width:var(--colWidth);   /* set per-column via JS */
+    max-width:100%;
+    overflow:hidden;
+  }
+  .left.item { padding:10px 34px 10px 14px; }  /* less left padding */
+  .right.item{ padding:10px 14px 10px 34px; }  /* less right padding */
+
+  .item p{
+    margin:0;
+    white-space:nowrap;          /* never wrap by default (desktop) */
+    text-overflow:ellipsis;
+    overflow:hidden;
+  }
+  .item.wrap p{
+    white-space:normal;
+    overflow:visible;
+    text-overflow:clip;
+  }
+
+  .handle{
+    position:absolute;top:50%;transform:translateY(-50%);
+    width:var(--dot);height:var(--dot);border-radius:50%;
+    background:var(--dotColor);
+    cursor:pointer; z-index:200;
+    touch-action:none; /* important for mobile dragging */
+    -webkit-user-select:none; user-select:none;
+  }
+  .left .handle{right:8px}
+  .right .handle{left:8px}
+
+  /* Invisible halo enlarges tap target without changing visual size */
+  .handle::after{
+    content:"";
+    position:absolute;
+    inset:-8px;
+  }
+
+  /* Tap-to-match selection highlight */
+  .item.pending{
+    outline:2px solid var(--accent);
+    outline-offset:2px;
+  }
+
+  .controls{
+    position:absolute;left:18px;right:18px;bottom:16px;
+    display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap
+  }
+  .btn{
+    background:var(--accent);color:#fff;border:none;padding:10px 16px;border-radius:10px;
+    font-weight:600;letter-spacing:.2px;cursor:pointer;box-shadow:0 3px 10px rgba(138,0,0,.25)
+  }
+  .btn[disabled]{opacity:.45;cursor:not-allowed;box-shadow:none}
+  .ghost{background:#eee;color:#111;box-shadow:none}
+
+  /* Tablets slightly reduce gap */
+  @media (max-width:640px){
+    :root{ --gap:24px; }
+  }
+
+  /* Phones: tighter gap, bigger dots, taller rows, smaller min column */
+  @media (max-width:520px){
+    :root{
+      --gap:16px;
+      --dot:14px;
+      --minCol:100px;
+    }
+    .board{ padding:62px 12px 62px; }
+    .item{ min-height:48px; border-radius:10px; }
+    .left.item{  padding:10px 30px 10px 12px; }
+    .right.item{ padding:10px 12px 10px 30px; }
+    .head{ font-size:16px; margin-bottom:6px; }
+    .timer{ padding:5px 10px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Word-Definition Match</h1>
+  <p class="note">Match the keywords from the video with their definitions by dragging lines between the dots. Then click “Check answers”.</p>
+
+  <div class="board" id="board">
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="timer" id="timer">00:00</div>
+      <button class="muteBtn" id="muteBtn" aria-pressed="false">🔊 Mute</button>
+    </div>
+
+    <svg class="wires" id="wires" aria-hidden="true"></svg>
+
+    <div class="col left" id="leftCol">
+      <div class="head">Words</div>
+    </div>
+
+    <div class="col right" id="rightCol">
+      <div class="head">Definitions</div>
+    </div>
+
+    <div class="controls">
+      <div>
+        <button class="btn ghost" id="shuffleBtn">Shuffle</button>
+        <button class="btn ghost" id="resetBtn">Reset</button>
+        <button class="btn" id="checkBtn" disabled>Check answers</button>
+        <button class="btn ghost" id="showBtn">Show answers</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Audio effects (lighter on mobile via preload="metadata") -->
+<audio id="correctSound" preload="metadata" src="https://cdn.pixabay.com/download/audio/2022/03/24/audio_dcde83efa6.mp3?filename=ui_correct_button2-103167.mp3"></audio>
+<audio id="incorrectSound" preload="metadata" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_b0669294aa.mp3?filename=training-program-incorrect1-88736.mp3"></audio>
+<audio id="clickSound" preload="metadata" src="https://cdn.pixabay.com/download/audio/2024/04/21/audio_1b8d3bcd3d.mp3?filename=click-buttons-ui-menu-sounds-effects-button-7-203601.mp3"></audio>
+<audio id="connectSound" preload="metadata" src="https://cdn.pixabay.com/download/audio/2025/05/23/audio_ec08d1525d.mp3?filename=click-345983.mp3"></audio>
+
+<!-- Background music (loop) -->
+<audio id="bgm" preload="metadata" loop src="https://cdn.pixabay.com/download/audio/2025/09/03/audio_a8c05eb5c8.mp3"></audio>
+
+<script>
+/* ---- Data ---- */
+const PAIRS = [
+  { id:"opportunities", left:"opportunities", right:"chances to get jobs or do something good" },
+  { id:"skyscraper",  left:"skyscraper",  right:"very tall city building with many floors" },
+  { id:"crowded",      left:"crowded",      right:"full of people so there isn’t much space" },
+  { id:"rushhour",     left:"peak time / rush hour", right:"the busy time of day when many people travel" },
+  { id:"congested",    left:"congested",    right:"very full of cars so traffic moves slowly" },
+  { id:"trafficjam",  left:"traffic jam", right:"long line of vehicles that are not moving" },
+  { id:"greenspaces",  left:"green spaces", right:"parks and gardens in a city" },
+  { id:"pollution",    left:"pollution",    right:"dirty air/water that harms people and nature" }
+];
+
+const board   = document.getElementById('board');
+const leftCol = document.getElementById('leftCol');
+const rightCol= document.getElementById('rightCol');
+const wires   = document.getElementById('wires');
+const checkBtn= document.getElementById('checkBtn');
+const resetBtn= document.getElementById('resetBtn');
+const shuffleBtn= document.getElementById('shuffleBtn');
+const showBtn = document.getElementById('showBtn');
+
+const correctSound = document.getElementById('correctSound');
+const incorrectSound = document.getElementById('incorrectSound');
+const clickSound = document.getElementById('clickSound');
+const connectSound = document.getElementById('connectSound');
+
+const timerEl = document.getElementById('timer');
+const muteBtn = document.getElementById('muteBtn');
+const bgm     = document.getElementById('bgm');
+
+/* Accessibility / user preferences */
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+let leftOrder=[], rightOrder=[];
+let connections=new Map();
+let drag=null;
+
+/* ---- Settings ---- */
+/* Adaptive snap radius: larger on mobile for easier snapping */
+const getSnapRadius = () => window.matchMedia('(max-width:520px)').matches ? 26 : 18;
+
+/* ---- Timer & music state ---- */
+let timerStarted = false;
+let timerFrozen  = false;
+let timerStartMs = 0;
+let timerInterval = null;
+let hasAudioPlayed = false;
+let timerHiddenForAnswers = false;
+
+function fmtTime(ms){
+  const total = Math.floor(ms/1000);
+  const m = Math.floor(total/60);
+  const s = total % 60;
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function startTimerAndMusic(){
+  if(!timerStarted){
+    timerStarted = true;
+    timerFrozen = false;
+    timerStartMs = Date.now();
+    timerEl.style.visibility = 'visible';
+    timerHiddenForAnswers = false;
+
+    timerEl.textContent = '00:00';
+    timerInterval = setInterval(()=>{
+      if(!timerFrozen){
+        const elapsed = Date.now() - timerStartMs;
+        timerEl.textContent = fmtTime(elapsed);
+      }
+    }, 250);
+
+    // only lower background music volume (leave sfx at 100%)
+    bgm.volume = 0.1;
+    const tryPlay = bgm.play();
+    if (tryPlay && typeof tryPlay.then === 'function') {
+      tryPlay.then(()=>{
+        if(!hasAudioPlayed){
+          hasAudioPlayed = true;
+          muteBtn.style.display = 'inline-block';
+        }
+      }).catch(()=>{});
+    }
+  }
+}
+
+function freezeTimerWithMessage(){
+  if(timerStarted && !timerFrozen){
+    timerFrozen = true;
+    const elapsed = Date.now() - timerStartMs;
+    if(timerInterval){ clearInterval(timerInterval); timerInterval = null; }
+    timerEl.textContent = `Completed in ${fmtTime(elapsed)}`;
+  }
+}
+
+function hideTimerKeepSpace(){
+  timerHiddenForAnswers = true;
+  timerStarted = false;
+  timerFrozen = true;
+  if(timerInterval){ clearInterval(timerInterval); timerInterval = null; }
+  timerEl.style.visibility = 'hidden';
+}
+
+function showTimerResetToZero(){
+  timerEl.style.visibility = 'visible';
+  timerEl.textContent = '00:00';
+  timerStarted = false;
+  timerFrozen = false;
+  timerHiddenForAnswers = false;
+}
+
+function showTimerIfHidden(){
+  if (timerEl.style.visibility === 'hidden') {
+    timerEl.style.visibility = 'visible';
+    timerHiddenForAnswers = false;
+  }
+}
+
+/* ---- Utils ---- */
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const rectOf = el => el.getBoundingClientRect();
+function boardPointFromClient(x,y){ const b = rectOf(board); return { x:x - b.left, y:y - b.top }; }
+
+/* Create row item */
+function createItem(colEl, text, id, side){
+  const div = document.createElement('div');
+  div.className = 'item ' + side;
+  div.dataset.id = id;
+  const p = document.createElement('p'); p.textContent = text; div.appendChild(p);
+  const h = document.createElement('div'); h.className = 'handle'; div.appendChild(h);
+  colEl.appendChild(div);
+}
+
+/* ---- Accurate text measurement (offscreen) ---- */
+function measureTextWidth(text, classSelector){
+  let meas = document.getElementById('measSpan');
+  if(!meas){
+    meas = document.createElement('span');
+    meas.id = 'measSpan';
+    meas.style.position = 'absolute';
+    meas.style.left = '-99999px';
+    meas.style.top = '-99999px';
+    meas.style.whiteSpace = 'nowrap';
+    document.body.appendChild(meas);
+  }
+  const sample = document.querySelector(classSelector);
+  const cs = sample ? getComputedStyle(sample) : getComputedStyle(document.body);
+  meas.style.fontFamily = cs.fontFamily;
+  meas.style.fontSize   = cs.fontSize;
+  meas.style.fontWeight = cs.fontWeight;
+  meas.style.letterSpacing = cs.letterSpacing;
+  meas.textContent = text;
+  return meas.offsetWidth;
+}
+
+/* Widths:
+   - Left column width = natural width of its longest label (+buffer).
+   - Right column shrinks first to keep layout inside container.
+   - If still too tight on desktop, allow left to wrap as a last resort.
+   - On mobiles we allow both sides to wrap early for readability. */
+function setColumnUniformWidths(){
+  const leftItems = Array.from(document.querySelectorAll('#leftCol .item'));
+  const rightItems= Array.from(document.querySelectorAll('#rightCol .item'));
+  if (leftItems.length === 0 || rightItems.length === 0) return;
+
+  const isMobile = window.matchMedia('(max-width:520px)').matches;
+
+  // Measure longest LEFT text
+  let leftTextMax = 0;
+  leftItems.forEach(item=>{
+    const txt = item.querySelector('p').textContent;
+    leftTextMax = Math.max(leftTextMax, measureTextWidth(txt, '.item p'));
+  });
+
+  // Measure longest RIGHT text
+  let rightTextMax = 0;
+  rightItems.forEach(item=>{
+    const txt = item.querySelector('p').textContent;
+    rightTextMax = Math.max(rightTextMax, measureTextWidth(txt, '.item p'));
+  });
+
+  // Paddings
+  const csLeft  = getComputedStyle(leftItems[0]);
+  const padLL = parseFloat(csLeft.paddingLeft)||0;
+  const padLR = parseFloat(csLeft.paddingRight)||0;
+
+  const csRight = getComputedStyle(rightItems[0]);
+  const padRL = parseFloat(csRight.paddingLeft)||0;
+  const padRR = parseFloat(csRight.paddingRight)||0;
+
+  // Desired widths with buffer (smaller on mobile to save space)
+  const extra = isMobile ? 14 : 22;
+  let leftWDesired  = leftTextMax  + padLL + padLR + extra;
+  let rightWDesired = rightTextMax + padRL + padRR + extra;
+
+  // Container metrics
+  const boardCS = getComputedStyle(board);
+  const padLeft  = parseFloat(boardCS.paddingLeft)||0;
+  const padRight = parseFloat(boardCS.paddingRight)||0;
+  const inner = board.clientWidth - padLeft - padRight;
+  const gapPx = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gap'))||0;
+  const minCol = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--minCol'))||120;
+
+  // Fit strategy
+  let leftW  = Math.max(minCol, leftWDesired);
+  let rightW = Math.max(minCol, rightWDesired);
+
+  if (leftW + gapPx + rightW > inner) {
+    rightW = Math.max(minCol, inner - gapPx - leftW);
+  }
+
+  // Reset wraps
+  leftItems.forEach(i => i.classList.remove('wrap'));
+  rightItems.forEach(i=> i.classList.remove('wrap'));
+
+  if (isMobile) {
+    // On phones, allow both columns to wrap for readability
+    leftItems.forEach(i => i.classList.add('wrap'));
+    rightItems.forEach(i=> i.classList.add('wrap'));
+  } else {
+    // Desktop fallback: if still too wide, reduce left and allow wrapping on left text
+    if (leftW + gapPx + rightW > inner) {
+      leftW = Math.max(minCol, inner - gapPx - rightW);
+      leftItems.forEach(i => i.classList.add('wrap'));
+    }
+  }
+
+  leftItems.forEach(i => i.style.setProperty('--colWidth', leftW + 'px'));
+  rightItems.forEach(i=> i.style.setProperty('--colWidth', rightW + 'px'));
+
+  const b = rectOf(board);
+  wires.setAttribute('width', b.width);
+  wires.setAttribute('height', b.height);
+}
+
+/* ---- Drag helpers ---- */
+function handleCenter(handleEl){
+  const b = rectOf(board);
+  const r = rectOf(handleEl);
+  return { x: r.left - b.left + r.width/2, y: r.top - b.top + r.height/2 };
+}
+
+function makeStraightLine(colorVar='--accent', width=3){
+  const ln = document.createElementNS('http://www.w3.org/2000/svg','line');
+  const color = getComputedStyle(document.documentElement).getPropertyValue(colorVar).trim();
+  ln.setAttribute('stroke', color || 'red');
+  ln.setAttribute('stroke-width', width);
+  ln.setAttribute('stroke-linecap','round');
+  return ln;
+}
+
+function curveD(x1,y1,x2,y2){
+  const dx = Math.max(60, Math.abs(x2 - x1) * 0.5);
+  const c1x = x1 + dx, c1y = y1;
+  const c2x = x2 - dx, c2y = y2;
+  return `M ${x1} ${y1} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${x2} ${y2}`;
+}
+function makeCurvyPath(colorVar='--accent', width=3){
+  const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  const color = getComputedStyle(document.documentElement).getPropertyValue(colorVar).trim();
+  p.setAttribute('fill','none');
+  p.setAttribute('stroke', color || 'red');
+  p.setAttribute('stroke-width', width);
+  p.setAttribute('stroke-linecap','round');
+  p.setAttribute('stroke-opacity','0.95');
+  return p;
+}
+
+/* ---- Realign curves (throttled) ---- */
+let rafId = null;
+function rafRealign(){
+  if (rafId) return;
+  rafId = requestAnimationFrame(()=>{ rafId = null; realignAllCurves(); });
+}
+function realignAllCurves(){
+  for(const [leftId, conn] of connections){
+    const lH = leftCol.querySelector(`.item[data-id="${leftId}"] .handle`);
+    const rH = rightCol.querySelector(`.item[data-id="${conn.rightId}"] .handle`);
+    if(!lH || !rH || !conn.pathEl) continue;
+    const a = handleCenter(lH);
+    const b = handleCenter(rH);
+    conn.pathEl.setAttribute('d', curveD(a.x,a.y,b.x,b.y));
+  }
+}
+
+/* ---- Rendering ---- */
+function render(){
+  leftCol.querySelectorAll('.item').forEach(n=>n.remove());
+  rightCol.querySelectorAll('.item').forEach(n=>n.remove());
+  leftOrder.forEach(({id,left})  => createItem(leftCol, left,  id,'left'));
+  rightOrder.forEach(({id,right})=> createItem(rightCol,right, id,'right'));
+  setColumnUniformWidths();
+  attachEvents();
+  attachTapToMatch();
+  updateCheckState();
+  realignAllCurves();
+}
+
+/* --- Proximity helper (snap near dot) --- */
+function findHandleNear(ptBoard, side){
+  const list = Array.from(document.querySelectorAll(`.${side} .handle`));
+  let best = null, bestDist = Infinity;
+  for(const h of list){
+    const c = handleCenter(h);
+    const d = Math.hypot(c.x - ptBoard.x, c.y - ptBoard.y);
+    if(d < bestDist){ bestDist = d; best = h; }
+  }
+  return (bestDist <= getSnapRadius()) ? best : null;
+}
+
+/* ---- Drag logic (mobile-friendly) ---- */
+function addStartDragHandler(handleEl, fromSide){
+  handleEl.addEventListener('pointerdown', (e)=>{
+    e.preventDefault();
+    if (handleEl.setPointerCapture) {
+      try { handleEl.setPointerCapture(e.pointerId); } catch(_){}
+    }
+
+    showTimerIfHidden();
+    startTimerAndMusic();
+
+    const fromId = handleEl.parentElement.dataset.id;
+
+    // Clear prior connection on same side
+    if(fromSide === 'left'){
+      if(connections.has(fromId)){
+        connections.get(fromId).pathEl?.remove();
+        connections.delete(fromId);
+      }
+    }else{
+      for(const [lId, conn] of [...connections]){
+        if(conn.rightId === fromId){
+          conn.pathEl?.remove();
+          connections.delete(lId);
+        }
+      }
+    }
+
+    const start = handleCenter(handleEl);
+    const line = makeStraightLine('--accent', 3);
+    line.setAttribute('x1', start.x); line.setAttribute('y1', start.y);
+    line.setAttribute('x2', start.x); line.setAttribute('y2', start.y);
+    wires.appendChild(line);
+
+    drag = { fromSide, fromId, startXY:start, lineEl: line };
+
+    const onMove = (ev)=>{
+      if(!drag) return;
+      const pt = boardPointFromClient(ev.clientX, ev.clientY);
+      drag.lineEl.setAttribute('x2', pt.x);
+      drag.lineEl.setAttribute('y2', pt.y);
+    };
+
+    const endDrag = (clientX, clientY)=>{
+      if(!drag) return;
+      const pt = boardPointFromClient(clientX, clientY);
+      const overRight = (drag.fromSide === 'left') ? findHandleNear(pt,'right') : null;
+      const overLeft  = (drag.fromSide === 'right') ? findHandleNear(pt,'left')  : null;
+
+      let leftId=null, rightId=null, ok=false;
+
+      if(drag.fromSide === 'left' && overRight){
+        leftId  = drag.fromId;
+        rightId = overRight.parentElement.dataset.id;
+        ok = true;
+      }else if(drag.fromSide === 'right' && overLeft){
+        leftId  = overLeft.parentElement.dataset.id;
+        rightId = drag.fromId;
+        ok = true;
+      }
+
+      if(ok){
+        if(connections.has(leftId)){
+          const old = connections.get(leftId);
+          old.pathEl?.remove();
+          connections.delete(leftId);
+        }
+        for(const [lId, conn] of [...connections]){
+          if(conn.rightId === rightId){
+            conn.pathEl?.remove();
+            connections.delete(lId);
+          }
+        }
+
+        const lH = leftCol.querySelector(`.item[data-id="${leftId}"] .handle`);
+        const rH = rightCol.querySelector(`.item[data-id="${rightId}"] .handle`);
+        const a = handleCenter(lH);
+        const b = handleCenter(rH);
+
+        const path = makeCurvyPath('--accent', 3);
+        path.setAttribute('d', curveD(a.x,a.y,b.x,b.y));
+        wires.appendChild(path);
+        drag.lineEl.remove();
+
+        connections.set(leftId, { rightId, pathEl: path });
+
+        connectSound.currentTime = 0;
+        connectSound.play();
+        if (!reduceMotion && navigator.vibrate) navigator.vibrate(10); // haptic on connect
+      }else{
+        drag.lineEl.remove();
+      }
+
+      drag = null;
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('pointercancel', onCancel);
+      updateCheckState();
+    };
+
+    const onUp = (ev)=> endDrag(ev.clientX, ev.clientY);
+    const onCancel = (ev)=> endDrag(ev.clientX, ev.clientY);
+
+    document.addEventListener('pointermove', onMove, {passive:false});
+    document.addEventListener('pointerup', onUp, {passive:false});
+    document.addEventListener('pointercancel', onCancel, {passive:false});
+  });
+}
+
+/* ---- Tap-to-match fallback (runs alongside drag) ---- */
+let pending = null; // { side:'left'|'right', id, el }
+function setPending(next){
+  document.querySelectorAll('.item.pending').forEach(el=> el.classList.remove('pending'));
+  pending = next;
+  if (pending?.el) pending.el.classList.add('pending');
+}
+
+function attachTapToMatch(){
+  [...leftCol.querySelectorAll('.item')].forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const id = el.dataset.id;
+      if (!pending){ setPending({side:'left', id, el}); return; }
+      if (pending.side === 'right'){
+        connectByIds(id, pending.id);
+        setPending(null);
+      }else{
+        setPending({side:'left', id, el}); // replace selection
+      }
+    });
+  });
+  [...rightCol.querySelectorAll('.item')].forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const id = el.dataset.id;
+      if (!pending){ setPending({side:'right', id, el}); return; }
+      if (pending.side === 'left'){
+        connectByIds(pending.id, id);
+        setPending(null);
+      }else{
+        setPending({side:'right', id, el});
+      }
+    });
+  });
+}
+
+function connectByIds(leftId, rightId){
+  // clear clashes
+  if(connections.has(leftId)){
+    connections.get(leftId).pathEl?.remove();
+    connections.delete(leftId);
+  }
+  for(const [lId, conn] of [...connections]){
+    if(conn.rightId === rightId){
+      conn.pathEl?.remove();
+      connections.delete(lId);
+    }
+  }
+  const lH = leftCol.querySelector(`.item[data-id="${leftId}"] .handle`);
+  const rH = rightCol.querySelector(`.item[data-id="${rightId}"] .handle`);
+  if(!lH || !rH) return;
+  const a = handleCenter(lH);
+  const b = handleCenter(rH);
+  const path = makeCurvyPath('--accent', 3);
+  path.setAttribute('d', curveD(a.x,a.y,b.x,b.y));
+  wires.appendChild(path);
+  connections.set(leftId, { rightId, pathEl: path });
+  connectSound.currentTime = 0; connectSound.play();
+  if (!reduceMotion && navigator.vibrate) navigator.vibrate(10);
+  updateCheckState();
+}
+
+/* ---- Event attachment (avoid duplicates) ---- */
+let ro = null;
+let globalListenersAttached = false;
+
+function attachEvents(){
+  leftCol.querySelectorAll('.item .handle').forEach(h=> addStartDragHandler(h,'left'));
+  rightCol.querySelectorAll('.item .handle').forEach(h=> addStartDragHandler(h,'right'));
+
+  if (!ro){
+    ro = new ResizeObserver(()=>{ setColumnUniformWidths(); rafRealign(); });
+    ro.observe(board);
+  }
+  if (!globalListenersAttached){
+    globalListenersAttached = true;
+    window.addEventListener('scroll', rafRealign, {passive:true});
+    window.addEventListener('resize', ()=>{ setColumnUniformWidths(); rafRealign(); }, {passive:true});
+  }
+}
+
+function updateCheckState(){
+  checkBtn.disabled = connections.size !== PAIRS.length;
+}
+
+/* ---- Check + Sound ---- */
+checkBtn.addEventListener('click', ()=>{
+  showTimerIfHidden();
+  startTimerAndMusic();
+
+  let countCorrect = 0;
+
+  for(const [leftId, conn] of [...connections]){
+    const correct = leftId === conn.rightId;
+    if(correct){
+      const okColor = getComputedStyle(document.documentElement).getPropertyValue('--ok').trim() || '#1E8E3E';
+      conn.pathEl.setAttribute('stroke', okColor);
+      conn.pathEl.setAttribute('stroke-width', 4);
+      conn.pathEl.setAttribute('stroke-opacity', '1');
+      countCorrect++;
+    }else{
+      conn.pathEl.remove();
+      connections.delete(leftId);
+    }
+  }
+
+  if (countCorrect === PAIRS.length) {
+    correctSound.currentTime = 0;
+    correctSound.play();
+    freezeTimerWithMessage();
+    bgm.pause();
+  } else {
+    incorrectSound.currentTime = 0;
+    incorrectSound.play();
+  }
+
+  updateCheckState();
+});
+
+resetBtn.addEventListener('click', ()=>{
+  clickSound.currentTime = 0;
+  clickSound.play();
+
+  if (timerHiddenForAnswers || timerFrozen) {
+    showTimerResetToZero();
+    bgm.pause();
+  } else {
+    showTimerIfHidden();
+  }
+
+  wires.querySelectorAll('*').forEach(n=>n.remove());
+  connections.clear();
+  setPending(null);
+  updateCheckState();
+  rafRealign();
+});
+
+shuffleBtn.addEventListener('click', ()=>{
+  showTimerIfHidden();
+  startTimerAndMusic();
+
+  clickSound.currentTime = 0;
+  clickSound.play();
+
+  leftOrder  = shuffle(PAIRS);
+  rightOrder = shuffle(PAIRS);
+  wires.querySelectorAll('*').forEach(n=>n.remove());
+  connections.clear();
+  setPending(null);
+  render();
+});
+
+showBtn.addEventListener('click', ()=>{
+  showTimerIfHidden();
+  startTimerAndMusic();
+
+  clickSound.currentTime = 0;
+  clickSound.play();
+
+  wires.querySelectorAll('*').forEach(n=>n.remove());
+  connections.clear();
+
+  for(const pair of PAIRS){
+    const lH = leftCol.querySelector(`.item[data-id="${pair.id}"] .handle`);
+    const rH = rightCol.querySelector(`.item[data-id="${pair.id}"] .handle`);
+    if(lH && rH){
+      const a = handleCenter(lH);
+      const b = handleCenter(rH);
+      const path = makeCurvyPath('--ok', 4);
+      path.setAttribute('d', curveD(a.x,a.y,b.x,b.y));
+      wires.appendChild(path);
+    }
+  }
+  checkBtn.disabled = true;
+
+  bgm.pause();
+  hideTimerKeepSpace();
+});
+
+/* ---- Reveal mute button once audio actually starts ---- */
+bgm.addEventListener('playing', ()=>{
+  if(!hasAudioPlayed){
+    hasAudioPlayed = true;
+    muteBtn.style.display = 'inline-block';
+  }
+});
+
+/* ---- Mute toggle for background music ---- */
+muteBtn.addEventListener('click', ()=>{
+  const isMuted = !bgm.muted;
+  bgm.muted = isMuted;
+  muteBtn.setAttribute('aria-pressed', String(isMuted));
+  muteBtn.textContent = isMuted ? '🔇 Unmute' : '🔊 Mute';
+});
+
+/* ---- Init ---- */
+(function init(){
+  timerEl.textContent = '00:00';
+  leftOrder  = shuffle(PAIRS);
+  rightOrder = shuffle(PAIRS);
+  render();
+
+  // Recalculate widths again after fonts are ready (prevents early narrow measure)
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(()=>{ setColumnUniformWidths(); rafRealign(); });
+  }
+  window.addEventListener('load', ()=>{ setColumnUniformWidths(); rafRealign(); });
+})();
+</script>
+</body>
+</html>
