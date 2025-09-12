@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Australia's Rival Cities</title>
+<link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#fdfbed; --ink:#111; --accent:#8A0000; --muted:#e9e4cf;
+    --ok:#2e7d32; --bad:#c62828;
+    --pt:0em; --pb:.02em; --px:.12em; --yshift:.10em;
+  }
+
+  html,body{margin:0}
+  body{font-family:'Josefin Sans',sans-serif;background:var(--bg);color:var(--ink);padding:20px}
+  .wrap{max-width:900px;margin:0 auto}
+  h1{font-weight:600;margin:.2rem 0 1rem}
+  .passage{font-size:1.05rem;background:#fff;border:1px solid var(--muted);border-radius:12px;padding:16px 18px}
+  .passage p{line-height:1.6}
+
+  /* Image above passage */
+  .city-image {
+    display:block; max-width:100%; height:auto;
+    margin:0 auto 1rem; border-radius:12px;
+  }
+
+  /* ===== Blanks ===== */
+  .blank{
+    --slot-w:10ch;
+    width:var(--slot-w);
+    display:inline-block;
+    vertical-align:baseline;
+    position:relative;
+    white-space:nowrap;
+    margin:0 .18rem 0;
+    background:#fff;
+    border-radius:.25rem;
+    color:#777;
+    text-align:center;
+    padding: var(--pt) var(--px) var(--pb);
+    height: calc(1em + var(--pb));
+    line-height: 1;
+    box-sizing: content-box;
+    top: var(--yshift);
+    touch-action:none; /* custom touch drag */
+  }
+  .blank *{ line-height:1 }
+
+  .blank .hit{position:absolute;left:-.25em;right:-.25em;top:-.60em;bottom:-.45em;background:transparent;pointer-events:none;}
+  .blank.empty::after{
+    content:""; position:absolute; left:.25em; right:.25em; height:2px;
+    background:var(--accent); bottom:var(--pb); border-radius:2px; pointer-events:none;
+  }
+  .blank.filled::after{ content:none; }
+
+  /* Fixed-size wrapper that receives correctness outline */
+  .fill-wrap{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:100%; height:1em;
+    position:relative; top:-0.10em;
+    border-radius:.25rem; box-sizing:content-box;
+  }
+  .fill-wrap.correct{ outline:2px solid var(--ok); }
+  .fill-wrap.incorrect{ outline:2px solid var(--bad); }
+
+  .placing .blank{ cursor:copy; }
+
+  .blank .tile,
+  .blank .answer-text{
+    display:inline-block;
+    border:0!important; background:transparent!important; padding:0!important; box-shadow:none!important; color:#193873;
+    line-height:1; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;
+  }
+  .answer-text{ font-weight:600; text-transform:lowercase; }
+
+  .bank{ margin-top:14px; background:#fff; border:1px dashed #c9c4ac; border-radius:12px; padding:12px; }
+  .bank-title{ font-weight:600; margin:0 0 .5rem; }
+  .bank-tiles{ display:flex; flex-wrap:wrap; gap:.5rem; min-height:2.2rem; }
+  .score{ margin-top:.75rem; font-weight:600; }
+
+  .tile{
+    display:inline-flex; align-items:center; justify-content:center;
+    padding:.35rem .6rem; border:1px solid #ccc; border-radius:.55rem; background:#fff;
+    cursor:grab; white-space:nowrap; font-weight:600; text-transform:lowercase; color:#193873;
+    transition:transform .08s ease, border .08s ease, background .08s ease;
+    touch-action:none; -webkit-user-drag:none; /* keep off for touch */
+  }
+  /* Allow WebKit desktop to drag elements */
+  html.desktop .tile{ -webkit-user-drag: element; }
+
+  .tile:active{cursor:grabbing; transform:scale(.98)}
+  .tile.selected{ border:2px solid #555; background:#f9f9f9; }
+
+  .controls{display:flex; gap:.5rem; margin:1rem 0 0}
+  button{
+    border:none; padding:10px 16px; border-radius:10px; font-weight:600; letter-spacing:.2px; cursor:pointer;
+    transition:background .2s, transform .15s;
+  }
+  button.red{ background:#8A0000; color:#fff; box-shadow:0 3px 10px rgba(138,0,0,.25); }
+  button.red:hover{ background:#a80000; transform:translateY(-1px); }
+  button.red:active{ background:#700000; transform:translateY(1px); box-shadow:0 2px 6px rgba(0,0,0,.2); }
+  button.ghost{ background:#eee; color:#111; box-shadow:none; }
+  button.ghost:hover{ background:#ddd; }
+
+  /* Touch drag ghost */
+  .drag-ghost{
+    position:fixed; left:0; top:0; transform:translate(-9999px,-9999px);
+    padding:.35rem .6rem; border:1px solid #ccc; border-radius:.55rem; background:#fff;
+    font:600 1rem 'Josefin Sans',sans-serif; white-space:nowrap; color:#193873;
+    pointer-events:none; opacity:.95; z-index:9999;
+  }
+
+  /* === Congrats overlay (smaller, no border, slow zoom) === */
+  #congratsOverlay{
+    position:fixed; inset:0; display:none;
+    align-items:center; justify-content:center;
+    z-index:99999; pointer-events:none;
+  }
+  #congratsOverlay img{
+    width:min(60vw, 400px);
+    height:auto;
+    animation:none; will-change: transform, opacity;
+    border:none; outline:none; box-shadow:none;
+  }
+  @keyframes congratsZoom {
+    0%   { transform: scale(0.70); opacity:0; }
+    8%   { opacity:1; }
+    100% { transform: scale(1.0); opacity:1; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Australia's Rival Cities</h1>
+
+    <!-- Image -->
+    <img src="https://schredder222.github.io/Assets/Sydney-Melbourne.png" 
+         alt="Sydney and Melbourne" class="city-image">
+
+    <div class="passage">
+      <p>
+        Have you ever visited Sydney or Melbourne? These two cities are the biggest in Australia and are known for their very different styles. Sydney is famous for the Opera House, the Harbour Bridge, and its beautiful
+        <span class="blank empty" data-answer="beaches"></span>.
+        Every year, many
+        <span class="blank empty" data-answer="tourists"></span>
+        visit to enjoy the harbour or
+        <span class="blank empty" data-answer="relax"></span>
+        on Bondi Beach. Melbourne, on the other hand, is well known for its culture, cafés, and sport. People enjoy visiting art galleries, watching the Australian Open tennis, or going to an Aussie Rules (AFL) football match. The two cities have had a
+        <span class="blank empty" data-answer="rivalry"></span>
+        since the 19th century when they both competed to be the
+        <span class="blank empty" data-answer="capital"></span>
+        city, and this can still be seen today in sport, business, and culture. Both cities have grown
+        <span class="blank empty" data-answer="rapidly"></span>
+        in the last few
+        <span class="blank empty" data-answer="decades"></span>,
+        and millions of people now live in each. However, Melbourne has just overtaken Sydney as Australia’s largest city, which has surprised many Australians.
+      </p>
+    </div>
+
+    <div class="bank" id="bank">
+      <div class="bank-title">Drag the words into the blanks (or click/tap to select):</div>
+      <div class="bank-tiles" id="bankTiles"></div>
+      <div class="score" id="score"></div>
+    </div>
+
+    <div class="controls">
+      <button id="checkBtn" class="red">Check answers</button>
+      <button id="showBtn" class="ghost">Show answers</button>
+      <button id="resetBtn" class="ghost">Reset</button>
+    </div>
+  </div>
+
+  <!-- Congrats overlay -->
+  <div id="congratsOverlay" aria-hidden="true">
+    <img src="https://schredder222.github.io/Assets/Great%20Job.png" alt="Great job!">
+  </div>
+
+<script>
+(function(){
+  const ANSWERS=["beaches","tourists","relax","rivalry","capital","rapidly","decades"];
+  const bankTiles=document.getElementById('bankTiles');
+  const blanks=[...document.querySelectorAll('.blank')];
+  const checkBtn=document.getElementById('checkBtn');
+  const showBtn=document.getElementById('showBtn');
+  const resetBtn=document.getElementById('resetBtn');
+  const scoreEl=document.getElementById('score');
+
+  const successAudio=new Audio("https://cdn.pixabay.com/download/audio/2022/03/24/audio_dcde83efa6.mp3?filename=ui_correct_button2-103167.mp3");
+  const errorAudio  =new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_b0669294aa.mp3?filename=training-program-incorrect1-88736.mp3");
+  const dropAudio   =new Audio("https://cdn.pixabay.com/download/audio/2025/03/20/audio_99fc376452.mp3?filename=ui-pop-sound-316482.mp3");
+  const clickAudio  =new Audio("https://cdn.pixabay.com/download/audio/2024/04/21/audio_1b8d3bcd3d.mp3?filename=click-buttons-ui-menu-sounds-effects-button-7-203601.mp3");
+  [successAudio,errorAudio,dropAudio,clickAudio].forEach(a=>a.preload="auto");
+  const play=a=>{try{a.currentTime=0;a.play()}catch{}};
+
+  /* Celebration */
+  const bigCongratsAudio = new Audio("https://cdn.pixabay.com/download/audio/2024/08/31/audio_aa510c96aa.mp3");
+  bigCongratsAudio.preload = "auto";
+  function showCongrats(){
+    const ov  = document.getElementById('congratsOverlay');
+    const img = ov.querySelector('img');
+    img.style.animation = 'none';
+    void img.offsetWidth;
+    img.style.animation = 'congratsZoom 8s ease-out forwards';
+    ov.style.display = 'flex';
+    try { bigCongratsAudio.currentTime = 0; bigCongratsAudio.play(); } catch {}
+    setTimeout(()=>{ ov.style.display = 'none'; }, 9000);
+  }
+
+  const shuffle=a=>a.slice().sort(()=>Math.random()-.5);
+  const findTile=word=>Array.from(document.querySelectorAll('.tile')).find(t=>t.dataset.value===word);
+
+  /* Detect coarse pointers (touch) */
+  const IS_COARSE = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || ('ontouchstart' in window);
+  if(!IS_COARSE){ document.documentElement.classList.add('desktop'); } // enables -webkit-user-drag: element
+
+  let selectedTile=null;
+  function setPlacingMode(on){ document.body.classList.toggle('placing', !!on); }
+  function selectTile(t){
+    if(!t) return;
+    document.querySelectorAll('.tile.selected').forEach(x=>x.classList.remove('selected'));
+    selectedTile=t; t.classList.add('selected'); setPlacingMode(true);
+  }
+  function deselect(){
+    if(selectedTile){ selectedTile.classList.remove('selected'); selectedTile=null; setPlacingMode(false); }
+  }
+
+  /* Create tiles */
+  function makeTile(word){
+    const t=document.createElement('div');
+    t.className='tile';
+    t.dataset.value=word; t.textContent=word;
+
+    // Always enable native desktop drag
+    t.draggable = true;
+
+    t.addEventListener('dragstart', e=>{
+      // Ensure data payload for all browsers
+      if(e.dataTransfer){
+        e.dataTransfer.setData('text/plain', word);
+        e.dataTransfer.effectAllowed = 'move';
+
+        // Robust drag image so Chrome/Safari reliably start dragging DIVs
+        const img = t.cloneNode(true);
+        img.style.position = 'absolute';
+        img.style.left = '-9999px';
+        document.body.appendChild(img);
+        try {
+          e.dataTransfer.setDragImage(img, img.offsetWidth/2, img.offsetHeight/2);
+        } catch {}
+        // Remove clone on next tick
+        setTimeout(()=>{ if(img && img.parentNode) img.parentNode.removeChild(img); }, 0);
+      }
+      selectTile(t);
+    });
+
+    return t;
+  }
+
+  /* Hit layer for easier tapping/dropping */
+  function ensureHit(blank){
+    if(!blank.querySelector('.hit')){
+      const hit=document.createElement('span'); hit.className='hit';
+      blank.appendChild(hit);
+    }
+  }
+
+  function makeEmpty(b){
+    b.innerHTML='';
+    ensureHit(b);
+    b.classList.add('empty');
+    b.classList.remove('filled');
+  }
+
+  function makeFilled(b,node){
+    b.innerHTML='';
+    b.classList.remove('empty');
+    ensureHit(b);
+    const wrap=document.createElement('span');
+    wrap.className='fill-wrap';
+    wrap.appendChild(node);
+    b.appendChild(wrap);
+    b.classList.add('filled');
+  }
+
+  function initBank(){
+    bankTiles.innerHTML='';
+    shuffle(ANSWERS).forEach(w=>bankTiles.appendChild(makeTile(w)));
+
+    /* Desktop/native DnD targets — always on */
+    const bank=document.getElementById('bank');
+    bank.addEventListener('dragover',e=>{
+      e.preventDefault();
+      if(e.dataTransfer) e.dataTransfer.dropEffect='move';
+    });
+    bank.addEventListener('drop',e=>{
+      e.preventDefault();
+      const w=e.dataTransfer && e.dataTransfer.getData('text/plain');
+      const t=findTile(w); if(!t) return;
+      const src=t.closest('.blank'); if(src) makeEmpty(src);
+      bankTiles.appendChild(t);
+      play(dropAudio);
+      selectTile(t);
+    });
+  }
+
+  function placeTile(tile,blank){
+    if(!tile||!blank) return;
+    const src=tile.closest('.blank');
+    const existingWrap=blank.querySelector('.fill-wrap');
+    const existingTile=existingWrap?.querySelector('.tile');
+    if(src===blank) return;
+
+    if(existingTile){
+      if(src){ makeFilled(src, existingTile); }
+      else{ bankTiles.appendChild(existingTile); }
+    }
+    makeFilled(blank,tile);
+    if(src && !existingTile) makeEmpty(src);
+
+    play(dropAudio);
+    selectTile(tile);
+  }
+
+  function initBlanks(){
+    blanks.forEach(b=>{
+      makeEmpty(b);
+
+      /* Desktop/native DnD targets — always on */
+      b.addEventListener('dragover',e=>{
+        e.preventDefault();
+        if(e.dataTransfer) e.dataTransfer.dropEffect='move';
+      });
+      b.addEventListener('drop',e=>{
+        e.preventDefault();
+        const w=e.dataTransfer && e.dataTransfer.getData('text/plain');
+        const t=findTile(w);
+        placeTile(t,b);
+      });
+
+      b.addEventListener('click',()=>{ if(selectedTile) placeTile(selectedTile,b); });
+    });
+  }
+
+  function checkAnswers(){
+    let correct=0;
+    blanks.forEach(b=>{
+      const wrap=b.querySelector('.fill-wrap');
+      if(!wrap) return;
+      wrap.classList.remove('correct','incorrect');
+      const t=wrap.querySelector('.tile');
+      if(t){
+        if(t.dataset.value===b.dataset.answer){ wrap.classList.add('correct'); correct++; }
+        else { wrap.classList.add('incorrect'); }
+      }
+    });
+    scoreEl.textContent=`Score: ${correct}/${blanks.length}`;
+    play(correct===blanks.length?successAudio:errorAudio);
+    if(correct===blanks.length) showCongrats();
+  }
+
+  function showAnswers(){
+    blanks.forEach(b=>{
+      b.innerHTML='';
+      ensureHit(b);
+      const wrap=document.createElement('span');
+      wrap.className='fill-wrap correct';
+      wrap.innerHTML=`<span class="answer-text">${b.dataset.answer}</span>`;
+      b.appendChild(wrap);
+      b.classList.add('filled');
+    });
+    deselect();
+    scoreEl.textContent='Answers revealed.';
+    setPlacingMode(false);
+  }
+
+  function resetAll(){
+    blanks.forEach(b=>{
+      const tile=b.querySelector('.fill-wrap .tile');
+      if(tile) bankTiles.appendChild(tile);
+      makeEmpty(b);
+    });
+    initBank();
+    deselect();
+    setPlacingMode(false);
+    scoreEl.textContent='';
+  }
+
+  /* ---------- TOUCH/POINTER DRAG FALLBACK (with pointer capture + AUTO-SCROLL) ---------- */
+  let dragging = null;      // { tile, ghost, offsetX, offsetY, pointerId }
+  let autoScrollDir = 0;    // -1 up, 1 down, 0 none
+  let autoScrollRAF = null;
+
+  function startAutoScrollLoop(){
+    if(autoScrollRAF!=null) return;
+    const tick = ()=>{
+      if(!dragging || autoScrollDir===0){ autoScrollRAF = null; return; }
+      window.scrollBy(0, autoScrollDir * 12);
+      autoScrollRAF = requestAnimationFrame(tick);
+    };
+    autoScrollRAF = requestAnimationFrame(tick);
+  }
+  function stopAutoScroll(){
+    autoScrollDir = 0;
+    if(autoScrollRAF!=null){ cancelAnimationFrame(autoScrollRAF); autoScrollRAF=null; }
+  }
+  function setAutoScrollFromY(y){
+    const margin = 80;
+    const bottom = window.innerHeight - margin;
+    let dir = 0;
+    if(y < margin) dir = -1;
+    else if(y > bottom) dir = 1;
+    autoScrollDir = dir;
+    if(dir!==0) startAutoScrollLoop(); else stopAutoScroll();
+  }
+
+  function startTouchDrag(tile, e){
+    if(dragging) endTouchDrag(e);
+    selectTile(tile);
+
+    const ghost = document.createElement('div');
+    ghost.className = 'drag-ghost';
+    ghost.textContent = tile.textContent;
+    document.body.appendChild(ghost);
+
+    tile.style.visibility = 'hidden';
+
+    const rect = tile.getBoundingClientRect();
+    const offsetX = e.clientX - rect.left;
+    const offsetY = e.clientY - rect.top;
+
+    dragging = { tile, ghost, offsetX, offsetY, pointerId: e.pointerId };
+    moveGhost(e.clientX, e.clientY);
+    setAutoScrollFromY(e.clientY);
+
+    try { tile.setPointerCapture(e.pointerId); } catch {}
+    document.body.style.touchAction = 'none';
+  }
+  function moveGhost(x, y){
+    if(!dragging) return;
+    const { ghost, offsetX, offsetY } = dragging;
+    ghost.style.transform = `translate(${Math.round(x - offsetX)}px, ${Math.round(y - offsetY)}px)`;
+  }
+  function targetFromPoint(x, y){
+    const { ghost } = dragging || {};
+    if(ghost) ghost.style.visibility = 'hidden';
+    const el = document.elementFromPoint(x, y);
+    if(ghost) ghost.style.visibility = '';
+    return el;
+  }
+  function endTouchDrag(e){
+    if(!dragging) return;
+    const { tile, ghost } = dragging;
+    const x = e.clientX, y = e.clientY;
+    const dropTarget = targetFromPoint(x, y);
+    const blank = dropTarget && dropTarget.closest && dropTarget.closest('.blank');
+    const bank = dropTarget && dropTarget.closest && dropTarget.closest('#bank');
+
+    if(blank){
+      placeTile(tile, blank);
+    }else if(bank){
+      const src=tile.closest('.blank'); if(src) makeEmpty(src);
+      bankTiles.appendChild(tile);
+      play(dropAudio);
+      selectTile(tile);
+    }
+
+    tile.style.visibility = '';
+    ghost.remove();
+    dragging = null;
+    document.body.style.touchAction = '';
+    stopAutoScroll();
+  }
+
+  // Touch/stylus only (desktop unaffected)
+  window.addEventListener('pointerdown', (e)=>{
+    const isTouchLike = (e.pointerType && e.pointerType !== 'mouse') || IS_COARSE;
+    if(!isTouchLike) return;
+    const tile = e.target.closest('.tile');
+    if(!tile) return;
+    e.preventDefault();
+    startTouchDrag(tile, e);
+  }, { passive:false });
+
+  window.addEventListener('pointermove', (e)=>{
+    const isTouchLike = (e.pointerType && e.pointerType !== 'mouse') || IS_COARSE;
+    if(!isTouchLike || !dragging || (dragging.pointerId!==e.pointerId)) return;
+    e.preventDefault();
+    moveGhost(e.clientX, e.clientY);
+    setAutoScrollFromY(e.clientY);
+  }, { passive:false });
+
+  window.addEventListener('pointerup', (e)=>{
+    const isTouchLike = (e.pointerType && e.pointerType !== 'mouse') || IS_COARSE;
+    if(!isTouchLike || !dragging || (dragging.pointerId!==e.pointerId)) return;
+    e.preventDefault();
+    endTouchDrag(e);
+  }, { passive:false });
+
+  window.addEventListener('pointercancel', (e)=>{
+    const isTouchLike = (e.pointerType && e.pointerType !== 'mouse') || IS_COARSE;
+    if(!isTouchLike || !dragging || (dragging.pointerId!==e.pointerId)) return;
+    endTouchDrag(e);
+  });
+
+  /* ---- Selection helpers ---- */
+  // Mouse: select on pointerdown (capture) — doesn't interfere with native drag
+  document.addEventListener('pointerdown',(e)=>{
+    if(e.pointerType !== 'mouse') return;
+    const tile=e.target.closest && e.target.closest('.tile');
+    if(tile) selectTile(tile);
+  }, true);
+
+  // Click fallback
+  document.addEventListener('click',(e)=>{
+    const tile = e.target.closest && e.target.closest('.tile');
+    if(tile) { selectTile(tile); return; }
+    if(!e.target.closest('.tile, .blank, .bank, .controls')) deselect();
+  });
+
+  /* Controls */
+  checkBtn.onclick=checkAnswers;
+  showBtn.onclick =()=>{ play(clickAudio); showAnswers(); };
+  resetBtn.onclick=()=>{ play(dropAudio); resetAll(); };
+
+  /* Init */
+  initBank();
+  initBlanks();
+})();
+</script>
+</body>
+</html>
