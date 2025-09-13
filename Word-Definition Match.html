@@ -131,7 +131,12 @@
     /* include the extra button gap in board padding */
     .board{ padding:62px 12px calc(40px + var(--btnGap)); }
    
-    .controls{ row-gap:2px; } /* vertical space between wrapped rows */
+    .controls > div{
+      display:flex;
+      flex-wrap:wrap;
+      row-gap:2px;         /* vertical space between rows of buttons */
+      column-gap:2px;     /* horizontal space between buttons */
+    }
          
     .item{ min-height:44px; border-radius:10px; }
     .left.item{  padding:10px 30px 10px 12px; }
