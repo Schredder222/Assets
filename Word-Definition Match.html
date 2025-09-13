@@ -16,6 +16,7 @@
     --dotColor:#000;
     --minCol:120px;   /* minimum per column */
     --btnGap:0px;     /* extra space above buttons (default desktop = 0) */
+    --row-gap:10px;   /* UNIVERSAL vertical gap between boxes (desktop & mobile) */
 
     /* Column fill colours */
     --leftFill:  rgba(216,178,23,0.20);  /* #D8B217 @ 20% */
@@ -76,7 +77,18 @@
 
   .wires{ position:absolute; inset:0; z-index:100; pointer-events:none; }
 
-  .col{display:flex;flex-direction:column;gap:10px}
+  /* UNIVERSAL vertical gap between boxes */
+  .col{
+    display:flex;
+    flex-direction:column;
+    gap:var(--row-gap);
+  }
+  /* Fallback if flex gap is not supported */
+  .col > .item + .item{ margin-top: var(--row-gap); }
+  @supports (gap: 1rem){
+    .col > .item + .item{ margin-top: 0; }
+  }
+
   .head{
     font-weight:600;font-size:18px;letter-spacing:.3px;color:#111;
     margin-bottom:8px;text-align:center;
@@ -134,13 +146,13 @@
     :root{ --gap:24px; }
   }
 
-  /* Phones: straight lines, small text, equal-height boxes, extra bottom gap via --btnGap */
+  /* Phones: straight lines, equal-height boxes, extra bottom gap via --btnGap */
   @media (max-width:520px){
     :root{
-      --gap:16px;
+      --gap:16px;          /* horizontal gap between columns */
       --dot:14px;
       --minCol:100px;
-      --btnGap:54px;
+      --btnGap:54px;       /* extra space above the bottom buttons */
     }
 
     /* Reset base to white on mobile; colour only when selected/connected */
@@ -148,16 +160,14 @@
     .left.item.pending, .left.item.connected{ background:var(--leftFill); }
     .right.item.pending, .right.item.connected{ background:var(--rightFill); }
 
-    /* vertical gap between boxes */
-    .col{ gap:2px !important; }
-    .col > .item + .item{ margin-top:2px; }  /* fallback if flex gap unsupported */
-
     /* include the extra button gap in board padding */
     .board{ padding:62px 12px calc(40px + var(--btnGap)); }
 
     .controls > div{
-      display:flex; flex-wrap:wrap;
-      row-gap:2px; column-gap:2px;
+      display:flex;
+      flex-wrap:wrap;
+      row-gap:2px;         /* vertical space between rows of buttons (buttons only) */
+      column-gap:2px;      /* horizontal space between buttons */
     }
 
     .item{ min-height:44px; border-radius:10px; }
@@ -172,13 +182,7 @@
     #leftCol .item p,
     #rightCol .item p{
       font-size:0.7em;
-      font-weight:700;   /* ← bold on mobile */
-    }
-  }
-
-  @supports (gap: 1rem){
-    @media (max-width:520px){
-      .col > .item + .item{ margin-top:0; }
+      font-weight:700;
     }
   }
 
@@ -197,16 +201,6 @@
     0%   { transform: scale(0.70); opacity:0; }
     8%   { opacity:1; }
     100% { transform: scale(1.0); opacity:1; }
-  }
-
-  /* --- Mobile column spacing override knob (at END so it wins) --- */
-  @media (max-width:520px){
-    :root{ --row-gap-mobile: 8px; }               /* adjust if needed */
-    .col{ gap: var(--row-gap-mobile) !important; }
-    .col > .item + .item{ margin-top: var(--row-gap-mobile) !important; }
-    @supports (gap: 1rem){
-      .col > .item + .item{ margin-top: 0 !important; }
-    }
   }
 </style>
 </head>
@@ -651,7 +645,7 @@ function addStartDragHandler(targetEl, fromSide){
     e.preventDefault();
     if (targetEl.setPointerCapture) { try { targetEl.setPointerCapture(e.pointerId); } catch(_){} }
 
-    /* NEW: selecting a different box via drag clears any prior selection border */
+    /* selecting a different box via drag clears any prior selection border */
     clearPendingHighlight();
 
     showTimerIfHidden();
@@ -778,7 +772,6 @@ function attachTapToMatch(){
         connectByIds(id, pending.id);
         clearPendingHighlight();
       }else{
-        /* NEW: selecting another left box moves border to the new box only */
         setPending({side:'left', id, el});
       }
     });
@@ -793,7 +786,6 @@ function attachTapToMatch(){
         connectByIds(pending.id, id);
         clearPendingHighlight();
       }else{
-        /* NEW: selecting another right box moves border to the new box only */
         setPending({side:'right', id, el});
       }
     });
