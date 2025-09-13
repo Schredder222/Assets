@@ -125,7 +125,7 @@
     }
 
     /* vertical gap between boxes (2px) */
-    .col{ gap:0.5px !important; }
+    .col{ gap:2px !important; }
     .col > .item + .item{ margin-top:2px; }  /* fallback if flex gap unsupported */
 
     /* include the extra button gap in board padding */
@@ -317,7 +317,7 @@ function startTimerAndMusic(){
       }
     }, 250);
   }
-  maybeStartBgm();  // <-- keep trying until it works
+  maybeStartBgm();  // keep trying until it works
 }
 
 function freezeTimerWithMessage(){
@@ -570,7 +570,7 @@ function addStartDragHandler(handleEl, fromSide){
     if (handleEl.setPointerCapture) { try { handleEl.setPointerCapture(e.pointerId); } catch(_){} }
 
     showTimerIfHidden();
-    startTimerAndMusic();   // timer + keep trying BGM
+    startTimerAndMusic();   // timer + keep trying BGM on pointerdown
 
     const fromId = handleEl.parentElement.dataset.id;
 
@@ -656,8 +656,14 @@ function addStartDragHandler(handleEl, fromSide){
       updateCheckState();
     };
 
-    const onUp = (ev)=> endDrag(ev.clientX, ev.clientY);
-    const onCancel = (ev)=> endDrag(ev.clientX, ev.clientY);
+    const onUp = (ev)=> {
+      endDrag(ev.clientX, ev.clientY);
+      maybeStartBgm(); // try again on gesture end (iOS/Safari)
+    };
+    const onCancel = (ev)=> {
+      endDrag(ev.clientX, ev.clientY);
+      maybeStartBgm();
+    };
 
     document.addEventListener('pointermove', onMove, {passive:false});
     document.addEventListener('pointerup', onUp, {passive:false});
@@ -708,6 +714,15 @@ function attachTapToMatch(){
   });
 }
 
+/* Also attempt audio unlock directly on the dots (handles) for stricter browsers */
+function attachHandleUnlockers(){
+  document.querySelectorAll('.item .handle').forEach(h=>{
+    ['click','touchend','pointerup'].forEach(evt=>{
+      h.addEventListener(evt, ()=>{ maybeStartBgm(); }, {passive:true});
+    });
+  });
+}
+
 function connectByIds(leftId, rightId){
   if(connections.has(leftId)){
     connections.get(leftId).pathEl?.remove();
@@ -742,6 +757,9 @@ let globalListenersAttached = false;
 function attachEvents(){
   leftCol.querySelectorAll('.item .handle').forEach(h=> addStartDragHandler(h,'left'));
   rightCol.querySelectorAll('.item .handle').forEach(h=> addStartDragHandler(h,'right'));
+
+  /* ensure taps on handles can unlock audio too */
+  attachHandleUnlockers();
 
   if (!ro){
     ro = new ResizeObserver(()=>{ setColumnUniformWidths(); rafRealign(); });
@@ -876,17 +894,18 @@ muteBtn.addEventListener('click', ()=>{
   syncMuteUI();
 });
 
-/* === Unlock audio on very first user gesture anywhere === */
+/* === One-time audio unlock on the very first user gesture anywhere === */
+const opts = {once:true, passive:true};
 function unlockAudioOnce(){
   maybeStartBgm();
-  document.removeEventListener('pointerdown', unlockAudioOnce);
+  ['pointerdown','pointerup','touchend','click','keydown'].forEach(type=>{
+    document.removeEventListener(type, unlockAudioOnce, opts);
+  });
 }
-document.addEventListener('pointerdown', unlockAudioOnce, {once:true, passive:true});
-document.addEventListener('keydown', (e)=>{
-  if (e.key === 'Enter' || e.key === ' '){
-    maybeStartBgm();
-  }
-}, {once:true});
+['pointerdown','pointerup','touchend','click'].forEach(type=>{
+  document.addEventListener(type, unlockAudioOnce, opts);
+});
+document.addEventListener('keydown', unlockAudioOnce, {once:true});
 
 /* Init */
 (function init(){
