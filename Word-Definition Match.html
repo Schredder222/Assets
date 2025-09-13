@@ -17,7 +17,7 @@
     --minCol:120px;   /* minimum per column */
     --btnGap:0px;     /* extra space above buttons (default desktop = 0) */
 
-    /* New: column fill colours */
+    /* Column fill colours */
     --leftFill:  rgba(216,178,23,0.20);  /* #D8B217 @ 20% */
     --rightFill: rgba(47,105,28,0.20);   /* #2F691C @ 20% */
   }
@@ -93,7 +93,7 @@
   .left.item  { padding:10px 34px 10px 14px; background:var(--leftFill); }
   .right.item { padding:10px 14px 10px 34px; background:var(--rightFill); }
 
-  /* Subtle selection outline (helps for desktop click-to-match too) */
+  /* Subtle selection outline */
   .item.pending{ outline:2px solid var(--accent); outline-offset:-2px; }
 
   .item p{ margin:0; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
@@ -208,7 +208,7 @@
 <body>
 <div class="wrap">
   <h1>Word-Definition Match</h1>
-  <p class="note">Match the keywords from the video with their definitions by dragging lines between the dots. Then click “Check answers”.</p>
+  <p class="note">Match the keywords from the video with their definitions by dragging lines between the dots or by clicking to select pairs. Then click “Check answers”.</p>
 
   <div class="board" id="board">
     <div class="topbar">
@@ -255,14 +255,13 @@
 
 <script>
 /* ---- Data ---- */
+/* Removed: opportunities, green spaces */
 const PAIRS = [
-  { id:"opportunities", left:"opportunities", right:"chances to get jobs or do something good" },
   { id:"skyscraper",  left:"skyscraper",  right:"very tall city building with many floors" },
   { id:"crowded",      left:"crowded",      right:"full of people so there isn’t much space" },
   { id:"rushhour",     left:"peak time / rush hour", right:"the busy time of day when many people travel" },
   { id:"congested",    left:"congested",    right:"very full of cars so traffic moves slowly" },
   { id:"trafficjam",  left:"traffic jam", right:"long line of vehicles that are not moving" },
-  { id:"greenspaces",  left:"green spaces", right:"parks and gardens in a city" },
   { id:"pollution",    left:"pollution",    right:"dirty air/water that harms people and nature" }
 ];
 
@@ -594,7 +593,7 @@ function render(){
   rightOrder.forEach(({id,right})=> createItem(rightCol,right, id,'right'));
   setColumnUniformWidths();
   attachEvents();
-  attachTapToMatch();        // ✅ enable click-to-match on ALL devices
+  attachTapToMatch();        // enable click-to-match on ALL devices
   updateConnectedClasses();
   updateCheckState();
   realignAllWires();
@@ -663,7 +662,7 @@ function addStartDragHandler(handleEl, fromSide){
       if(!drag) return;
       if (!moved && Math.hypot(ev.clientX - startClient.x, ev.clientY - startClient.y) > 6){
         moved = true;
-        suppressNextClick = true;   // ✅ suppress the click that follows a real drag
+        suppressNextClick = true;   // suppress the click that follows a real drag
       }
       const pt = boardPointFromClient(ev.clientX, ev.clientY);
       drag.lineEl.setAttribute('x2', pt.x);
@@ -739,7 +738,7 @@ function addStartDragHandler(handleEl, fromSide){
   });
 }
 
-/* Click-to-match (now on ALL devices) */
+/* Click-to-match (on ALL devices) */
 let pending = null;
 function clearPendingHighlight(){
   document.querySelectorAll('.item.pending').forEach(el=> el.classList.remove('pending'));
