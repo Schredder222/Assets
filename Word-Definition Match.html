@@ -259,7 +259,7 @@ let connections=new Map();
 let drag=null;
 
 /* ---- Snap radius ---- */
-const getSnapRadius = () => isMobile() ? 26 : 18;
+const getSnapRadius = () => isMobile() ? 26 : 14;  // a bit tighter on desktop
 
 /* ---- Timer & music state ---- */
 let timerStarted = false;
@@ -546,7 +546,7 @@ function render(){
   rightOrder.forEach(({id,right})=> createItem(rightCol,right, id,'right'));
   setColumnUniformWidths();
   attachEvents();
-  attachTapToMatch();
+  if (isMobile()) attachTapToMatch();  // ✅ tap-to-match only on mobile
   updateCheckState();
   realignAllWires();
 }
@@ -562,6 +562,16 @@ function findHandleNear(ptBoard, side){
   }
   return (bestDist <= getSnapRadius()) ? best : null;
 }
+
+/* Suppress click after real drag to avoid accidental tap-to-match on desktop */
+let suppressNextClick = false;
+window.addEventListener('click', (e)=>{
+  if (suppressNextClick){
+    e.stopPropagation();
+    e.preventDefault();
+    suppressNextClick = false; // only swallow one click
+  }
+}, true);
 
 /* Drag logic */
 function addStartDragHandler(handleEl, fromSide){
@@ -590,6 +600,9 @@ function addStartDragHandler(handleEl, fromSide){
     }
 
     const start = handleCenter(handleEl);
+    const startClient = { x: e.clientX, y: e.clientY };
+    let moved = false;
+
     const line = makeStraightLine('--accent', 3); // preview straight
     line.setAttribute('x1', start.x); line.setAttribute('y1', start.y);
     line.setAttribute('x2', start.x); line.setAttribute('y2', start.y);
@@ -599,6 +612,10 @@ function addStartDragHandler(handleEl, fromSide){
 
     const onMove = (ev)=>{
       if(!drag) return;
+      if (!moved && Math.hypot(ev.clientX - startClient.x, ev.clientY - startClient.y) > 6){
+        moved = true;
+        suppressNextClick = true;   // ✅ suppress the click that follows a real drag
+      }
       const pt = boardPointFromClient(ev.clientX, ev.clientY);
       drag.lineEl.setAttribute('x2', pt.x);
       drag.lineEl.setAttribute('y2', pt.y);
@@ -671,9 +688,8 @@ function addStartDragHandler(handleEl, fromSide){
   });
 }
 
-/* Tap-to-match */
+/* Tap-to-match (mobile only) */
 let pending = null;
-
 function clearPendingHighlight(){
   document.querySelectorAll('.item.pending').forEach(el=> el.classList.remove('pending'));
   pending = null;
@@ -682,7 +698,6 @@ function setPending(next){
   clearPendingHighlight();
   pending = next;
 }
-
 function attachTapToMatch(){
   [...leftCol.querySelectorAll('.item')].forEach(el=>{
     el.addEventListener('click', ()=>{
