@@ -16,6 +16,10 @@
     --dotColor:#000;
     --minCol:120px;   /* minimum per column */
     --btnGap:0px;     /* extra space above buttons (default desktop = 0) */
+
+    /* New: column fill colours */
+    --leftFill:  rgba(216,178,23,0.20);  /* #D8B217 @ 20% */
+    --rightFill: rgba(47,105,28,0.20);   /* #2F691C @ 20% */
   }
   *{box-sizing:border-box}
   body{
@@ -83,9 +87,11 @@
     min-height:42px;display:flex;align-items:center;line-height:1.25;
     box-shadow:0 2px 10px rgba(0,0,0,.04);
     width:var(--colWidth);max-width:100%;overflow:hidden;
+    transition: background-color .15s ease;
   }
-  .left.item { padding:10px 34px 10px 14px; }
-  .right.item{ padding:10px 14px 10px 34px; }
+  /* Desktop: always show column fills */
+  .left.item  { padding:10px 34px 10px 14px; background:var(--leftFill); }
+  .right.item { padding:10px 14px 10px 34px; background:var(--rightFill); }
 
   .item p{ margin:0; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
   .item.wrap p{ white-space:normal; overflow:visible; text-overflow:clip; }
@@ -124,20 +130,25 @@
       --btnGap:54px;       /* extra space above the bottom buttons */
     }
 
-    /* vertical gap between boxes (2px) */
-    .col{ gap: 2px !important; }
+    /* Reset base to white on mobile; colour only when selected/connected */
+    .left.item, .right.item{ background:#fff; }
+    .left.item.pending, .left.item.connected{ background:var(--leftFill); }
+    .right.item.pending, .right.item.connected{ background:var(--rightFill); }
+
+    /* vertical gap between boxes (baseline; can be overridden below) */
+    .col{ gap:2px !important; }
     .col > .item + .item{ margin-top:2px; }  /* fallback if flex gap unsupported */
 
     /* include the extra button gap in board padding */
     .board{ padding:62px 12px calc(40px + var(--btnGap)); }
-   
+
     .controls > div{
       display:flex;
       flex-wrap:wrap;
       row-gap:2px;         /* vertical space between rows of buttons */
       column-gap:2px;      /* horizontal space between buttons */
     }
-         
+
     .item{ min-height:44px; border-radius:10px; }
     .left.item{  padding:10px 30px 10px 12px; }
     .right.item{ padding:10px 12px 10px 30px; }
@@ -151,7 +162,13 @@
     #rightCol .item p{ font-size:0.7em; }
   }
 
-    /* === Congrats overlay === */
+  @supports (gap: 1rem){
+    @media (max-width:520px){
+      .col > .item + .item{ margin-top:0; }
+    }
+  }
+
+  /* === Congrats overlay === */
   #congratsOverlay{
     position:fixed; inset:0; display:none;
     align-items:center; justify-content:center;
@@ -168,6 +185,21 @@
     100% { transform: scale(1.0); opacity:1; }
   }
 
+  /* --- Mobile column spacing override knob (place at END so it wins) --- */
+  @media (max-width:520px){
+    :root{ --row-gap-mobile: 8px; }               /* ← adjust this value */
+
+    /* Primary: modern browsers (flex gap) */
+    .col{ gap: var(--row-gap-mobile) !important; }
+
+    /* Fallback: older Safari / no flex-gap */
+    .col > .item + .item{ margin-top: var(--row-gap-mobile) !important; }
+
+    /* If flex-gap is supported, zero the fallback margin */
+    @supports (gap: 1rem){
+      .col > .item + .item{ margin-top: 0 !important; }
+    }
+  }
 </style>
 </head>
 <body>
@@ -540,6 +572,17 @@ function realignAllWires(){
   }
 }
 
+/* Keep .connected classes in sync with current connections */
+function updateConnectedClasses(){
+  document.querySelectorAll('.item.connected').forEach(el=> el.classList.remove('connected'));
+  for (const [leftId, conn] of connections){
+    const lEl = leftCol.querySelector(`.item[data-id="${leftId}"]`);
+    const rEl = rightCol.querySelector(`.item[data-id="${conn.rightId}"]`);
+    if (lEl) lEl.classList.add('connected');
+    if (rEl) rEl.classList.add('connected');
+  }
+}
+
 /* Rendering */
 function render(){
   leftCol.querySelectorAll('.item').forEach(n=>n.remove());
@@ -549,6 +592,7 @@ function render(){
   setColumnUniformWidths();
   attachEvents();
   if (isMobile()) attachTapToMatch();  // ✅ tap-to-match only on mobile
+  updateConnectedClasses();
   updateCheckState();
   realignAllWires();
 }
@@ -664,6 +708,8 @@ function addStartDragHandler(handleEl, fromSide){
 
         connectSound.currentTime = 0; connectSound.play();
         if (!reduceMotion && navigator.vibrate) navigator.vibrate(10);
+
+        updateConnectedClasses(); // reflect new connection
       }else{
         drag.lineEl.remove();
       }
@@ -699,6 +745,7 @@ function clearPendingHighlight(){
 function setPending(next){
   clearPendingHighlight();
   pending = next;
+  if (next && next.el) next.el.classList.add('pending'); // add visible selection
 }
 function attachTapToMatch(){
   [...leftCol.querySelectorAll('.item')].forEach(el=>{
@@ -764,6 +811,8 @@ function connectByIds(leftId, rightId){
   connections.set(leftId, { rightId, pathEl: wire });
   connectSound.currentTime = 0; connectSound.play();
   if (!reduceMotion && navigator.vibrate) navigator.vibrate(10);
+
+  updateConnectedClasses();  // reflect on UI
   updateCheckState();
 }
 
@@ -825,6 +874,8 @@ checkBtn.addEventListener('click', ()=>{
       connections.delete(leftId);
     }
   }
+  updateConnectedClasses(); // remove highlights from any pruned connections
+
   if (countCorrect === PAIRS.length) {
     correctSound.currentTime = 0; correctSound.play();
     freezeTimerWithMessage();
@@ -848,9 +899,11 @@ resetBtn.addEventListener('click', ()=>{
 
   wires.querySelectorAll('*').forEach(n=>n.remove());
   connections.clear();
+  updateConnectedClasses();
   updateCheckState();
   rafRealign();
   uniformBoxHeightsMobile();
+  clearPendingHighlight();
 });
 
 shuffleBtn.addEventListener('click', ()=>{
@@ -865,6 +918,7 @@ shuffleBtn.addEventListener('click', ()=>{
   connections.clear();
   render();
   uniformBoxHeightsMobile();
+  clearPendingHighlight();
 });
 
 showBtn.addEventListener('click', ()=>{
@@ -886,13 +940,16 @@ showBtn.addEventListener('click', ()=>{
       setWireGeometry(wire, a, b);
       wire.setAttribute('stroke-opacity', '1');
       wires.appendChild(wire);
+      connections.set(pair.id, { rightId: pair.id, pathEl: wire });
     }
   }
+  updateConnectedClasses();   // mark all as connected (mobile visual)
   checkBtn.disabled = true;
 
   bgm.pause();
   hideTimerKeepSpace();
   uniformBoxHeightsMobile();
+  clearPendingHighlight();
 });
 
 /* Reveal mute icon once audio actually starts */
