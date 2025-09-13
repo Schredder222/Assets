@@ -118,6 +118,7 @@
   /* Phones: straight lines, small text, equal-height boxes, extra bottom gap via --btnGap */
   @media (max-width:520px){
     :root{
+      --row-gap-mobile:2px;
       --gap:16px;          /* horizontal gap between columns */
       --dot:14px;
       --minCol:100px;
@@ -126,7 +127,10 @@
 
     /* vertical gap between boxes (2px) */
     .col{ gap: 2px !important; }
-    .col > .item + .item{ margin-top:2px; }  /* fallback if flex gap unsupported */
+    .col > .item{ margin-top:2px; }  /* fallback if flex gap unsupported */
+    .col > .item + .item{ 
+    margin-top: var(--row-gap-mobile) !important;
+    }
 
     /* include the extra button gap in board padding */
     .board{ padding:62px 12px calc(40px + var(--btnGap)); }
