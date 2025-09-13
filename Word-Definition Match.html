@@ -127,10 +127,7 @@
 
     /* vertical gap between boxes (2px) */
     .col{ gap: 2px !important; }
-    .col > .item{ margin-top:2px; }  /* fallback if flex gap unsupported */
-    .col > .item + .item{ 
-    margin-top: var(--row-gap-mobile) !important;
-    }
+    .col > .item + .item{ margin-top:2px; }  /* fallback if flex gap unsupported */
 
     /* include the extra button gap in board padding */
     .board{ padding:62px 12px calc(40px + var(--btnGap)); }
@@ -174,7 +171,7 @@
 
   /* --- Mobile column spacing override knob (place at END so it wins) --- */
   @media (max-width:520px){
-    :root{ --row-gap-mobile: 8px; }               /* ← adjust this value */
+    :root{ --row-gap-mobile: 2px; }               /* ← adjust this value */
 
     /* Primary: modern browsers (flex gap) */
     .col{ gap: var(--row-gap-mobile) !important; }
