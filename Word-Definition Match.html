@@ -87,11 +87,14 @@
     min-height:42px;display:flex;align-items:center;line-height:1.25;
     box-shadow:0 2px 10px rgba(0,0,0,.04);
     width:var(--colWidth);max-width:100%;overflow:hidden;
-    transition: background-color .15s ease;
+    transition: background-color .15s ease, outline-color .15s ease;
   }
   /* Desktop: always show column fills */
   .left.item  { padding:10px 34px 10px 14px; background:var(--leftFill); }
   .right.item { padding:10px 14px 10px 34px; background:var(--rightFill); }
+
+  /* Subtle selection outline (helps for desktop click-to-match too) */
+  .item.pending{ outline:2px solid var(--accent); outline-offset:-2px; }
 
   .item p{ margin:0; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
   .item.wrap p{ white-space:normal; overflow:visible; text-overflow:clip; }
@@ -150,10 +153,10 @@
     }
 
     .item{ min-height:44px; border-radius:10px; }
-    .left.item{  padding:10px 30px 10px 12px; }
-    .right.item{ padding:10px 12px 10px 30px; }
-    .head{ font-size:16px; margin-bottom:6px; }
-    .timer{ padding:5px 10px; }
+    .left.item{  padding:5px 30px 5px 12px; }
+    .right.item{ padding:5px 12px 5px 30px; }
+    .head{ font-size:16px; margin-bottom:3px; }
+    .timer{ padding:5px 5px; }
     .muteBtn{ width:36px; height:36px; padding:6px; }
     .muteBtn img{ width:22px; height:22px; }
 
@@ -591,7 +594,7 @@ function render(){
   rightOrder.forEach(({id,right})=> createItem(rightCol,right, id,'right'));
   setColumnUniformWidths();
   attachEvents();
-  if (isMobile()) attachTapToMatch();  // ✅ tap-to-match only on mobile
+  attachTapToMatch();        // ✅ enable click-to-match on ALL devices
   updateConnectedClasses();
   updateCheckState();
   realignAllWires();
@@ -736,7 +739,7 @@ function addStartDragHandler(handleEl, fromSide){
   });
 }
 
-/* Tap-to-match (mobile only) */
+/* Click-to-match (now on ALL devices) */
 let pending = null;
 function clearPendingHighlight(){
   document.querySelectorAll('.item.pending').forEach(el=> el.classList.remove('pending'));
@@ -745,13 +748,14 @@ function clearPendingHighlight(){
 function setPending(next){
   clearPendingHighlight();
   pending = next;
-  if (next && next.el) next.el.classList.add('pending'); // add visible selection
+  if (next && next.el) next.el.classList.add('pending');
 }
 function attachTapToMatch(){
   [...leftCol.querySelectorAll('.item')].forEach(el=>{
     el.addEventListener('click', ()=>{
+      if (suppressNextClick) return;   // ignore synthetic click after drag
       showTimerIfHidden();
-      startTimerAndMusic();  // timer + keep trying BGM
+      startTimerAndMusic();
       const id = el.dataset.id;
       if (!pending){ setPending({side:'left', id, el}); return; }
       if (pending.side === 'right'){
@@ -764,8 +768,9 @@ function attachTapToMatch(){
   });
   [...rightCol.querySelectorAll('.item')].forEach(el=>{
     el.addEventListener('click', ()=>{
+      if (suppressNextClick) return;   // ignore synthetic click after drag
       showTimerIfHidden();
-      startTimerAndMusic();  // timer + keep trying BGM
+      startTimerAndMusic();
       const id = el.dataset.id;
       if (!pending){ setPending({side:'right', id, el}); return; }
       if (pending.side === 'left'){
