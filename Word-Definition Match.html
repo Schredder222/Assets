@@ -125,7 +125,7 @@
     }
 
     /* vertical gap between boxes (2px) */
-    .col{ gap:2px !important; }
+    .col{ gap: var(--row-gap-mobile) !important; }
     .col > .item + .item{ margin-top:2px; }  /* fallback if flex gap unsupported */
 
     /* include the extra button gap in board padding */
