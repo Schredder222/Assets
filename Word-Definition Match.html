@@ -93,7 +93,7 @@
   .left.item  { padding:10px 34px 10px 14px; background:var(--leftFill); }
   .right.item { padding:10px 14px 10px 34px; background:var(--rightFill); }
 
-  /* Subtle selection outline */
+  /* Selection outline (red) — applied with .pending class */
   .item.pending{ outline:2px solid var(--accent); outline-offset:-2px; }
 
   .item p{ margin:0; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
@@ -106,7 +106,17 @@
   }
   .left .handle{right:8px}
   .right .handle{left:8px}
-  .handle::after{ content:""; position:absolute; inset:-8px; }
+
+  /* Larger invisible hit area around each dot to start dragging more easily */
+  .handle-hot{
+    position:absolute; top:50%; transform:translateY(-50%);
+    width:38px; height:38px;
+    z-index:199;
+    cursor:pointer; touch-action:none;
+    background:transparent; -webkit-tap-highlight-color: transparent;
+  }
+  .left .handle-hot{ right:0; }
+  .right .handle-hot{ left:0; }
 
   .controls{
     position:absolute;left:18px;right:18px;bottom:16px;
@@ -127,10 +137,10 @@
   /* Phones: straight lines, small text, equal-height boxes, extra bottom gap via --btnGap */
   @media (max-width:520px){
     :root{
-      --gap:16px;          /* horizontal gap between columns */
+      --gap:16px;
       --dot:14px;
       --minCol:100px;
-      --btnGap:54px;       /* extra space above the bottom buttons */
+      --btnGap:54px;
     }
 
     /* Reset base to white on mobile; colour only when selected/connected */
@@ -138,7 +148,7 @@
     .left.item.pending, .left.item.connected{ background:var(--leftFill); }
     .right.item.pending, .right.item.connected{ background:var(--rightFill); }
 
-    /* vertical gap between boxes (baseline; can be overridden below) */
+    /* vertical gap between boxes */
     .col{ gap:2px !important; }
     .col > .item + .item{ margin-top:2px; }  /* fallback if flex gap unsupported */
 
@@ -146,10 +156,8 @@
     .board{ padding:62px 12px calc(40px + var(--btnGap)); }
 
     .controls > div{
-      display:flex;
-      flex-wrap:wrap;
-      row-gap:2px;         /* vertical space between rows of buttons */
-      column-gap:2px;      /* horizontal space between buttons */
+      display:flex; flex-wrap:wrap;
+      row-gap:2px; column-gap:2px;
     }
 
     .item{ min-height:44px; border-radius:10px; }
@@ -160,9 +168,12 @@
     .muteBtn{ width:36px; height:36px; padding:6px; }
     .muteBtn img{ width:22px; height:22px; }
 
-    /* text size on mobile */
+    /* text size + BOLD on mobile */
     #leftCol .item p,
-    #rightCol .item p{ font-size:0.7em; }
+    #rightCol .item p{
+      font-size:0.7em;
+      font-weight:700;   /* ← bold on mobile */
+    }
   }
 
   @supports (gap: 1rem){
@@ -188,17 +199,11 @@
     100% { transform: scale(1.0); opacity:1; }
   }
 
-  /* --- Mobile column spacing override knob (place at END so it wins) --- */
+  /* --- Mobile column spacing override knob (at END so it wins) --- */
   @media (max-width:520px){
-    :root{ --row-gap-mobile: 8px; }               /* ← adjust this value */
-
-    /* Primary: modern browsers (flex gap) */
+    :root{ --row-gap-mobile: 8px; }               /* adjust if needed */
     .col{ gap: var(--row-gap-mobile) !important; }
-
-    /* Fallback: older Safari / no flex-gap */
     .col > .item + .item{ margin-top: var(--row-gap-mobile) !important; }
-
-    /* If flex-gap is supported, zero the fallback margin */
     @supports (gap: 1rem){
       .col > .item + .item{ margin-top: 0 !important; }
     }
@@ -255,7 +260,6 @@
 
 <script>
 /* ---- Data ---- */
-/* Removed: opportunities, green spaces */
 const PAIRS = [
   { id:"skyscraper",  left:"skyscraper",  right:"very tall city building with many floors" },
   { id:"crowded",      left:"crowded",      right:"full of people so there isn’t much space" },
@@ -294,15 +298,15 @@ let leftOrder=[], rightOrder=[];
 let connections=new Map();
 let drag=null;
 
-/* ---- Snap radius ---- */
-const getSnapRadius = () => isMobile() ? 26 : 14;  // a bit tighter on desktop
+/* Snap radius */
+const getSnapRadius = () => isMobile() ? 26 : 14;
 
-/* ---- Timer & music state ---- */
+/* Timer & music state */
 let timerStarted = false;
 let timerFrozen  = false;
 let timerStartMs = 0;
 let timerInterval = null;
-let hasAudioPlayed = false;  // becomes true only when bgm.play() resolves
+let hasAudioPlayed = false;
 let timerHiddenForAnswers = false;
 
 function fmtTime(ms){
@@ -312,7 +316,6 @@ function fmtTime(ms){
   return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 }
 
-/* Try to start BGM on *every* user gesture until success */
 function maybeStartBgm(){
   if (hasAudioPlayed) return;
   try { if (bgm.currentTime !== 0) bgm.currentTime = 0; } catch {}
@@ -323,11 +326,10 @@ function maybeStartBgm(){
       hasAudioPlayed = true;
       muteBtn.style.display = 'inline-flex';
       syncMuteUI();
-    }).catch(()=>{/* blocked; we'll try again on next gesture */});
+    }).catch(()=>{});
   }
 }
 
-/* Sync mute icon + a11y label */
 function syncMuteUI(){
   const muted = bgm.muted;
   muteBtn.setAttribute('aria-pressed', String(muted));
@@ -336,7 +338,6 @@ function syncMuteUI(){
   muteBtn.setAttribute('aria-label', muted ? 'Unmute background music' : 'Mute background music');
 }
 
-/* Start timer (once) AND attempt bgm on every call */
 function startTimerAndMusic(){
   if(!timerStarted){
     timerStarted = true;
@@ -353,7 +354,7 @@ function startTimerAndMusic(){
       }
     }, 250);
   }
-  maybeStartBgm();  // keep trying until it works
+  maybeStartBgm();
 }
 
 function freezeTimerWithMessage(){
@@ -390,16 +391,18 @@ const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(M
 const rectOf = el => el.getBoundingClientRect();
 function boardPointFromClient(x,y){ const b = rectOf(board); return { x:x - b.left, y:y - b.top }; }
 
+/* DOM builders */
 function createItem(colEl, text, id, side){
   const div = document.createElement('div');
   div.className = 'item ' + side;
   div.dataset.id = id;
   const p = document.createElement('p'); p.textContent = text; div.appendChild(p);
   const h = document.createElement('div'); h.className = 'handle'; div.appendChild(h);
+  const hot = document.createElement('div'); hot.className = 'handle-hot'; div.appendChild(hot);
   colEl.appendChild(div);
 }
 
-/* Offscreen measurement */
+/* Measuring */
 function measureTextWidth(text, classSelector){
   let meas = document.getElementById('measSpan');
   if(!meas){
@@ -460,7 +463,7 @@ function setWireGeometry(wireEl, a, b){
   }
 }
 
-/* Equal-height on mobile */
+/* Mobile equal heights */
 function uniformBoxHeightsMobile(){
   if (!isMobile()) return;
   const leftItems  = Array.from(document.querySelectorAll('#leftCol .item'));
@@ -478,7 +481,7 @@ function uniformBoxHeightsMobile(){
   rafRealign();
 }
 
-/* Widths */
+/* Column widths */
 function setColumnUniformWidths(){
   const leftItems = Array.from(document.querySelectorAll('#leftCol .item'));
   const rightItems= Array.from(document.querySelectorAll('#rightCol .item'));
@@ -550,7 +553,7 @@ function setColumnUniformWidths(){
   wires.setAttribute('height', b.height);
 }
 
-/* Drag helpers */
+/* Geometry helpers */
 function handleCenter(handleEl){
   const b = rectOf(board);
   const r = rectOf(handleEl);
@@ -574,7 +577,7 @@ function realignAllWires(){
   }
 }
 
-/* Keep .connected classes in sync with current connections */
+/* Pending/connected classes */
 function updateConnectedClasses(){
   document.querySelectorAll('.item.connected').forEach(el=> el.classList.remove('connected'));
   for (const [leftId, conn] of connections){
@@ -593,13 +596,13 @@ function render(){
   rightOrder.forEach(({id,right})=> createItem(rightCol,right, id,'right'));
   setColumnUniformWidths();
   attachEvents();
-  attachTapToMatch();        // enable click-to-match on ALL devices
+  attachTapToMatch();        /* click-to-match on all devices */
   updateConnectedClasses();
   updateCheckState();
   realignAllWires();
 }
 
-/* Snap helper */
+/* Snap helpers */
 function findHandleNear(ptBoard, side){
   const list = Array.from(document.querySelectorAll(`.${side} .handle`));
   let best = null, bestDist = Infinity;
@@ -610,27 +613,53 @@ function findHandleNear(ptBoard, side){
   }
   return (bestDist <= getSnapRadius()) ? best : null;
 }
+function itemAtClient(clientX, clientY, side){
+  const items = Array.from(document.querySelectorAll(`.${side}.item`));
+  for (const el of items){
+    const r = el.getBoundingClientRect();
+    if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom){
+      return el;
+    }
+  }
+  return null;
+}
 
-/* Suppress click after real drag to avoid accidental tap-to-match on desktop */
+/* Suppress click after real drag */
 let suppressNextClick = false;
 window.addEventListener('click', (e)=>{
   if (suppressNextClick){
-    e.stopPropagation();
-    e.preventDefault();
-    suppressNextClick = false; // only swallow one click
+    e.stopPropagation(); e.preventDefault(); suppressNextClick = false;
   }
 }, true);
 
-/* Drag logic */
-function addStartDragHandler(handleEl, fromSide){
-  handleEl.addEventListener('pointerdown', (e)=>{
+/* Clear pending highlight */
+let pending = null;
+function clearPendingHighlight(){
+  document.querySelectorAll('.item.pending').forEach(el=> el.classList.remove('pending'));
+  pending = null;
+}
+function setPending(next){
+  /* ensure previous red border disappears immediately */
+  clearPendingHighlight();
+  pending = next;
+  if (next && next.el) next.el.classList.add('pending');
+}
+
+/* Drag logic (from dot OR hotspot) */
+function addStartDragHandler(targetEl, fromSide){
+  targetEl.addEventListener('pointerdown', (e)=>{
     e.preventDefault();
-    if (handleEl.setPointerCapture) { try { handleEl.setPointerCapture(e.pointerId); } catch(_){} }
+    if (targetEl.setPointerCapture) { try { targetEl.setPointerCapture(e.pointerId); } catch(_){} }
+
+    /* NEW: selecting a different box via drag clears any prior selection border */
+    clearPendingHighlight();
 
     showTimerIfHidden();
-    startTimerAndMusic();   // timer + keep trying BGM on pointerdown
+    startTimerAndMusic();
 
-    const fromId = handleEl.parentElement.dataset.id;
+    const parentItem = targetEl.closest('.item');
+    const dotEl = parentItem.querySelector('.handle');
+    const fromId = parentItem.dataset.id;
 
     // Clear prior connection on same side
     if(fromSide === 'left'){
@@ -647,11 +676,11 @@ function addStartDragHandler(handleEl, fromSide){
       }
     }
 
-    const start = handleCenter(handleEl);
+    const start = handleCenter(dotEl);
     const startClient = { x: e.clientX, y: e.clientY };
     let moved = false;
 
-    const line = makeStraightLine('--accent', 3); // preview straight
+    const line = makeStraightLine('--accent', 3);
     line.setAttribute('x1', start.x); line.setAttribute('y1', start.y);
     line.setAttribute('x2', start.x); line.setAttribute('y2', start.y);
     wires.appendChild(line);
@@ -661,8 +690,7 @@ function addStartDragHandler(handleEl, fromSide){
     const onMove = (ev)=>{
       if(!drag) return;
       if (!moved && Math.hypot(ev.clientX - startClient.x, ev.clientY - startClient.y) > 6){
-        moved = true;
-        suppressNextClick = true;   // suppress the click that follows a real drag
+        moved = true; suppressNextClick = true;
       }
       const pt = boardPointFromClient(ev.clientX, ev.clientY);
       drag.lineEl.setAttribute('x2', pt.x);
@@ -672,15 +700,21 @@ function addStartDragHandler(handleEl, fromSide){
     const endDrag = (clientX, clientY)=>{
       if(!drag) return;
       const pt = boardPointFromClient(clientX, clientY);
-      const overRight = (drag.fromSide === 'left') ? findHandleNear(pt,'right') : null;
-      const overLeft  = (drag.fromSide === 'right') ? findHandleNear(pt,'left')  : null;
+
+      const overRightDot = (drag.fromSide === 'left') ? findHandleNear(pt,'right') : null;
+      const overLeftDot  = (drag.fromSide === 'right') ? findHandleNear(pt,'left')  : null;
+
+      const overRightBox = (drag.fromSide === 'left' ) ? itemAtClient(clientX, clientY, 'right') : null;
+      const overLeftBox  = (drag.fromSide === 'right') ? itemAtClient(clientX, clientY, 'left' ) : null;
 
       let leftId=null, rightId=null, ok=false;
 
-      if(drag.fromSide === 'left' && overRight){
-        leftId  = drag.fromId; rightId = overRight.parentElement.dataset.id; ok = true;
-      }else if(drag.fromSide === 'right' && overLeft){
-        leftId  = overLeft.parentElement.dataset.id; rightId = drag.fromId; ok = true;
+      if(drag.fromSide === 'left'){
+        if (overRightDot){ leftId = drag.fromId; rightId = overRightDot.parentElement.dataset.id; ok = true; }
+        else if (overRightBox){ leftId = drag.fromId; rightId = overRightBox.dataset.id; ok = true; }
+      }else{
+        if (overLeftDot){ leftId = overLeftDot.parentElement.dataset.id; rightId = drag.fromId; ok = true; }
+        else if (overLeftBox){ leftId = overLeftBox.dataset.id; rightId = drag.fromId; ok = true; }
       }
 
       if(ok){
@@ -711,7 +745,7 @@ function addStartDragHandler(handleEl, fromSide){
         connectSound.currentTime = 0; connectSound.play();
         if (!reduceMotion && navigator.vibrate) navigator.vibrate(10);
 
-        updateConnectedClasses(); // reflect new connection
+        updateConnectedClasses();
       }else{
         drag.lineEl.remove();
       }
@@ -723,14 +757,8 @@ function addStartDragHandler(handleEl, fromSide){
       updateCheckState();
     };
 
-    const onUp = (ev)=> {
-      endDrag(ev.clientX, ev.clientY);
-      maybeStartBgm(); // try again on gesture end (iOS/Safari)
-    };
-    const onCancel = (ev)=> {
-      endDrag(ev.clientX, ev.clientY);
-      maybeStartBgm();
-    };
+    const onUp = (ev)=> { endDrag(ev.clientX, ev.clientY); maybeStartBgm(); };
+    const onCancel = (ev)=> { endDrag(ev.clientX, ev.clientY); maybeStartBgm(); };
 
     document.addEventListener('pointermove', onMove, {passive:false});
     document.addEventListener('pointerup', onUp, {passive:false});
@@ -738,53 +766,43 @@ function addStartDragHandler(handleEl, fromSide){
   });
 }
 
-/* Click-to-match (on ALL devices) */
-let pending = null;
-function clearPendingHighlight(){
-  document.querySelectorAll('.item.pending').forEach(el=> el.classList.remove('pending'));
-  pending = null;
-}
-function setPending(next){
-  clearPendingHighlight();
-  pending = next;
-  if (next && next.el) next.el.classList.add('pending');
-}
+/* Click-to-match on all devices */
 function attachTapToMatch(){
   [...leftCol.querySelectorAll('.item')].forEach(el=>{
     el.addEventListener('click', ()=>{
-      if (suppressNextClick) return;   // ignore synthetic click after drag
-      showTimerIfHidden();
-      startTimerAndMusic();
+      if (suppressNextClick) return;
+      showTimerIfHidden(); startTimerAndMusic();
       const id = el.dataset.id;
       if (!pending){ setPending({side:'left', id, el}); return; }
       if (pending.side === 'right'){
         connectByIds(id, pending.id);
         clearPendingHighlight();
       }else{
+        /* NEW: selecting another left box moves border to the new box only */
         setPending({side:'left', id, el});
       }
     });
   });
   [...rightCol.querySelectorAll('.item')].forEach(el=>{
     el.addEventListener('click', ()=>{
-      if (suppressNextClick) return;   // ignore synthetic click after drag
-      showTimerIfHidden();
-      startTimerAndMusic();
+      if (suppressNextClick) return;
+      showTimerIfHidden(); startTimerAndMusic();
       const id = el.dataset.id;
       if (!pending){ setPending({side:'right', id, el}); return; }
       if (pending.side === 'left'){
         connectByIds(pending.id, id);
         clearPendingHighlight();
       }else{
+        /* NEW: selecting another right box moves border to the new box only */
         setPending({side:'right', id, el});
       }
     });
   });
 }
 
-/* Also attempt audio unlock directly on the dots (handles) for stricter browsers */
+/* Unlock audio on dots and hotspots too */
 function attachHandleUnlockers(){
-  document.querySelectorAll('.item .handle').forEach(h=>{
+  document.querySelectorAll('.item .handle, .item .handle-hot').forEach(h=>{
     ['click','touchend','pointerup'].forEach(evt=>{
       h.addEventListener(evt, ()=>{ maybeStartBgm(); }, {passive:true});
     });
@@ -816,7 +834,7 @@ function connectByIds(leftId, rightId){
   connectSound.currentTime = 0; connectSound.play();
   if (!reduceMotion && navigator.vibrate) navigator.vibrate(10);
 
-  updateConnectedClasses();  // reflect on UI
+  updateConnectedClasses();
   updateCheckState();
 }
 
@@ -825,10 +843,9 @@ let ro = null;
 let globalListenersAttached = false;
 
 function attachEvents(){
-  leftCol.querySelectorAll('.item .handle').forEach(h=> addStartDragHandler(h,'left'));
-  rightCol.querySelectorAll('.item .handle').forEach(h=> addStartDragHandler(h,'right'));
+  leftCol.querySelectorAll('.item .handle, .item .handle-hot').forEach(el=> addStartDragHandler(el,'left'));
+  rightCol.querySelectorAll('.item .handle, .item .handle-hot').forEach(el=> addStartDragHandler(el,'right'));
 
-  /* ensure taps on handles can unlock audio too */
   attachHandleUnlockers();
 
   if (!ro){
@@ -846,7 +863,7 @@ function updateCheckState(){
   checkBtn.disabled = connections.size !== PAIRS.length;
 }
 
-/* Congrats audio */
+/* Congrats */
 const bigCongratsAudio = new Audio("https://cdn.pixabay.com/download/audio/2024/08/31/audio_aa510c96aa.mp3");
 bigCongratsAudio.preload = "auto";
 function showCongrats(){
@@ -878,7 +895,7 @@ checkBtn.addEventListener('click', ()=>{
       connections.delete(leftId);
     }
   }
-  updateConnectedClasses(); // remove highlights from any pruned connections
+  updateConnectedClasses();
 
   if (countCorrect === PAIRS.length) {
     correctSound.currentTime = 0; correctSound.play();
@@ -947,7 +964,7 @@ showBtn.addEventListener('click', ()=>{
       connections.set(pair.id, { rightId: pair.id, pathEl: wire });
     }
   }
-  updateConnectedClasses();   // mark all as connected (mobile visual)
+  updateConnectedClasses();
   checkBtn.disabled = true;
 
   bgm.pause();
@@ -972,7 +989,7 @@ muteBtn.addEventListener('click', ()=>{
   syncMuteUI();
 });
 
-/* === One-time audio unlock on the very first user gesture anywhere === */
+/* One-time audio unlock */
 const opts = {once:true, passive:true};
 function unlockAudioOnce(){
   maybeStartBgm();
