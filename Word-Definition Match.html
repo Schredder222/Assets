@@ -168,21 +168,6 @@
     100% { transform: scale(1.0); opacity:1; }
   }
 
-  /* --- Mobile column spacing override knob (place at END so it wins) --- */
-  @media (max-width:520px){
-    :root{ --row-gap-mobile: 2px; }               /* ← adjust this value */
-
-    /* Primary: modern browsers (flex gap) */
-    .col{ gap: var(--row-gap-mobile) !important; }
-
-    /* Fallback: older Safari / no flex-gap */
-    .col > .item + .item{ margin-top: var(--row-gap-mobile) !important; }
-
-    /* If flex-gap is supported, zero the fallback margin */
-    @supports (gap: 1rem){
-      .col > .item + .item{ margin-top: 0 !important; }
-    }
-  }
 </style>
 </head>
 <body>
