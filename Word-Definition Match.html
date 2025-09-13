@@ -125,8 +125,8 @@
     }
 
     /* vertical gap between boxes (2px) */
-    .col{ gap:5px !important; }
-    .col > .item + .item{ margin-top:5px; }  /* fallback if flex gap unsupported */
+    .col{ gap:2px !important; }
+    .col > .item + .item{ margin-top:2px; }  /* fallback if flex gap unsupported */
 
     /* include the extra button gap in board padding */
     .board{ padding:62px 12px calc(40px + var(--btnGap)); }
@@ -135,7 +135,7 @@
       display:flex;
       flex-wrap:wrap;
       row-gap:2px;         /* vertical space between rows of buttons */
-      column-gap:2px;     /* horizontal space between buttons */
+      column-gap:2px;      /* horizontal space between buttons */
     }
          
     .item{ min-height:44px; border-radius:10px; }
@@ -172,6 +172,22 @@
     0%   { transform: scale(0.70); opacity:0; }
     8%   { opacity:1; }
     100% { transform: scale(1.0); opacity:1; }
+  }
+
+  /* --- Mobile column spacing override knob (place at END so it wins) --- */
+  @media (max-width:520px){
+    :root{ --row-gap-mobile: 8px; }               /* ← adjust this value */
+
+    /* Primary: modern browsers (flex gap) */
+    .col{ gap: var(--row-gap-mobile) !important; }
+
+    /* Fallback: older Safari / no flex-gap */
+    .col > .item + .item{ margin-top: var(--row-gap-mobile) !important; }
+
+    /* If flex-gap is supported, zero the fallback margin */
+    @supports (gap: 1rem){
+      .col > .item + .item{ margin-top: 0 !important; }
+    }
   }
 </style>
 </head>
