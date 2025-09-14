@@ -43,7 +43,7 @@
     border-radius:14px;
     box-shadow:0 6px 24px rgba(0,0,0,.08);
     padding:72px 18px 72px;  /* bottom overridden on mobile via --btnGap */
-    overflow:hidden;
+    overflow:hidden;         /* keeps overlay neatly clipped to rounded corners */
     touch-action: pan-y;
     -webkit-user-select:none; user-select:none;
     -webkit-touch-callout:none;
@@ -186,14 +186,19 @@
     }
   }
 
-  /* === Congrats overlay === */
+  /* === Congrats overlay (inside .board, centred over the activity) === */
   #congratsOverlay{
-    position:fixed; inset:0; display:none;
-    align-items:center; justify-content:center;
-    z-index:99999; pointer-events:none;
+    position:absolute;        /* relative to .board */
+    inset:0;                  /* fill the board area */
+    display:none;             /* toggled by JS */
+    align-items:center;
+    justify-content:center;
+    z-index:99999;            /* above wires/topbar within board */
+    pointer-events:none;      /* let clicks pass through while visible */
   }
   #congratsOverlay img{
-    width:min(60vw, 400px); height:auto;
+    width:clamp(160px, 60%, 400px);  /* sized to the board, not the viewport */
+    height:auto;
     animation:none; will-change: transform, opacity;
     border:none; outline:none; box-shadow:none;
   }
@@ -235,12 +240,12 @@
         <button class="btn ghost" id="showBtn">Show answers</button>
       </div>
     </div>
-  </div>
-</div>
 
-<!-- Congrats overlay -->
-<div id="congratsOverlay" aria-hidden="true" style="display:none">
-  <img src="https://schredder222.github.io/Assets/Great%20Job.png" alt="Great job!">
+    <!-- Congrats overlay now lives INSIDE the board -->
+    <div id="congratsOverlay" aria-hidden="true" style="display:none">
+      <img src="https://schredder222.github.io/Assets/Great%20Job.png" alt="Great job!">
+    </div>
+  </div>
 </div>
 
 <!-- Audio effects -->
