@@ -28,7 +28,7 @@
 
   h1{
     color:#111;
-    margin:0 0 12px 0;              /* space under title */
+    margin:0 0 12px 0;
     font-size:clamp(20px,3.2vw,28px);
     letter-spacing:.2px;
   }
@@ -40,140 +40,94 @@
     max-width:900px;
   }
 
-  /* Portrait-only landscape tip (mobile) — centred */
+  /* Portrait-only landscape tip — centred in the viewport, non-blocking */
   .landscape-tip{
-    display:none;
-    width:min(1000px,96vw);
-    margin:8px auto 8px;            /* auto -> centred in the screen */
+    position:fixed;
+    left:50%; top:50%;
+    transform:translate(-50%,-50%);
+    display:none;                 /* toggled by JS */
+    max-width:92vw; width:auto;
     background:#fff;
     border:1px solid #dcd6be;
     color:#222;
-    border-radius:10px;
+    border-radius:12px;
     padding:10px 14px;
     font-size:clamp(13px,2.6vw,15px);
     line-height:1.35;
-    display:flex;
-    justify-content:center;         /* centre contents */
-    align-items:center;
-    gap:10px;
+    box-shadow:0 10px 26px rgba(0,0,0,.18);
+    z-index:99998;
+    pointer-events:none;          /* don’t block the activity */
     text-align:center;
+    display:flex; align-items:center; justify-content:center; gap:10px;
   }
   .landscape-tip .icon{ font-size:1.15em }
 
-  /* Top bar: timer + mute (kept on one line; no layout shift) */
+  /* Top bar: timer + mute inline; reserve height to avoid jiggle */
   .topbar{
     width:min(1000px,96vw);
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    margin:8px auto 10px;
-    gap:12px;
-    flex-wrap:nowrap;       /* never wrap */
-    min-height:40px;        /* reserve height to prevent vertical jiggle */
+    display:flex; align-items:center; justify-content:space-between;
+    margin:8px auto 10px; gap:12px; flex-wrap:nowrap;
+    min-height:40px;
   }
   .timer{
     background:#111; color:#fff; padding:6px 12px; border-radius:999px;
     font-weight:600; letter-spacing:.3px; box-shadow:0 2px 10px rgba(0,0,0,.12);
-    font-variant-numeric:tabular-nums;
-    white-space:nowrap;
+    font-variant-numeric:tabular-nums; white-space:nowrap;
   }
   .muteBtn{
     display:inline-flex; align-items:center; justify-content:center;
-    background:transparent; border:none;
-    padding:6px; width:40px; height:40px; border-radius:999px;
-    cursor:pointer; line-height:0; flex:0 0 auto;
-
-    /* hidden but space-reserved until audio starts */
-    visibility:hidden; opacity:0; pointer-events:none;
+    background:transparent; border:none; padding:6px;
+    width:40px; height:40px; border-radius:999px; cursor:pointer; line-height:0; flex:0 0 auto;
+    visibility:hidden; opacity:0; pointer-events:none;   /* revealed when audio plays (no layout shift) */
   }
   .muteBtn--ready{ visibility:visible; opacity:1; pointer-events:auto; }
   .muteBtn:focus-visible{ outline:2px solid #000; outline-offset:2px; }
   .muteBtn img{ width:24px; height:24px; display:block; }
 
-  /* Activity wrap (overlay context) */
-  .activity-wrap{
-    position:relative;
-    width:min(1000px, 96vw);
-    margin:0 auto;
-  }
+  .activity-wrap{ position:relative; width:min(1000px,96vw); margin:0 auto; }
 
-  /* Counter centred above the anagram */
   .counter{
-    text-align:center;
-    font-weight:700;
-    font-size:clamp(18px,3.8vw,24px); /* slightly smaller */
+    text-align:center; font-weight:700;
+    font-size:clamp(18px,3.8vw,24px);
     margin:4px 0 6px;
   }
 
-  /* Stage: centred large tiles; contain to reduce paint flicker */
+  /* Stage: isolate to reduce repaints; promote to GPU */
   .stage{
-    display:flex;
-    flex-wrap:wrap;
-    gap:10px 12px;
-    justify-content:center;
-    align-items:center;
-    min-height:120px;
-    margin:6px auto 10px;
-    padding:0;
-    contain:layout paint;          /* isolates layout/paint to cut flicker */
+    display:flex; flex-wrap:wrap; gap:10px 12px; justify-content:center; align-items:center;
+    min-height:120px; margin:6px auto 10px; padding:0;
+    contain:layout paint;
+    isolation:isolate;
+    transform:translateZ(0);
   }
 
   .word{
-    background:#fff;
-    border:1px solid #BDBDBD;
-    border-radius:14px;
-    padding:14px 16px;
-    cursor:grab;
-    user-select:none;
-    -webkit-user-select:none;
-    -webkit-touch-callout:none;
-    -webkit-tap-highlight-color:transparent;
-    font-weight:bold;
-    line-height:1.15;
-    box-shadow:0 2px 6px rgba(0,0,0,.06);
-    transition:transform .12s ease, box-shadow .12s ease, background-color .15s ease, border-color .15s ease, color .15s ease;
+    background:#fff; border:1px solid #BDBDBD; border-radius:14px; padding:14px 16px;
+    cursor:grab; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent;
+    font-weight:bold; line-height:1.15; box-shadow:0 2px 6px rgba(0,0,0,.06);
     font-size:clamp(18px,3.6vw,28px);
-    touch-action:none; /* smoother touch drag */
-    backface-visibility:hidden;
+    touch-action:none; backface-visibility:hidden; transform:translateZ(0);
+    transition:transform .12s ease, box-shadow .12s ease, background-color .15s ease, border-color .15s ease, color .15s ease;
   }
-  .word:active{ cursor:grabbing; transform:scale(.98) }
-  .word.dragging{
-    opacity:.9;
-    transition:none !important;    /* avoid flicker while dragging */
-    will-change:transform;
-    transform:translateZ(0);       /* promote to its own layer */
-  }
-  .word.placeholder{ visibility:hidden; } /* keeps layout space while dragging */
+  .word:active{ cursor:grabbing; transform:scale(.985) translateZ(0) }
+  .word.dragging{ opacity:.95; transition:none !important; will-change:transform; }
+  .word.placeholder{ visibility:hidden; } /* keep layout stable */
 
   /* Floating ghost for touch drag */
   .drag-ghost{
     position:fixed; left:0; top:0; z-index:9999;
-    pointer-events:none; opacity:.95;
+    pointer-events:none; opacity:.97;
     box-shadow:0 6px 18px rgba(0,0,0,.18);
     transform:translate(-9999px,-9999px) translateZ(0);
-    will-change:transform;
-    backface-visibility:hidden;
+    will-change:transform; backface-visibility:hidden;
   }
 
-  /* Success state: solid green for 2 seconds */
-  .word.success{
-    background:#DFF5E3;
-    border-color:var(--ok);
-    color:#0b4c1c;
-  }
+  .word.success{ background:#DFF5E3; border-color:var(--ok); color:#0b4c1c; }
 
-  /* Controls row (bottom buttons) */
-  .controls{
-    display:flex;
-    gap:10px;
-    justify-content:flex-end;
-    margin-top:8px;
-  }
+  .controls{ display:flex; gap:10px; justify-content:flex-end; margin-top:8px; }
   .btn{
-    background:var(--accent); color:#fff; border:none;
-    padding:10px 16px; border-radius:10px;
-    font-weight:600; letter-spacing:.2px; cursor:pointer;
-    box-shadow:0 3px 10px rgba(138,0,0,.25);
+    background:var(--accent); color:#fff; border:none; padding:10px 16px; border-radius:10px;
+    font-weight:600; letter-spacing:.2px; cursor:pointer; box-shadow:0 3px 10px rgba(138,0,0,.25);
     transition:background .2s, transform .15s;
   }
   .btn:hover{ transform:translateY(-1px) }
@@ -181,40 +135,23 @@
   .btn.ghost{ background:#eee; color:#111; box-shadow:none; }
   .btn[disabled]{ opacity:.5; cursor:not-allowed; box-shadow:none; pointer-events:none; }
 
-  /* Fade between items */
-  @keyframes fadeIn {
-    from { opacity:0; transform:translateY(6px) scale(.985) }
-    to   { opacity:1; transform:translateY(0)   scale(1) }
-  }
-  @keyframes fadeOut {
-    from { opacity:1; transform:translateY(0)   scale(1) }
-    to   { opacity:0; transform:translateY(-6px) scale(.985) }
-  }
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(6px) scale(.985)} to{opacity:1; transform:translateY(0) scale(1)} }
+  @keyframes fadeOut{ from{opacity:1; transform:translateY(0) scale(1)} to{opacity:0; transform:translateY(-6px) scale(.985)} }
   .fade-in{ animation:fadeIn .35s ease forwards }
   .fade-out{ animation:fadeOut .25s ease forwards }
 
-  /* === Congrats overlay (half-size image) === */
+  /* Congrats overlay */
   #congratsOverlay{
-    position:absolute; inset:0;
-    display:none; align-items:center; justify-content:center;
+    position:absolute; inset:0; display:none; align-items:center; justify-content:center;
     z-index:99999; pointer-events:none;
   }
   #congratsOverlay[aria-hidden="false"]{ display:flex; }
-  #congratsOverlay img{
-    width:clamp(160px, 50%, 400px);
-    height:auto; animation:none; will-change:transform, opacity;
-    border:none; outline:none; box-shadow:none;
-  }
-  @keyframes congratsZoom{
-    0%   { transform: scale(0.70); opacity:0; }
-    8%   { opacity:1; }
-    100% { transform: scale(1.0); opacity:1; }
-  }
+  #congratsOverlay img{ width:clamp(160px,50%,400px); height:auto; animation:none; will-change:transform,opacity; }
+  @keyframes congratsZoom{ 0%{transform:scale(.70);opacity:0} 8%{opacity:1} 100%{transform:scale(1.0);opacity:1} }
 
   @media (max-width:520px){
     .stage{ min-height:100px }
-    .muteBtn{ width:36px; height:36px; padding:6px; }
-    .muteBtn img{ width:22px; height:22px; }
+    .muteBtn{ width:36px; height:36px; padding:6px; } .muteBtn img{ width:22px; height:22px; }
     .timer{ padding:5px 10px; }
     .controls{ justify-content:center; flex-wrap:wrap; } /* centre buttons on mobile */
   }
@@ -227,7 +164,7 @@
   Unscramble the words to make a correct sentence in <b>Present Perfect</b>.
 </p>
 
-<!-- Mobile portrait tip (centred in the screen) -->
+<!-- Portrait mobile tip (centred overlay) -->
 <div class="landscape-tip" id="landscapeTip" role="note" aria-live="polite">
   <span class="icon" aria-hidden="true">📱↻</span>
   <span>Tip: for more space, turn your phone to landscape.</span>
@@ -298,45 +235,27 @@ const shuffleBtn = document.getElementById('shuffleBtn');
 const resetBtn   = document.getElementById('resetBtn');
 
 /* volumes */
-bgm.volume = 0.25;
-sfxCorrect.volume = 1.0;
-applause.volume = 1.0;
-sfxDrop.volume = 0.8;
-sfxShuffle.volume = 1.0;
-sfxReset.volume = 1.0;
+bgm.volume = 0.25; sfxCorrect.volume = 1.0; applause.volume = 1.0;
+sfxDrop.volume = 0.8; sfxShuffle.volume = 1.0; sfxReset.volume = 1.0;
 
 /* state */
-let idx = 0;
-let locked = false;
-let timerInterval = null;
-let elapsedMs = 0;
-let startedAt = null;
-
+let idx = 0, locked = false;
+let timerInterval = null, elapsedMs = 0, startedAt = null;
 let hasStartedActivity = false;
-let celebrating = false;
-let overlayTimeoutId = null;
-/* cancel the 2s success-hold when resetting */
-let successTimeoutId = null;
-
-/* environment flags */
+let celebrating = false, overlayTimeoutId = null, successTimeoutId = null;
 const IS_COARSE = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || ('ontouchstart' in window);
-
-/* guard flags to avoid duplicate listeners */
-let desktopBound = false;
-let touchBound = false;
+let desktopBound = false, touchBound = false;
 
 /* --------------------------
-   LANDSCAPE TIP (mobile portrait only)
+   LANDSCAPE TIP (portrait touch only)
 --------------------------- */
 const tipEl = document.getElementById('landscapeTip');
 function updateLandscapeTip(){
-  const isPortrait = window.matchMedia && window.matchMedia('(orientation: portrait)').matches;
+  const isPortraitMQ = window.matchMedia && window.matchMedia('(orientation: portrait)').matches;
+  const isPortraitFallback = window.innerHeight > window.innerWidth + 20; // tolerance
+  const isPortrait = isPortraitMQ || isPortraitFallback;
   const smallWidth = window.innerWidth <= 700;
-  if (IS_COARSE && isPortrait && smallWidth){
-    tipEl.style.display = 'flex';
-  } else {
-    tipEl.style.display = 'none';
-  }
+  tipEl.style.display = (IS_COARSE && isPortrait && smallWidth) ? 'flex' : 'none';
 }
 window.addEventListener('resize', updateLandscapeTip, {passive:true});
 window.addEventListener('orientationchange', updateLandscapeTip, {passive:true});
@@ -344,24 +263,13 @@ window.addEventListener('orientationchange', updateLandscapeTip, {passive:true})
 /* --------------------------
    HELPERS
 --------------------------- */
-function shuffled(arr){
-  const a = arr.slice();
-  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
-  return a;
-}
+function shuffled(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]} return a; }
 function shuffledFromAnswer(ans){
   const target = ans.join(' ');
-  for(let tries=0; tries<10; tries++){
-    const cand = shuffled(ans);
-    if(cand.join(' ') !== target) return cand;
-  }
+  for(let t=0;t<10;t++){ const c=shuffled(ans); if(c.join(' ')!==target) return c; }
   return shuffled(ans);
 }
-function fmtTime(totalSec){
-  const m = String(Math.floor(totalSec/60)).padStart(2,'0');
-  const s = String(totalSec%60).padStart(2,'0');
-  return `${m}:${s}`;
-}
+function fmtTime(s){ const m=String(Math.floor(s/60)).padStart(2,'0'); const ss=String(s%60).padStart(2,'0'); return `${m}:${ss}`; }
 
 /* --------------------------
    TIMER
@@ -377,7 +285,7 @@ function startTimer(){
 function stopTimer(){ clearInterval(timerInterval); timerInterval=null; }
 
 /* --------------------------
-   MUSIC + MUTE UI (robust mobile unlock)
+   MUSIC + MUTE
 --------------------------- */
 function syncMuteIcon(){
   muteBtn.setAttribute('aria-pressed', String(bgm.muted));
@@ -385,45 +293,33 @@ function syncMuteIcon(){
   muteBtn.title = bgm.muted ? 'Unmute' : 'Mute';
   muteBtn.setAttribute('aria-label', bgm.muted ? 'Unmute background music' : 'Mute background music');
 }
-function revealMuteButton(){
-  muteBtn.classList.add('muteBtn--ready');
-  muteBtn.removeAttribute('aria-hidden');
-  syncMuteIcon();
-}
-muteBtn.addEventListener('click', ()=>{ bgm.muted = !bgm.muted; syncMuteIcon(); });
+function revealMuteButton(){ muteBtn.classList.add('muteBtn--ready'); muteBtn.removeAttribute('aria-hidden'); syncMuteIcon(); }
+muteBtn.addEventListener('click', ()=>{ bgm.muted=!bgm.muted; syncMuteIcon(); });
 bgm.addEventListener('playing', revealMuteButton);
 
-/* Attempt to play; if blocked, set one-time unlock listeners */
 async function ensureAudio(){
   try{
-    bgm.currentTime = 0;
-    await bgm.play();
-    revealMuteButton();
-  }catch(e){
-    const unlock = async ()=>{
-      try{
-        bgm.currentTime = 0;
-        await bgm.play();
-        revealMuteButton();
-      }catch{}
-      window.removeEventListener('pointerup', unlock, opts);
-      window.removeEventListener('touchend', unlock, opts);
-      window.removeEventListener('click', unlock, opts);
-      window.removeEventListener('keydown', unlock, opts);
+    bgm.currentTime=0; await bgm.play(); revealMuteButton();
+  }catch{
+    const opts={once:true,passive:true};
+    const unlock=async ()=>{
+      try{ bgm.currentTime=0; await bgm.play(); revealMuteButton(); }catch{}
+      window.removeEventListener('pointerup',unlock,opts);
+      window.removeEventListener('touchend',unlock,opts);
+      window.removeEventListener('click',unlock,opts);
+      window.removeEventListener('keydown',unlock,opts);
     };
-    const opts = {once:true, passive:true};
-    window.addEventListener('pointerup', unlock, opts);
-    window.addEventListener('touchend', unlock, opts);
-    window.addEventListener('click', unlock, opts);
-    window.addEventListener('keydown', unlock, opts);
+    window.addEventListener('pointerup',unlock,opts);
+    window.addEventListener('touchend',unlock,opts);
+    window.addEventListener('click',unlock,opts);
+    window.addEventListener('keydown',unlock,opts);
   }
 }
-
 async function startActivityIfNeeded(){
   if(hasStartedActivity) return;
   hasStartedActivity = true;
-  await ensureAudio();  // start music (or arm unlock if blocked)
-  startTimer();         // start timer on first drag
+  await ensureAudio();
+  startTimer();
 }
 
 /* --------------------------
@@ -439,12 +335,10 @@ function renderCurrent(){
     const w = document.createElement('div');
     w.className = 'word';
     w.textContent = token;
-    /* Enable native HTML5 drag on desktop only */
-    w.draggable = !IS_COARSE;
+    w.draggable = !IS_COARSE;  // desktop native DnD only
     stage.appendChild(w);
   });
 }
-
 function wordsOf(){ return [...stage.querySelectorAll('.word')]; }
 function textArray(){ return wordsOf().map(w=>w.textContent); }
 function isCorrect(){ return textArray().join(' ') === items[idx].answer.join(' '); }
@@ -452,151 +346,124 @@ function isCorrect(){ return textArray().join(' ') === items[idx].answer.join(' 
 /* --------------------------
    CELEBRATION
 --------------------------- */
-function setControlsDuringCelebration(active){
-  // Disable "Shuffle anagram" during celebration; Reset stays active to close overlay.
-  shuffleBtn.disabled = active;
-  shuffleBtn.setAttribute('aria-disabled', String(active));
-}
+function setControlsDuringCelebration(on){ shuffleBtn.disabled = on; shuffleBtn.setAttribute('aria-disabled', String(on)); }
 function endCelebration(){
-  celebrating = false;
-  if(overlayTimeoutId){ clearTimeout(overlayTimeoutId); overlayTimeoutId=null; }
+  celebrating=false; if(overlayTimeoutId){ clearTimeout(overlayTimeoutId); overlayTimeoutId=null; }
   overlay.setAttribute('aria-hidden','true');
-  try{ applause.pause(); applause.currentTime=0; }catch(e){}
+  try{ applause.pause(); applause.currentTime=0; }catch{}
   setControlsDuringCelebration(false);
 }
 function showCongrats(){
-  const img = overlay.querySelector('img');
-  img.style.animation = 'none'; void img.offsetWidth;
-  img.style.animation = 'congratsZoom 8s ease-out forwards';
-  celebrating = true;
-  setControlsDuringCelebration(true);
+  const img = overlay.querySelector('img'); img.style.animation='none'; void img.offsetWidth;
+  img.style.animation='congratsZoom 8s ease-out forwards';
+  celebrating=true; setControlsDuringCelebration(true);
   overlay.setAttribute('aria-hidden','false');
-  try{ applause.currentTime = 0; applause.play(); }catch(e){}
-  overlayTimeoutId = setTimeout(()=> endCelebration(), 9000);
+  try{ applause.currentTime=0; applause.play(); }catch{}
+  overlayTimeoutId = setTimeout(()=>endCelebration(), 9000);
 }
-
 function markSuccessForTwoSecondsThenNext(){
   wordsOf().forEach(w=>w.classList.add('success'));
-  try{ sfxCorrect.currentTime=0; sfxCorrect.play(); }catch(e){}
+  try{ sfxCorrect.currentTime=0; sfxCorrect.play(); }catch{}
   locked = true;
-
   successTimeoutId = setTimeout(()=>{
-    successTimeoutId = null;
+    successTimeoutId=null;
     if(idx < items.length-1){
-      idx++; locked=false; renderCurrent();
-      attachTouchDnDIfNeeded();  // ensure handlers exist for new nodes
-      bindDesktopDnD();
+      idx++; locked=false; renderCurrent(); attachTouchDnDIfNeeded(); bindDesktopDnD();
     }else{
-      try{ bgm.pause(); }catch(e){}
-      stopTimer();
-      timerEl.textContent = `Completed in ${fmtTime(Math.floor(elapsedMs/1000))}`;
+      try{ bgm.pause(); }catch{}
+      stopTimer(); timerEl.textContent = `Completed in ${fmtTime(Math.floor(elapsedMs/1000))}`;
       showCongrats();
     }
   }, 2000);
 }
 
 /* --------------------------
-   DESKTOP DnD (HTML5)
+   DESKTOP DnD
 --------------------------- */
 function bindDesktopDnD(){
-  if(IS_COARSE || desktopBound) return;
-  desktopBound = true;
-
+  if(IS_COARSE || desktopBound) return; desktopBound = true;
   let dragWord=null;
-
   document.addEventListener('dragstart', async e=>{
     if(locked) return e.preventDefault();
-    if(e.target.classList.contains('word')){
-      await startActivityIfNeeded();
-      dragWord = e.target;
-      dragWord.classList.add('dragging');
-    }
+    if(e.target.classList.contains('word')){ await startActivityIfNeeded(); dragWord=e.target; dragWord.classList.add('dragging'); }
   }, {passive:false});
-
-  document.addEventListener('dragend', e=>{
-    if(e.target.classList.contains('word')){
-      e.target.classList.remove('dragging');
-      dragWord = null;
-    }
-  });
-
+  document.addEventListener('dragend', e=>{ if(e.target.classList.contains('word')){ e.target.classList.remove('dragging'); dragWord=null; }});
   stage.addEventListener('dragover', e=>{
-    if(locked) return;
-    e.preventDefault();
+    if(locked) return; e.preventDefault();
     const words = wordsOf().filter(n=>n!==dragWord);
     const after = words.find(el => e.clientX < el.getBoundingClientRect().left + el.offsetWidth/2);
-    if(after) stage.insertBefore(dragWord, after);
-    else stage.appendChild(dragWord);
+    if(after) stage.insertBefore(dragWord, after); else stage.appendChild(dragWord);
   });
-
-  document.addEventListener('drop', ()=>{
-    if(locked) return;
-    try{ sfxDrop.currentTime=0; sfxDrop.play(); }catch(e){}
-    if(isCorrect()) markSuccessForTwoSecondsThenNext();
-  });
+  document.addEventListener('drop', ()=>{ if(locked) return; try{ sfxDrop.currentTime=0; sfxDrop.play(); }catch{} if(isCorrect()) markSuccessForTwoSecondsThenNext(); });
 }
 
 /* --------------------------
-   TOUCH / POINTER DnD (mobile) — flicker-reduced
+   TOUCH / POINTER DnD (row-stable, rAF-throttled)
 --------------------------- */
 function attachTouchDnDIfNeeded(){
-  if(!IS_COARSE || touchBound) return;
-  touchBound = true;
+  if(!IS_COARSE || touchBound) return; touchBound = true;
 
-  let dragging=null;
-  let rafId=null;
-  let pendingMove=null;
+  let dragging=null, rafId=null, pendingMove=null;
 
   function scheduleMove(x,y){
     pendingMove = {x,y};
     if(rafId) return;
     rafId = requestAnimationFrame(()=>{
-      const {x,y} = pendingMove || {};
-      if(!dragging){ rafId=null; return; }
-      moveGhost(x,y);
-      insertPlaceholderAt(x,y);
-      rafId=null;
-      if(pendingMove && (pendingMove.x!==x || pendingMove.y!==y)){
-        scheduleMove(pendingMove.x, pendingMove.y);
-      }
+      const pt = pendingMove; rafId=null; if(!dragging || !pt) return;
+      moveGhost(pt.x, pt.y);
+      insertPlaceholderAt(pt.x, pt.y);
+      if(pendingMove && (pendingMove.x!==pt.x || pendingMove.y!==pt.y)) scheduleMove(pendingMove.x, pendingMove.y);
     });
   }
-
   function moveGhost(x,y){
     if(!dragging) return;
-    dragging.ghost.style.transform =
-      `translate(${Math.round(x-dragging.offX)}px, ${Math.round(y-dragging.offY)}px) translateZ(0)`;
+    dragging.ghost.style.transform = `translate(${Math.round(x-dragging.offX)}px, ${Math.round(y-dragging.offY)}px) translateZ(0)`;
   }
 
-  // Hysteresis around the midpoint to avoid rapid before/after toggling
-  function nearestElementIndex(x,y,currentIndex){
-    const itemsEls = [...stage.children].filter(el=>el!==dragging?.placeholder);
-    if(itemsEls.length===0) return 0;
-    let bestIdx=itemsEls.length, bestDist=Infinity, bestEl=null;
-    itemsEls.forEach((el,i)=>{
-      const r = el.getBoundingClientRect();
-      const cx = r.left + r.width/2;
-      const cy = r.top  + r.height/2;
-      const d = (cx-x)*(cx-x) + (cy-y)*(cy-y);
-      if(d < bestDist){ bestDist=d; bestEl=el; bestIdx=i; }
-    });
-    if(!bestEl) return currentIndex ?? 0;
-
-    const r = bestEl.getBoundingClientRect();
-    const mid = r.left + r.width/2;
-    const hysteresis = Math.max(6, r.width*0.05);  // 6px or 5% of width
-    const before = x < (mid - hysteresis);
-    const after  = x > (mid + hysteresis);
-
-    if(!before && !after) return currentIndex ?? [...stage.children].indexOf(bestEl);
-    const baseIndex = [...stage.children].indexOf(bestEl);
-    return before ? baseIndex : baseIndex+1;
+  /* Group children into visual rows, then choose insertion within the active row.
+     This avoids rapid before/after toggling when moving near midpoints across lines. */
+  function computeRows(){
+    const items = [...stage.children].filter(el=>el!==dragging?.placeholder);
+    const rects = items.map(el=>({el, r: el.getBoundingClientRect()}));
+    rects.sort((a,b)=>a.r.top - b.r.top);
+    const rows=[]; const EPS=14; // px tolerance
+    for(const it of rects){
+      if(!rows.length || Math.abs(rows[rows.length-1][0].r.top - it.r.top) > EPS){ rows.push([it]); }
+      else rows[rows.length-1].push(it);
+    }
+    return rows;
   }
 
-  function insertPlaceholderAt(x,y){
+  function insertPlaceholderAt(clientX, clientY){
     if(!dragging) return;
+    const rows = computeRows();
+    if(rows.length===0) return;
+
+    // pick row whose vertical span contains y (with tolerance)
+    const TOL=18;
+    let row = rows[0];
+    for(const r of rows){
+      const top = Math.min(...r.map(x=>x.r.top));
+      const bot = Math.max(...r.map(x=>x.r.bottom));
+      if(clientY >= top - TOL && clientY <= bot + TOL){ row = r; break; }
+      if(clientY > bot + TOL) row = r; // fall through to last suitable
+    }
+
+    // within row: find first element whose centre is to the right of x, with hysteresis
+    const HYST = 10;
+    let beforeEl = null;
+    for(const it of row){
+      const mid = it.r.left + it.r.width/2;
+      if(clientX < mid - HYST){ beforeEl = it.el; break; }
+    }
+
     const currentIndex = [...stage.children].indexOf(dragging.placeholder);
-    const targetIndex = nearestElementIndex(x,y,currentIndex);
+    let targetIndex;
+    if(beforeEl){
+      targetIndex = [...stage.children].indexOf(beforeEl);
+    }else{
+      targetIndex = stage.children.length; // append
+    }
     if(targetIndex !== currentIndex){
       if(targetIndex >= stage.children.length) stage.appendChild(dragging.placeholder);
       else stage.insertBefore(dragging.placeholder, stage.children[targetIndex]);
@@ -607,25 +474,19 @@ function attachTouchDnDIfNeeded(){
     if(!dragging) return;
     const {tile, ghost, placeholder} = dragging;
     const i = [...stage.children].indexOf(placeholder);
-    if(i >= stage.children.length) stage.appendChild(tile);
-    else stage.insertBefore(tile, stage.children[i]);
-    tile.style.visibility = '';
-    ghost.remove();
-    placeholder.remove();
+    if(i >= stage.children.length) stage.appendChild(tile); else stage.insertBefore(tile, stage.children[i]);
+    tile.style.visibility = ''; tile.classList.remove('dragging');
+    ghost.remove(); placeholder.remove();
     document.body.style.touchAction = '';
     dragging = null;
-    try{ sfxDrop.currentTime=0; sfxDrop.play(); }catch(err){}
+    try{ sfxDrop.currentTime=0; sfxDrop.play(); }catch{}
     if(isCorrect()) markSuccessForTwoSecondsThenNext();
   }
 
   stage.addEventListener('pointerdown', async (e)=>{
     const t = e.target;
-    if(!t.classList.contains('word')) return;
-    if(locked) return;
-
-    // Start timer + (attempt) music on first drag
+    if(!t.classList.contains('word') || locked) return;
     await startActivityIfNeeded();
-
     e.preventDefault();
 
     const rect = t.getBoundingClientRect();
@@ -640,33 +501,21 @@ function attachTouchDnDIfNeeded(){
     placeholder.style.width = rect.width + 'px';
     placeholder.style.height = rect.height + 'px';
     stage.insertBefore(placeholder, t);
+
     t.style.visibility = 'hidden';
     t.classList.add('dragging');
 
-    dragging = {
-      tile: t,
-      ghost,
-      placeholder,
-      offX: e.clientX - rect.left,
-      offY: e.clientY - rect.top
-    };
+    dragging = { tile:t, ghost, placeholder, offX:e.clientX-rect.left, offY:e.clientY-rect.top };
     scheduleMove(e.clientX, e.clientY);
-
     document.body.style.touchAction='none';
 
-    const onMove = (ev)=>{
-      if(!dragging) return;
-      ev.preventDefault();
-      scheduleMove(ev.clientX, ev.clientY);
-    };
-    const onUp = (ev)=>{
+    const onMove = (ev)=>{ if(!dragging) return; ev.preventDefault(); scheduleMove(ev.clientX, ev.clientY); };
+    const onUp   = (ev)=>{
       window.removeEventListener('pointermove', onMove, {passive:false});
       window.removeEventListener('pointerup', onUp, {passive:false});
       window.removeEventListener('pointercancel', onUp, {passive:false});
-      if(dragging) dragging.tile.classList.remove('dragging');
       endTouchDrag(ev);
     };
-
     window.addEventListener('pointermove', onMove, {passive:false});
     window.addEventListener('pointerup', onUp, {passive:false});
     window.addEventListener('pointercancel', onUp, {passive:false});
@@ -677,47 +526,26 @@ function attachTouchDnDIfNeeded(){
    BUTTONS
 --------------------------- */
 function shuffleCurrent(){
-  if(locked) return;
-  if(isCorrect()) return; // don't shuffle if solved
-  try{ sfxShuffle.currentTime=0; sfxShuffle.play(); }catch(e){}
+  if(locked || isCorrect()) return;
+  try{ sfxShuffle.currentTime=0; sfxShuffle.play(); }catch{}
   const nodes = wordsOf();
   const shuffledNodes = nodes.slice().sort(()=>Math.random()-0.5);
   stage.innerHTML = '';
-  shuffledNodes.forEach(n=>{
-    n.classList.remove('success','dragging');
-    n.draggable = !IS_COARSE;
-    stage.appendChild(n);
-  });
+  shuffledNodes.forEach(n=>{ n.classList.remove('success','dragging'); n.draggable = !IS_COARSE; stage.appendChild(n); });
 }
 
 async function resetActivity(){
-  // Close celebration immediately and stop applause if showing
   if(celebrating) endCelebration();
+  if(successTimeoutId){ clearTimeout(successTimeoutId); successTimeoutId=null; }
+  locked=false;
+  try{ sfxReset.currentTime=0; sfxReset.play(); }catch{}
 
-  // Cancel pending success advance, if any
-  if(successTimeoutId){ clearTimeout(successTimeoutId); successTimeoutId = null; }
-  locked = false;
+  idx=0; stopTimer(); elapsedMs=0; startedAt=null; timerEl.textContent='00:00';
+  try{ bgm.pause(); bgm.currentTime=0; }catch{}
+  muteBtn.classList.remove('muteBtn--ready'); muteBtn.setAttribute('aria-hidden','true');
+  hasStartedActivity=false; setControlsDuringCelebration(false);
 
-  try{ sfxReset.currentTime=0; sfxReset.play(); }catch(e){}
-
-  // Back to the very start (first anagram)
-  idx = 0;
-
-  // Reset timer (do not start until first drag)
-  stopTimer();
-  elapsedMs = 0; startedAt = null;
-  timerEl.textContent = '00:00';
-
-  // Reset music (do not play until first drag)
-  try{ bgm.pause(); bgm.currentTime = 0; }catch(e){}
-  muteBtn.classList.remove('muteBtn--ready');
-  muteBtn.setAttribute('aria-hidden','true');
-
-  hasStartedActivity = false;
-
-  setControlsDuringCelebration(false);
-
-  renderCurrent();           // shows anagram 1 (fresh random order)
+  renderCurrent();
 }
 
 shuffleBtn.addEventListener('click', shuffleCurrent);
