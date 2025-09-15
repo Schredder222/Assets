@@ -20,11 +20,10 @@
   h1{font-weight:600;margin:.2rem 0 1rem}
   .passage{
     font-size:1.05rem;background:#fff;border:1px solid var(--muted);border-radius:12px;padding:16px 18px;
-    position:relative; /* anchor overlays to the passage */
+    position:relative;
   }
   .passage p{line-height:1.6}
 
-  /* Image above passage */
   .city-image{display:block;max-width:100%;height:auto;margin:0 auto 1rem;border-radius:12px}
 
   /* ===== Blanks ===== */
@@ -41,12 +40,15 @@
   .blank.empty::after{content:"";position:absolute;left:.25em;right:.25em;height:2px;background:var(--accent);bottom:var(--pb);border-radius:2px;pointer-events:none;}
   .blank.filled::after{content:none;}
 
+  /* Wrapper that receives correctness outline and click-selection ring */
   .fill-wrap{
     display:inline-flex;align-items:center;justify-content:center;
     width:100%;height:1em;position:relative;top:-0.10em;border-radius:.25rem;box-sizing:content-box;
   }
   .fill-wrap.correct{outline:2px solid var(--ok);}
   .fill-wrap.incorrect{outline:2px solid var(--bad);}
+  .fill-wrap.selected{box-shadow:0 0 0 2px #555;} /* only when clicked-selected */
+
   .placing .blank{cursor:copy;}
 
   .blank .tile,.blank .answer-text{
@@ -71,6 +73,8 @@
   html.desktop .tile{-webkit-user-drag:element;}
   .tile:active{cursor:grabbing;transform:scale(.98)}
   .tile.selected{border:2px solid #555;background:#f9f9f9}
+  /* Inside a blank, use the wrap ring, not the tile border */
+  .blank .tile.selected{border:0!important;background:transparent!important}
 
   .controls{display:flex;gap:.5rem;margin:1rem 0 0}
   button{
@@ -99,11 +103,10 @@
   #congratsOverlay img{width:min(60%,400px);height:auto;animation:none;will-change:transform,opacity;border:none;outline:none;box-shadow:none;}
   @keyframes congratsZoom{0%{transform:scale(0.70);opacity:0}8%{opacity:1}100%{transform:scale(1.0);opacity:1}}
 
-  /* === AFL term === */
+  /* === AFL term & popup === */
   .term{border-bottom:1px dashed var(--accent);cursor:help;}
   .no-afl #aflTerm{pointer-events:none;cursor:default;}
 
-  /* === Info popup (over the passage) — consistent look === */
   .passage-tip{
     position:absolute; inset:0; display:none; align-items:center; justify-content:center;
     z-index:12; pointer-events:none;
@@ -128,9 +131,7 @@
   <div class="wrap">
     <h1>Australia's Rival Cities</h1>
 
-    <!-- Image -->
-    <img src="https://schredder222.github.io/Assets/Sydney-Melbourne.png" 
-         alt="Sydney and Melbourne" class="city-image">
+    <img src="https://schredder222.github.io/Assets/Sydney-Melbourne.png" alt="Sydney and Melbourne" class="city-image">
 
     <div class="passage">
       <!-- Congrats overlay -->
@@ -215,19 +216,18 @@
       term.setAttribute('aria-disabled','false');
       term.tabIndex = 0;
     }else{
-      hideTip(); // ensure closed while celebrating
+      hideTip();
       document.body.classList.add('no-afl');
       term.setAttribute('aria-disabled','true');
-      term.tabIndex = -1; // prevent keyboard focus
+      term.tabIndex = -1;
     }
   }
 
   function showTip(mode){
-    if(!aflEnabled) return;  // blocked while celebrating
+    if(!aflEnabled) return;
     tipMode = mode || 'hover';
     tip.style.display='flex';
     term.setAttribute('aria-expanded','true');
-    // Hide Close in hover mode; show in click mode
     if(tipMode === 'hover'){ closeBtn.classList.add('hidden'); }
     else { closeBtn.classList.remove('hidden'); }
   }
@@ -237,22 +237,12 @@
     tipMode = null;
   }
 
-  // Hover/focus open; auto-close only if opened via hover
   term.addEventListener('mouseenter', ()=> showTip('hover'));
   term.addEventListener('mouseleave', ()=> { if(tipMode==='hover') hideTip(); });
   term.addEventListener('focus',    ()=> showTip('hover'));
   term.addEventListener('blur',     ()=> { if(tipMode==='hover') hideTip(); });
-
-  // Click opens persistent popup (with Close)
-  term.addEventListener('click', (e)=>{
-    e.preventDefault();
-    showTip('click');
-  });
-
-  // Close button (only visible in click mode)
+  term.addEventListener('click', (e)=>{ e.preventDefault(); showTip('click'); });
   closeBtn.addEventListener('click', hideTip);
-
-  // Click outside the card closes only when in click mode
   document.addEventListener('click',(e)=>{
     const insideTerm = e.target.closest && e.target.closest('#aflTerm');
     const insideCard = e.target.closest && e.target.closest('#aflTip .card');
@@ -266,11 +256,9 @@
   let congratsTimer = null;
 
   function setControlsDuringCelebration(active){
-    // Disable all except Reset
     checkBtn.disabled = active;
     showBtn.disabled  = active;
     resetBtn.disabled = false;
-
     checkBtn.setAttribute('aria-disabled', String(active));
     showBtn .setAttribute('aria-disabled', String(active));
     resetBtn.setAttribute('aria-disabled', 'false');
@@ -280,7 +268,6 @@
     const ov  = document.getElementById('congratsOverlay');
     if(congratsTimer){ clearTimeout(congratsTimer); congratsTimer = null; }
     ov.style.display = 'none';
-    // Stop both celebration fanfare and applause immediately
     try { bigCongratsAudio.pause(); bigCongratsAudio.currentTime = 0; } catch {}
     try { successAudio.pause();     successAudio.currentTime     = 0; } catch {}
     celebrating = false;
@@ -289,7 +276,7 @@
   }
 
   function showCongrats(){
-    if(celebrating) return; // avoid double-start
+    if(celebrating) return;
     const ov  = document.getElementById('congratsOverlay');
     const img = ov.querySelector('img');
     img.style.animation = 'none';
@@ -313,22 +300,42 @@
   if(!IS_COARSE){ document.documentElement.classList.add('desktop'); }
 
   let selectedTile=null;
+
   function setPlacingMode(on){ document.body.classList.toggle('placing', !!on); }
-  function selectTile(t){
-    if(!t) return;
+
+  function clearSelections(){
     document.querySelectorAll('.tile.selected').forEach(x=>x.classList.remove('selected'));
-    selectedTile=t; t.classList.add('selected'); setPlacingMode(true);
-  }
-  function deselect(){
-    if(selectedTile){ selectedTile.classList.remove('selected'); selectedTile=null; setPlacingMode(false); }
+    document.querySelectorAll('.fill-wrap.selected').forEach(x=>x.classList.remove('selected'));
   }
 
+  function selectTile(t){
+    if(!t) return;
+    clearSelections();
+    selectedTile=t;
+    t.classList.add('selected');                  // bank tile border
+    const wrap=t.closest('.fill-wrap');
+    if(wrap){ wrap.classList.add('selected'); }   // placed tile ring
+    setPlacingMode(true);
+  }
+
+  function deselect(){
+    if(selectedTile){
+      clearSelections();
+      selectedTile=null;
+      setPlacingMode(false);
+    }
+  }
+
+  /* Create tiles */
   function makeTile(word){
     const t=document.createElement('div');
     t.className='tile';
     t.dataset.value=word; t.textContent=word;
     t.draggable = true;
+
+    // Do NOT select on drag; also deselect any existing selection when a drag starts
     t.addEventListener('dragstart', e=>{
+      deselect(); // dragging another word clears selection of any placed word
       if(e.dataTransfer){
         e.dataTransfer.setData('text/plain', word);
         e.dataTransfer.effectAllowed = 'move';
@@ -338,8 +345,8 @@
         try{ e.dataTransfer.setDragImage(img, img.offsetWidth/2, img.offsetHeight/2); }catch{}
         setTimeout(()=>{ if(img && img.parentNode) img.parentNode.removeChild(img); }, 0);
       }
-      selectTile(t);
     });
+
     return t;
   }
 
@@ -363,8 +370,12 @@
   function initBank(){
     bankTiles.innerHTML='';
     shuffle(ANSWERS).forEach(w=>bankTiles.appendChild(makeTile(w)));
+
     const bank=document.getElementById('bank');
-    bank.addEventListener('dragover',e=>{ e.preventDefault(); if(e.dataTransfer) e.dataTransfer.dropEffect='move'; });
+    bank.addEventListener('dragover',e=>{
+      e.preventDefault();
+      if(e.dataTransfer) e.dataTransfer.dropEffect='move';
+    });
     bank.addEventListener('drop',e=>{
       e.preventDefault();
       const w=e.dataTransfer && e.dataTransfer.getData('text/plain');
@@ -372,44 +383,75 @@
       const src=t.closest('.blank'); if(src) makeEmpty(src);
       bankTiles.appendChild(t);
       play(dropAudio);
-      selectTile(t);
+      // no selection after drag-drop to bank
     });
   }
 
-  function placeTile(tile,blank){
+  // placeTile: third arg says whether to keep selection after placing
+  function placeTile(tile,blank, keepSelection=false){
     if(!tile||!blank) return;
     const src=tile.closest('.blank');
     const existingWrap=blank.querySelector('.fill-wrap');
     const existingTile=existingWrap?.querySelector('.tile');
     if(src===blank) return;
+
     if(existingTile){
       if(src){ makeFilled(src, existingTile); }
       else{ bankTiles.appendChild(existingTile); }
     }
     makeFilled(blank,tile);
     if(src && !existingTile) makeEmpty(src);
+
     play(dropAudio);
-    selectTile(tile);
+    if(keepSelection){
+      selectTile(tile);
+    }else{
+      // Explicitly remove any selection ring after click-placement
+      deselect();
+    }
   }
 
   function initBlanks(){
     blanks.forEach(b=>{
       makeEmpty(b);
-      b.addEventListener('dragover',e=>{ e.preventDefault(); if(e.dataTransfer) e.dataTransfer.dropEffect='move'; });
+
+      b.addEventListener('dragover',e=>{
+        e.preventDefault();
+        if(e.dataTransfer) e.dataTransfer.dropEffect='move';
+      });
       b.addEventListener('drop',e=>{
         e.preventDefault();
         const w=e.dataTransfer && e.dataTransfer.getData('text/plain');
         const t=findTile(w);
-        placeTile(t,b);
+        placeTile(t,b,false); // never keep selection on drag placement
       });
-      b.addEventListener('click',()=>{ if(selectedTile) placeTile(selectedTile,b); });
+
+      // Click to place selected tile into this blank (supports swapping)
+      // – If clicking the same blank that holds the selected tile, toggle OFF selection.
+      b.addEventListener('click',(e)=>{
+        if(selectedTile){
+          const selBlank = selectedTile.closest('.blank');
+          if(selBlank === b){
+            // Toggle off when clicking a selected placed word's own blank
+            deselect();
+            suppressSelectOnce = true; // stop the doc click from reselecting
+            e.stopPropagation();
+            return;
+          }
+          // Otherwise place/swap into this blank, then remove border after placing
+          placeTile(selectedTile,b,false);
+          suppressSelectOnce = true;
+          e.stopPropagation();
+        }
+      });
     });
   }
 
   function checkAnswers(){
     let correct=0;
     blanks.forEach(b=>{
-      const wrap=b.querySelector('.fill-wrap'); if(!wrap) return;
+      const wrap=b.querySelector('.fill-wrap');
+      if(!wrap) return;
       wrap.classList.remove('correct','incorrect');
       const t=wrap.querySelector('.tile');
       if(t){
@@ -435,7 +477,6 @@
   }
 
   function resetAll(){
-    // Close celebration immediately if showing (and stop audios)
     if(celebrating){ endCelebration(); }
     blanks.forEach(b=>{
       const tile=b.querySelector('.fill-wrap .tile');
@@ -452,6 +493,7 @@
   let dragging=null;
   let pendingTouch=null;
   let suppressNextClick=false;
+  let suppressSelectOnce=false;
   const TAP_DRAG_THRESHOLD=6;
 
   let autoScrollDir=0; let autoScrollRAF=null;
@@ -478,10 +520,11 @@
     const rect=tile.getBoundingClientRect();
     const offsetX=e.clientX-rect.left, offsetY=e.clientY-rect.top;
     dragging={tile,ghost,offsetX,offsetY,pointerId:e.pointerId};
+    // Clear any selection when a drag begins
+    deselect();
     moveGhost(e.clientX,e.clientY); setAutoScrollFromY(e.clientY);
     try{ tile.setPointerCapture(e.pointerId); }catch{}
     document.body.style.touchAction='none';
-    selectTile(tile);
   }
   function moveGhost(x,y){
     if(!dragging) return;
@@ -502,15 +545,34 @@
     const dropTarget=targetFromPoint(x,y);
     const blank=dropTarget && dropTarget.closest && dropTarget.closest('.blank');
     const bank=dropTarget && dropTarget.closest && dropTarget.closest('#bank');
-    if(blank){ placeTile(tile,blank); }
+    if(blank){ placeTile(tile,blank,false); }
     else if(bank){
       const src=tile.closest('.blank'); if(src) makeEmpty(src);
-      bankTiles.appendChild(tile); play(dropAudio); selectTile(tile);
+      bankTiles.appendChild(tile); play(dropAudio);
     }
     tile.style.visibility=''; ghost.remove(); dragging=null;
     document.body.style.touchAction=''; stopAutoScroll();
   }
 
+  // Selection is handled on 'click' only
+  document.addEventListener('click',(e)=>{
+    if(suppressNextClick){ suppressNextClick=false; return; }
+    if(suppressSelectOnce){ suppressSelectOnce=false; return; }
+
+    let tile=e.target.closest && e.target.closest('.tile');
+    if(!tile){
+      const wrap=e.target.closest && e.target.closest('.fill-wrap');
+      if(wrap) tile=wrap.querySelector('.tile');
+    }
+    if(tile){
+      if(tile===selectedTile){ deselect(); return; } // toggle off
+      selectTile(tile);
+      return;
+    }
+    if(!e.target.closest('.tile, .blank, .bank, .controls')) deselect();
+  });
+
+  // Touch tap-vs-drag setup
   window.addEventListener('pointerdown',(e)=>{
     const isTouchLike=(e.pointerType && e.pointerType!=='mouse') || ('ontouchstart' in window);
     if(!isTouchLike) return;
@@ -535,31 +597,16 @@
 
   window.addEventListener('pointerup',(e)=>{
     if(pendingTouch && e.pointerId===pendingTouch.pointerId){
-      if(!dragging){ selectTile(pendingTouch.tile); }
-      else{ endTouchDrag(e); }
+      if(!dragging){ // tap => toggle selection
+        if(selectedTile===pendingTouch.tile){ deselect(); }
+        else{ selectTile(pendingTouch.tile); }
+      }else{ endTouchDrag(e); }
       pendingTouch=null; setTimeout(()=>{ suppressNextClick=false; },0);
     }
   },{passive:false});
 
   window.addEventListener('pointercancel',()=>{
     pendingTouch=null; if(dragging){ document.body.style.touchAction=''; stopAutoScroll(); dragging=null; }
-  });
-
-  document.addEventListener('pointerdown',(e)=>{
-    if(e.pointerType!=='mouse') return;
-    const tile=e.target.closest && e.target.closest('.tile');
-    if(tile) selectTile(tile);
-  }, true);
-
-  document.addEventListener('click',(e)=>{
-    if(suppressNextClick){ suppressNextClick=false; return; }
-    let tile=e.target.closest && e.target.closest('.tile');
-    if(!tile){
-      const wrap=e.target.closest && e.target.closest('.fill-wrap');
-      if(wrap) tile=wrap.querySelector('.tile');
-    }
-    if(tile){ selectTile(tile); return; }
-    if(!e.target.closest('.tile, .blank, .bank, .controls')) deselect();
   });
 
   /* Controls */
