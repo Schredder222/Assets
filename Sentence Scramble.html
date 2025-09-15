@@ -27,14 +27,14 @@
   }
 
   h1{
-    color:#111;
-    margin:0 0 12px 0; /* space under title */
+    color:#111;                     /* black heading */
+    margin:0 0 12px 0;              /* space under title */
     font-size:clamp(20px,3.2vw,28px);
     letter-spacing:.2px;
   }
 
   .instructions{
-    margin:0 0 10px 0;
+    margin:0 0 10px 0;              /* space under instructions */
     font-size:clamp(14px,2.6vw,16px);
     text-align:center;
     max-width:900px;
@@ -58,9 +58,7 @@
     white-space:nowrap;
   }
   .muteBtn{
-    /* Reserve space from the start to prevent any layout shift */
-    display:inline-flex;
-    align-items:center; justify-content:center;
+    display:inline-flex; align-items:center; justify-content:center;
     background:transparent; border:none;
     padding:6px; width:40px; height:40px; border-radius:999px;
     cursor:pointer; line-height:0; flex:0 0 auto;
@@ -111,9 +109,19 @@
     box-shadow:0 2px 6px rgba(0,0,0,.06);
     transition:transform .12s ease, box-shadow .12s ease, background-color .15s ease, border-color .15s ease, color .15s ease;
     font-size:clamp(18px,3.6vw,28px);
+    touch-action:none; /* smoother touch drag */
   }
   .word:active{ cursor:grabbing; transform:scale(.98) }
   .word.dragging{ opacity:.6 }
+  .word.placeholder{ visibility:hidden; } /* keeps layout space while dragging */
+
+  /* Floating ghost for touch drag */
+  .drag-ghost{
+    position:fixed; left:0; top:0; z-index:9999;
+    pointer-events:none; opacity:.95;
+    box-shadow:0 6px 18px rgba(0,0,0,.18);
+    transform:translate(-9999px,-9999px);
+  }
 
   /* Success state: solid green for 2 seconds */
   .word.success{
@@ -139,7 +147,6 @@
   .btn:hover{ transform:translateY(-1px) }
   .btn:active{ transform:translateY(0) scale(.98) }
   .btn.ghost{ background:#eee; color:#111; box-shadow:none; }
-  /* Disabled styling & behaviour (as in your other activity) */
   .btn[disabled]{ opacity:.5; cursor:not-allowed; box-shadow:none; pointer-events:none; }
 
   /* Fade between items */
@@ -154,7 +161,7 @@
   .fade-in{ animation:fadeIn .35s ease forwards }
   .fade-out{ animation:fadeOut .25s ease forwards }
 
-  /* === Congrats overlay (matching your other activity) === */
+  /* === Congrats overlay (half-size image) === */
   #congratsOverlay{
     position:absolute; inset:0;
     display:none; align-items:center; justify-content:center;
@@ -162,7 +169,7 @@
   }
   #congratsOverlay[aria-hidden="false"]{ display:flex; }
   #congratsOverlay img{
-    width:clamp(160px, 60%, 400px);
+    width:clamp(160px, 50%, 400px); /* half-size at full width */
     height:auto; animation:none; will-change:transform, opacity;
     border:none; outline:none; box-shadow:none;
   }
@@ -177,6 +184,7 @@
     .muteBtn{ width:36px; height:36px; padding:6px; }
     .muteBtn img{ width:22px; height:22px; }
     .timer{ padding:5px 10px; }
+    .controls{ justify-content:center; flex-wrap:wrap; } /* centre buttons on mobile */
   }
 </style>
 </head>
@@ -195,9 +203,7 @@
 </div>
 
 <div class="activity-wrap" id="activityWrap">
-  <!-- Counter centred above the anagram -->
   <div class="counter" id="counter">1 / 8</div>
-
   <div class="stage fade-in" id="stage"></div>
 
   <div class="controls">
@@ -205,13 +211,12 @@
     <button class="btn" id="resetBtn" type="button">Reset activity</button>
   </div>
 
-  <!-- Congrats overlay -->
   <div id="congratsOverlay" aria-hidden="true">
     <img src="https://schredder222.github.io/Assets/OutOfThisWorld!.png" alt="Out of this world!">
   </div>
 </div>
 
-<!-- Audio: background music (loop), correct SFX, final applause, drop SFX, shuffle SFX, reset SFX -->
+<!-- Audio -->
 <audio id="bgm" src="https://cdn.pixabay.com/download/audio/2024/02/10/audio_58dac346c5.mp3" loop preload="auto"></audio>
 <audio id="sfxCorrect" src="https://cdn.pixabay.com/download/audio/2022/03/24/audio_dcde83efa6.mp3?filename=ui_correct_button2-103167.mp3" preload="auto"></audio>
 <audio id="applause" src="https://schredder222.github.io/Assets/Applause.mp3" preload="auto"></audio>
@@ -221,33 +226,17 @@
 
 <script>
 /* --------------------------
-   DATA: 8 anagrams (A2), PPS1
-   No "ever"/"never"/"yet".
+   DATA (A2, Present Perfect; no ever/never)
 --------------------------- */
 const items = [
-  { answer:["I","have","visited","London."],
-    scramble:["visited","have","I","London."] },
-
-  { answer:["She","has","not","lived","in","a","big","city."],
-    scramble:["city.","She","lived","has","a","big","in","not"] },
-
-  { answer:["They","have","moved","to","Melbourne."],
-    scramble:["moved","They","to","Melbourne.","have"] },
-
-  { answer:["We","have","not","seen","a","concert","in","the","park."],
-    scramble:["park.","have","We","seen","the","a","concert","not","in"] },
-
-  { answer:["Has","he","taken","the","underground?"],
-    scramble:["Has","underground?","the","taken","he"] },
-
-  { answer:["The","two","cities","have","had","a","rivalry","since","2000."],
-    scramble:["two","have","since","cities","The","2000.","a","had","rivalry"] },
-
-  { answer:["Have","you","visited","Sydney","or","Melbourne?"],
-    scramble:["visited","Have","or","Melbourne?","Sydney","you"] },
-
-  { answer:["My","friends","have","found","an","apartment."],
-    scramble:["an","friends","have","apartment.","found","My"] }
+  { answer:["I","have","visited","London."] },
+  { answer:["She","has","not","lived","in","a","big","city."] },
+  { answer:["They","have","moved","to","Melbourne."] },
+  { answer:["We","have","not","seen","a","concert","in","the","park."] },
+  { answer:["Has","he","taken","the","underground?"] },
+  { answer:["The","two","cities","have","had","a","rivalry","since","2000."] },
+  { answer:["Have","you","visited","Sydney","or","Melbourne?"] },
+  { answer:["My","friends","have","found","an","apartment."] }
 ];
 
 const stage = document.getElementById('stage');
@@ -270,46 +259,48 @@ const UNMUTE_ICON_URL = 'https://schredder222.github.io/Assets/Unmute.svg';
 const shuffleBtn = document.getElementById('shuffleBtn');
 const resetBtn   = document.getElementById('resetBtn');
 
-bgm.volume = 0.25;              // background music
-sfxCorrect.volume = 1.0;        // SFX independent of music
+/* volumes */
+bgm.volume = 0.25;
+sfxCorrect.volume = 1.0;
 applause.volume = 1.0;
 sfxDrop.volume = 0.8;
 sfxShuffle.volume = 1.0;
 sfxReset.volume = 1.0;
 
+/* state */
 let idx = 0;
-let dragWord = null;
-let locked = false;             // lock interactions during 2s success hold
+let locked = false;
 let timerInterval = null;
 let elapsedMs = 0;
 let startedAt = null;
 
-/* start gate: only begin music/timer on first drag */
 let hasStartedActivity = false;
-
-/* celebration state */
 let celebrating = false;
 let overlayTimeoutId = null;
+/* cancel the 2s success-hold when resetting */
+let successTimeoutId = null;
+
+/* environment flags */
+const IS_COARSE = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || ('ontouchstart' in window);
+
+/* guard flags to avoid duplicate listeners */
+let desktopBound = false;
+let touchBound = false;
 
 /* --------------------------
-   SMALL HELPERS
+   HELPERS
 --------------------------- */
 function shuffled(arr){
   const a = arr.slice();
-  for(let i=a.length-1;i>0;i--){
-    const j = Math.floor(Math.random()*(i+1));
-    [a[i],a[j]] = [a[j],a[i]];
-  }
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
   return a;
 }
 function shuffledFromAnswer(ans){
   const target = ans.join(' ');
-  // Try up to 10 times to avoid a solved start
   for(let tries=0; tries<10; tries++){
     const cand = shuffled(ans);
-    if (cand.join(' ') !== target) return cand;
+    if(cand.join(' ') !== target) return cand;
   }
-  // If very unlucky, just return a shuffle anyway
   return shuffled(ans);
 }
 function fmtTime(totalSec){
@@ -326,14 +317,10 @@ function startTimer(){
   startedAt = performance.now() - elapsedMs;
   timerInterval = setInterval(()=>{
     elapsedMs = performance.now() - startedAt;
-    const totalSec = Math.floor(elapsedMs/1000);
-    timerEl.textContent = fmtTime(totalSec);
+    timerEl.textContent = fmtTime(Math.floor(elapsedMs/1000));
   }, 250);
 }
-function stopTimer(){
-  clearInterval(timerInterval);
-  timerInterval = null;
-}
+function stopTimer(){ clearInterval(timerInterval); timerInterval=null; }
 
 /* --------------------------
    MUSIC + MUTE UI
@@ -349,20 +336,13 @@ function revealMuteButton(){
   muteBtn.removeAttribute('aria-hidden');
   syncMuteIcon();
 }
-muteBtn.addEventListener('click', ()=>{
-  bgm.muted = !bgm.muted;
-  syncMuteIcon();
-});
+muteBtn.addEventListener('click', ()=>{ bgm.muted = !bgm.muted; syncMuteIcon(); });
 bgm.addEventListener('playing', revealMuteButton);
 
-/* Begin timer + music only when the FIRST tile is dragged */
 async function startActivityIfNeeded(){
-  if (hasStartedActivity) return;
+  if(hasStartedActivity) return;
   hasStartedActivity = true;
-  try{
-    bgm.currentTime = 0;
-    await bgm.play();
-  }catch(e){}
+  try{ bgm.currentTime = 0; await bgm.play(); }catch(e){}
   startTimer();
 }
 
@@ -371,41 +351,36 @@ async function startActivityIfNeeded(){
 --------------------------- */
 function renderCurrent(){
   stage.innerHTML = "";
-  stage.classList.remove('fade-out');
-  stage.classList.add('fade-in');
+  stage.classList.remove('fade-out'); stage.classList.add('fade-in');
   counterEl.textContent = `${idx+1} / ${items.length}`;
 
-  // Random starting order each time we (re)render an item
   const tokens = shuffledFromAnswer(items[idx].answer);
-
   tokens.forEach(token=>{
     const w = document.createElement('div');
     w.className = 'word';
-    w.draggable = true;
     w.textContent = token;
+    /* Enable native HTML5 drag on desktop only */
+    w.draggable = !IS_COARSE;
     stage.appendChild(w);
   });
 }
 
-function wordsOf(el){ return [...el.querySelectorAll('.word')]; }
-function textArray(){ return wordsOf(stage).map(w=>w.textContent); }
-function isCorrect(){
-  return textArray().join(' ') === items[idx].answer.join(' ');
-}
+function wordsOf(){ return [...stage.querySelectorAll('.word')]; }
+function textArray(){ return wordsOf().map(w=>w.textContent); }
+function isCorrect(){ return textArray().join(' ') === items[idx].answer.join(' '); }
 
 /* --------------------------
    CELEBRATION
 --------------------------- */
 function setControlsDuringCelebration(active){
-  // Disable Shuffle while celebrating (Reset stays enabled so you can restart)
-  shuffleBtn.disabled = active;
+  shuffleBtn.disabled = active;               // disable "other" buttons; Reset stays enabled
   shuffleBtn.setAttribute('aria-disabled', String(active));
 }
 function endCelebration(){
   celebrating = false;
-  if (overlayTimeoutId){ clearTimeout(overlayTimeoutId); overlayTimeoutId = null; }
-  overlay.setAttribute('aria-hidden','true');   // hide image immediately
-  try{ applause.pause(); applause.currentTime = 0; }catch(e){}
+  if(overlayTimeoutId){ clearTimeout(overlayTimeoutId); overlayTimeoutId=null; }
+  overlay.setAttribute('aria-hidden','true');
+  try{ applause.pause(); applause.currentTime=0; }catch(e){}
   setControlsDuringCelebration(false);
 }
 function showCongrats(){
@@ -415,122 +390,226 @@ function showCongrats(){
   celebrating = true;
   setControlsDuringCelebration(true);
   overlay.setAttribute('aria-hidden','false');
-  try { applause.currentTime = 0; applause.play(); } catch {}
-  if (overlayTimeoutId) clearTimeout(overlayTimeoutId);
-  overlayTimeoutId = setTimeout(()=>{ endCelebration(); }, 9000);
+  try{ applause.currentTime = 0; applause.play(); }catch(e){}
+  overlayTimeoutId = setTimeout(()=> endCelebration(), 9000);
 }
 
 function markSuccessForTwoSecondsThenNext(){
-  // Turn all words solid green
-  wordsOf(stage).forEach(w=>w.classList.add('success'));
-  // Play success SFX
-  try{ sfxCorrect.currentTime = 0; sfxCorrect.play(); }catch(e){}
+  wordsOf().forEach(w=>w.classList.add('success'));
+  try{ sfxCorrect.currentTime=0; sfxCorrect.play(); }catch(e){}
+  locked = true;
 
-  locked = true; // disable interactions briefly
-  setTimeout(()=>{
-    if(idx < items.length - 1){
-      idx++;
-      locked = false;
-      renderCurrent(); // next item starts shuffled
+  successTimeoutId = setTimeout(()=>{
+    successTimeoutId = null;
+    if(idx < items.length-1){
+      idx++; locked=false; renderCurrent();
+      attachTouchDnDIfNeeded();  // ensure handlers exist for new nodes
+      bindDesktopDnD();
     }else{
-      // Finished all
       try{ bgm.pause(); }catch(e){}
       stopTimer();
-      const totalSec = Math.floor(elapsedMs/1000);
-      timerEl.textContent = `Completed in ${fmtTime(totalSec)}`;
+      timerEl.textContent = `Completed in ${fmtTime(Math.floor(elapsedMs/1000))}`;
       showCongrats();
     }
   }, 2000);
 }
 
 /* --------------------------
-   DRAG-AND-DROP ONLY
+   DESKTOP DnD (HTML5)
 --------------------------- */
-document.addEventListener('dragstart', async e=>{
-  if(locked) return e.preventDefault();
-  if(e.target.classList.contains('word')){
-    // START gate here: first drag begins timer + music
-    await startActivityIfNeeded();
+function bindDesktopDnD(){
+  if(IS_COARSE || desktopBound) return;
+  desktopBound = true;
 
-    dragWord = e.target;
-    dragWord.classList.add('dragging');
-  }
-});
-document.addEventListener('dragend', e=>{
-  if(e.target.classList.contains('word')){
-    e.target.classList.remove('dragging');
-    dragWord = null;
-  }
-});
-stage.addEventListener('dragover', e=>{
-  if(locked) return;
-  e.preventDefault();
-  const after = wordsOf(stage).find(el => e.clientX < el.getBoundingClientRect().left + el.offsetWidth/2);
-  if(after) stage.insertBefore(dragWord, after);
-  else stage.appendChild(dragWord);
-});
-document.addEventListener('drop', (e)=>{
-  if(locked) return;
-  // Drop SFX on placement
-  try{ sfxDrop.currentTime = 0; sfxDrop.play(); }catch(err){}
-  if(isCorrect()){
-    markSuccessForTwoSecondsThenNext();
-  }
-});
+  let dragWord=null;
+
+  document.addEventListener('dragstart', async e=>{
+    if(locked) return e.preventDefault();
+    if(e.target.classList.contains('word')){
+      await startActivityIfNeeded();
+      dragWord = e.target;
+      dragWord.classList.add('dragging');
+    }
+  }, {passive:false});
+
+  document.addEventListener('dragend', e=>{
+    if(e.target.classList.contains('word')){
+      e.target.classList.remove('dragging');
+      dragWord = null;
+    }
+  });
+
+  stage.addEventListener('dragover', e=>{
+    if(locked) return;
+    e.preventDefault();
+    const words = wordsOf().filter(n=>n!==dragWord);
+    const after = words.find(el => e.clientX < el.getBoundingClientRect().left + el.offsetWidth/2);
+    if(after) stage.insertBefore(dragWord, after);
+    else stage.appendChild(dragWord);
+  });
+
+  document.addEventListener('drop', ()=>{
+    if(locked) return;
+    try{ sfxDrop.currentTime=0; sfxDrop.play(); }catch(e){}
+    if(isCorrect()) markSuccessForTwoSecondsThenNext();
+  });
+}
 
 /* --------------------------
-   BUTTONS: Shuffle & Reset
+   TOUCH / POINTER DnD (mobile)
+--------------------------- */
+function attachTouchDnDIfNeeded(){
+  if(!IS_COARSE || touchBound) return;
+  touchBound = true;
+
+  let dragging=null;
+
+  function moveGhost(x,y){
+    if(!dragging) return;
+    dragging.ghost.style.transform = `translate(${Math.round(x-dragging.offX)}px, ${Math.round(y-dragging.offY)}px)`;
+  }
+
+  function nearestElementIndex(x,y){
+    const items = [...stage.children].filter(el=>el!==dragging.placeholder);
+    if(items.length===0) return 0;
+    let bestIdx=items.length, bestDist=Infinity, bestEl=null;
+    items.forEach((el,i)=>{
+      const r = el.getBoundingClientRect();
+      const cx = r.left + r.width/2;
+      const cy = r.top  + r.height/2;
+      const d = (cx-x)*(cx-x) + (cy-y)*(cy-y);
+      if(d < bestDist){ bestDist=d; bestEl=el; bestIdx=i; }
+    });
+    if(!bestEl) return 0;
+    const r = bestEl.getBoundingClientRect();
+    const before = x < r.left + r.width/2;
+    const baseIndex = [...stage.children].indexOf(bestEl);
+    return before ? baseIndex : baseIndex+1;
+  }
+
+  function insertPlaceholderAt(x,y){
+    const targetIndex = nearestElementIndex(x,y);
+    const currentIndex = [...stage.children].indexOf(dragging.placeholder);
+    if(targetIndex !== currentIndex){
+      if(targetIndex >= stage.children.length) stage.appendChild(dragging.placeholder);
+      else stage.insertBefore(dragging.placeholder, stage.children[targetIndex]);
+    }
+  }
+
+  function endTouchDrag(e){
+    if(!dragging) return;
+    const {tile, ghost, placeholder} = dragging;
+    // place tile where placeholder is
+    const i = [...stage.children].indexOf(placeholder);
+    if(i >= stage.children.length) stage.appendChild(tile);
+    else stage.insertBefore(tile, stage.children[i]);
+    tile.style.visibility = '';
+    ghost.remove();
+    placeholder.remove();
+    document.body.style.touchAction = '';
+    dragging = null;
+    try{ sfxDrop.currentTime=0; sfxDrop.play(); }catch(err){}
+    if(isCorrect()) markSuccessForTwoSecondsThenNext();
+  }
+
+  stage.addEventListener('pointerdown', async (e)=>{
+    const t = e.target;
+    if(!t.classList.contains('word')) return;
+    if(locked) return;
+    await startActivityIfNeeded();
+    e.preventDefault();
+
+    const rect = t.getBoundingClientRect();
+    const ghost = t.cloneNode(true);
+    ghost.classList.add('drag-ghost');
+    ghost.style.width = rect.width + 'px';
+    ghost.style.height = rect.height + 'px';
+    document.body.appendChild(ghost);
+
+    const placeholder = document.createElement('div');
+    placeholder.className = 'word placeholder';
+    placeholder.style.width = rect.width + 'px';
+    placeholder.style.height = rect.height + 'px';
+    stage.insertBefore(placeholder, t);
+    t.style.visibility = 'hidden';
+
+    dragging = {
+      tile: t,
+      ghost,
+      placeholder,
+      offX: e.clientX - rect.left,
+      offY: e.clientY - rect.top
+    };
+    moveGhost(e.clientX, e.clientY);
+    insertPlaceholderAt(e.clientX, e.clientY);
+
+    document.body.style.touchAction='none';
+
+    const onMove = (ev)=>{
+      if(!dragging) return;
+      moveGhost(ev.clientX, ev.clientY);
+      insertPlaceholderAt(ev.clientX, ev.clientY);
+    };
+    const onUp = (ev)=>{
+      window.removeEventListener('pointermove', onMove, {passive:false});
+      window.removeEventListener('pointerup', onUp, {passive:false});
+      window.removeEventListener('pointercancel', onUp, {passive:false});
+      endTouchDrag(ev);
+    };
+
+    window.addEventListener('pointermove', onMove, {passive:false});
+    window.addEventListener('pointerup', onUp, {passive:false});
+    window.addEventListener('pointercancel', onUp, {passive:false});
+  }, {passive:false});
+}
+
+/* --------------------------
+   BUTTONS
 --------------------------- */
 function shuffleCurrent(){
   if(locked) return;
-  // If the sentence is already correct, do nothing (no SFX, no shuffle)
-  if(isCorrect()) return;
-
-  try{ sfxShuffle.currentTime = 0; sfxShuffle.play(); }catch(err){}
-
-  const nodes = wordsOf(stage);
+  if(isCorrect()) return; // don't shuffle if solved
+  try{ sfxShuffle.currentTime=0; sfxShuffle.play(); }catch(e){}
+  const nodes = wordsOf();
   const shuffledNodes = nodes.slice().sort(()=>Math.random()-0.5);
   stage.innerHTML = '';
   shuffledNodes.forEach(n=>{
     n.classList.remove('success','dragging');
-    n.draggable = true;
+    n.draggable = !IS_COARSE;
     stage.appendChild(n);
   });
+  // touch handler remains bound at container level
 }
 
 async function resetActivity(){
-  // If celebrating, close immediately and stop applause
-  if (celebrating) { endCelebration(); }
+  // Close celebration immediately and stop applause if showing
+  if(celebrating) endCelebration();
 
-  try{ sfxReset.currentTime = 0; sfxReset.play(); }catch(err){}
-
-  // Reset to start
-  idx = 0;
+  // Cancel pending success advance, if any
+  if(successTimeoutId){ clearTimeout(successTimeoutId); successTimeoutId = null; }
   locked = false;
 
-  // Reset timer (do not start here)
+  try{ sfxReset.currentTime=0; sfxReset.play(); }catch(e){}
+
+  // Back to the very start (first anagram)
+  idx = 0;
+
+  // Reset timer (do not start until first drag)
   stopTimer();
-  elapsedMs = 0;
-  startedAt = null;
+  elapsedMs = 0; startedAt = null;
   timerEl.textContent = '00:00';
 
-  // Reset music (do not play here)
-  try{
-    bgm.pause();
-    bgm.currentTime = 0;
-  }catch(e){}
-
-  // Hide/disable mute until audio actually starts again
+  // Reset music (do not play until first drag)
+  try{ bgm.pause(); bgm.currentTime = 0; }catch(e){}
   muteBtn.classList.remove('muteBtn--ready');
   muteBtn.setAttribute('aria-hidden','true');
 
-  // Gate will re-open on first drag
   hasStartedActivity = false;
 
-  // Re-enable controls
   setControlsDuringCelebration(false);
 
-  renderCurrent(); // will render with a fresh random scramble
+  renderCurrent();           // shows anagram 1 (fresh random order)
+  // handlers were already bound (guarded), no need to rebind
 }
 
 shuffleBtn.addEventListener('click', shuffleCurrent);
@@ -539,7 +618,9 @@ resetBtn.addEventListener('click', resetActivity);
 /* --------------------------
    INIT
 --------------------------- */
-renderCurrent();          // initial random scramble
+renderCurrent();
+attachTouchDnDIfNeeded();
+bindDesktopDnD();
 timerEl.textContent = '00:00';
 </script>
 </body>
