@@ -28,7 +28,7 @@
 
   h1{
     color:#111;
-    margin:0 0 12px 0;
+    margin:0 0 12px 0;             /* spaced title */
     font-size:clamp(20px,3.2vw,28px);
     letter-spacing:.2px;
   }
@@ -40,13 +40,14 @@
     max-width:900px;
   }
 
-  /* Portrait-only landscape tip — centred in the viewport, non-blocking */
+  /* Landscape tip: centred IN THE FLOW (one line) */
   .landscape-tip{
-    position:fixed;
-    left:50%; top:50%;
-    transform:translate(-50%,-50%);
-    display:none;                 /* toggled by JS */
-    max-width:92vw; width:auto;
+    display:none;                              /* JS toggles to flex when needed */
+    align-items:center;
+    justify-content:center;                    /* centre the content on the line */
+    gap:10px;
+    width:min(1000px,96vw);
+    margin:8px auto 10px;                      /* centre the bar itself */
     background:#fff;
     border:1px solid #dcd6be;
     color:#222;
@@ -54,11 +55,8 @@
     padding:10px 14px;
     font-size:clamp(13px,2.6vw,15px);
     line-height:1.35;
-    box-shadow:0 10px 26px rgba(0,0,0,.18);
-    z-index:99998;
-    pointer-events:none;          /* don’t block the activity */
+    box-shadow:0 3px 10px rgba(0,0,0,.08);
     text-align:center;
-    display:flex; align-items:center; justify-content:center; gap:10px;
   }
   .landscape-tip .icon{ font-size:1.15em }
 
@@ -67,7 +65,7 @@
     width:min(1000px,96vw);
     display:flex; align-items:center; justify-content:space-between;
     margin:8px auto 10px; gap:12px; flex-wrap:nowrap;
-    min-height:40px;
+    min-height:40px; /* prevents drop when audio/mute appears */
   }
   .timer{
     background:#111; color:#fff; padding:6px 12px; border-radius:999px;
@@ -78,7 +76,7 @@
     display:inline-flex; align-items:center; justify-content:center;
     background:transparent; border:none; padding:6px;
     width:40px; height:40px; border-radius:999px; cursor:pointer; line-height:0; flex:0 0 auto;
-    visibility:hidden; opacity:0; pointer-events:none;   /* revealed when audio plays (no layout shift) */
+    visibility:hidden; opacity:0; pointer-events:none;   /* reveals without layout shift */
   }
   .muteBtn--ready{ visibility:visible; opacity:1; pointer-events:auto; }
   .muteBtn:focus-visible{ outline:2px solid #000; outline-offset:2px; }
@@ -86,9 +84,10 @@
 
   .activity-wrap{ position:relative; width:min(1000px,96vw); margin:0 auto; }
 
+  /* Counter above the anagram */
   .counter{
     text-align:center; font-weight:700;
-    font-size:clamp(18px,3.8vw,24px);
+    font-size:clamp(18px,3.8vw,24px); /* slightly smaller per request */
     margin:4px 0 6px;
   }
 
@@ -164,7 +163,7 @@
   Unscramble the words to make a correct sentence in <b>Present Perfect</b>.
 </p>
 
-<!-- Portrait mobile tip (centred overlay) -->
+<!-- Portrait tip (centred line) -->
 <div class="landscape-tip" id="landscapeTip" role="note" aria-live="polite">
   <span class="icon" aria-hidden="true">📱↻</span>
   <span>Tip: for more space, turn your phone to landscape.</span>
@@ -239,7 +238,9 @@ bgm.volume = 0.25; sfxCorrect.volume = 1.0; applause.volume = 1.0;
 sfxDrop.volume = 0.8; sfxShuffle.volume = 1.0; sfxReset.volume = 1.0;
 
 /* state */
-let idx = 0, locked = false;
+let idx = 0;                  // position within the RANDOM order
+let order = [];               // random order of anagrams
+let locked = false;
 let timerInterval = null, elapsedMs = 0, startedAt = null;
 let hasStartedActivity = false;
 let celebrating = false, overlayTimeoutId = null, successTimeoutId = null;
@@ -264,6 +265,8 @@ window.addEventListener('orientationchange', updateLandscapeTip, {passive:true})
    HELPERS
 --------------------------- */
 function shuffled(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]} return a; }
+function resetOrder(){ order = shuffled([...items.keys()]); idx = 0; }
+function currentItem(){ return items[ order[idx] ]; }
 function shuffledFromAnswer(ans){
   const target = ans.join(' ');
   for(let t=0;t<10;t++){ const c=shuffled(ans); if(c.join(' ')!==target) return c; }
@@ -297,6 +300,7 @@ function revealMuteButton(){ muteBtn.classList.add('muteBtn--ready'); muteBtn.re
 muteBtn.addEventListener('click', ()=>{ bgm.muted=!bgm.muted; syncMuteIcon(); });
 bgm.addEventListener('playing', revealMuteButton);
 
+/* Try to play; if blocked on mobile, arm one-shot unlock listeners */
 async function ensureAudio(){
   try{
     bgm.currentTime=0; await bgm.play(); revealMuteButton();
@@ -330,7 +334,7 @@ function renderCurrent(){
   stage.classList.remove('fade-out'); stage.classList.add('fade-in');
   counterEl.textContent = `${idx+1} / ${items.length}`;
 
-  const tokens = shuffledFromAnswer(items[idx].answer);
+  const tokens = shuffledFromAnswer(currentItem().answer);
   tokens.forEach(token=>{
     const w = document.createElement('div');
     w.className = 'word';
@@ -341,7 +345,7 @@ function renderCurrent(){
 }
 function wordsOf(){ return [...stage.querySelectorAll('.word')]; }
 function textArray(){ return wordsOf().map(w=>w.textContent); }
-function isCorrect(){ return textArray().join(' ') === items[idx].answer.join(' '); }
+function isCorrect(){ return textArray().join(' ') === currentItem().answer.join(' '); }
 
 /* --------------------------
    CELEBRATION
@@ -398,7 +402,7 @@ function bindDesktopDnD(){
 }
 
 /* --------------------------
-   TOUCH / POINTER DnD (row-stable, rAF-throttled)
+   TOUCH / POINTER DnD (row-stable, rAF-throttled; flicker-free)
 --------------------------- */
 function attachTouchDnDIfNeeded(){
   if(!IS_COARSE || touchBound) return; touchBound = true;
@@ -420,36 +424,31 @@ function attachTouchDnDIfNeeded(){
     dragging.ghost.style.transform = `translate(${Math.round(x-dragging.offX)}px, ${Math.round(y-dragging.offY)}px) translateZ(0)`;
   }
 
-  /* Group children into visual rows, then choose insertion within the active row.
-     This avoids rapid before/after toggling when moving near midpoints across lines. */
   function computeRows(){
     const items = [...stage.children].filter(el=>el!==dragging?.placeholder);
     const rects = items.map(el=>({el, r: el.getBoundingClientRect()}));
     rects.sort((a,b)=>a.r.top - b.r.top);
-    const rows=[]; const EPS=14; // px tolerance
+    const rows=[]; const EPS=14;
     for(const it of rects){
       if(!rows.length || Math.abs(rows[rows.length-1][0].r.top - it.r.top) > EPS){ rows.push([it]); }
       else rows[rows.length-1].push(it);
     }
     return rows;
   }
-
   function insertPlaceholderAt(clientX, clientY){
     if(!dragging) return;
     const rows = computeRows();
     if(rows.length===0) return;
 
-    // pick row whose vertical span contains y (with tolerance)
     const TOL=18;
     let row = rows[0];
     for(const r of rows){
       const top = Math.min(...r.map(x=>x.r.top));
       const bot = Math.max(...r.map(x=>x.r.bottom));
       if(clientY >= top - TOL && clientY <= bot + TOL){ row = r; break; }
-      if(clientY > bot + TOL) row = r; // fall through to last suitable
+      if(clientY > bot + TOL) row = r;
     }
 
-    // within row: find first element whose centre is to the right of x, with hysteresis
     const HYST = 10;
     let beforeEl = null;
     for(const it of row){
@@ -459,11 +458,8 @@ function attachTouchDnDIfNeeded(){
 
     const currentIndex = [...stage.children].indexOf(dragging.placeholder);
     let targetIndex;
-    if(beforeEl){
-      targetIndex = [...stage.children].indexOf(beforeEl);
-    }else{
-      targetIndex = stage.children.length; // append
-    }
+    if(beforeEl){ targetIndex = [...stage.children].indexOf(beforeEl); }
+    else{ targetIndex = stage.children.length; }
     if(targetIndex !== currentIndex){
       if(targetIndex >= stage.children.length) stage.appendChild(dragging.placeholder);
       else stage.insertBefore(dragging.placeholder, stage.children[targetIndex]);
@@ -540,7 +536,13 @@ async function resetActivity(){
   locked=false;
   try{ sfxReset.currentTime=0; sfxReset.play(); }catch{}
 
-  idx=0; stopTimer(); elapsedMs=0; startedAt=null; timerEl.textContent='00:00';
+  // Back to the very start with a NEW random order
+  resetOrder();
+
+  // Reset timer (don’t start until first drag)
+  stopTimer(); elapsedMs=0; startedAt=null; timerEl.textContent='00:00';
+
+  // Reset music (don’t play until first drag)
   try{ bgm.pause(); bgm.currentTime=0; }catch{}
   muteBtn.classList.remove('muteBtn--ready'); muteBtn.setAttribute('aria-hidden','true');
   hasStartedActivity=false; setControlsDuringCelebration(false);
@@ -554,6 +556,7 @@ resetBtn.addEventListener('click', resetActivity);
 /* --------------------------
    INIT
 --------------------------- */
+resetOrder();
 renderCurrent();
 attachTouchDnDIfNeeded();
 bindDesktopDnD();
