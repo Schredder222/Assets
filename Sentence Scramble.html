@@ -40,6 +40,23 @@
     max-width:900px;
   }
 
+  /* Portrait-only landscape tip (mobile) */
+  .landscape-tip{
+    display:none;
+    width:min(1000px,96vw);
+    margin:4px auto 8px;
+    background:#fff;
+    border:1px solid #dcd6be;
+    color:#222;
+    border-radius:10px;
+    padding:8px 12px;
+    font-size:clamp(13px,2.6vw,15px);
+    line-height:1.35;
+    align-items:center;
+    gap:8px;
+  }
+  .landscape-tip .icon{ font-size:1.1em }
+
   /* Top bar: timer + mute (kept on one line; no layout shift) */
   .topbar{
     width:min(1000px,96vw);
@@ -85,10 +102,10 @@
     margin:4px 0 6px;
   }
 
-  /* Stage: centred tiles */
+  /* Stage: no background; centred large tiles */
   .stage{
     display:flex;
-    flex-wrap:wrap;                 /* desktop default */
+    flex-wrap:wrap;
     gap:10px 12px;
     justify-content:center;
     align-items:center;
@@ -101,14 +118,14 @@
     background:#fff;
     border:1px solid #BDBDBD;
     border-radius:14px;
-    padding:14px 16px;               /* desktop padding */
+    padding:14px 16px;
     cursor:grab;
     user-select:none;
     font-weight:bold;
     line-height:1.15;
     box-shadow:0 2px 6px rgba(0,0,0,.06);
     transition:transform .12s ease, box-shadow .12s ease, background-color .15s ease, border-color .15s ease, color .15s ease;
-    font-size:clamp(18px,3.6vw,28px);  /* desktop & default */
+    font-size:clamp(18px,3.6vw,28px);
     touch-action:none; /* smoother touch drag */
   }
   .word:active{ cursor:grabbing; transform:scale(.98) }
@@ -169,7 +186,7 @@
   }
   #congratsOverlay[aria-hidden="false"]{ display:flex; }
   #congratsOverlay img{
-    width:clamp(160px, 50%, 400px);
+    width:clamp(160px, 50%, 400px); /* half-size at full width */
     height:auto; animation:none; will-change:transform, opacity;
     border:none; outline:none; box-shadow:none;
   }
@@ -179,20 +196,8 @@
     100% { transform: scale(1.0); opacity:1; }
   }
 
-  /* ===== Mobile tweaks: single line + tighter boxes ===== */
   @media (max-width:520px){
-    .stage{
-      flex-wrap:nowrap;            /* force single line on mobile */
-      gap:6px;                     /* tighter gaps by default */
-      min-height:80px;
-      overflow:hidden;             /* hide any tiny overflow before fitting runs */
-      justify-content:flex-start;  /* pack from the left so measuring feels natural */
-    }
-    .word{
-      padding:10px 12px;           /* smaller mobile padding; JS may shrink more */
-      font-size:18px;              /* base; JS fitting may shrink further */
-      border-radius:12px;
-    }
+    .stage{ min-height:100px }
     .muteBtn{ width:36px; height:36px; padding:6px; }
     .muteBtn img{ width:22px; height:22px; }
     .timer{ padding:5px 10px; }
@@ -206,6 +211,12 @@
 <p class="instructions">
   Unscramble the words to make a correct sentence in <b>Present Perfect</b>.
 </p>
+
+<!-- Mobile portrait tip -->
+<div class="landscape-tip" id="landscapeTip" role="note" aria-live="polite">
+  <span class="icon" aria-hidden="true">📱↻</span>
+  <span>Tip: for more space, turn your phone to landscape.</span>
+</div>
 
 <div class="topbar">
   <div class="timer" id="timer">00:00</div>
@@ -300,6 +311,22 @@ let desktopBound = false;
 let touchBound = false;
 
 /* --------------------------
+   LANDSCAPE TIP (mobile portrait only)
+--------------------------- */
+const tipEl = document.getElementById('landscapeTip');
+function updateLandscapeTip(){
+  const isPortrait = window.matchMedia && window.matchMedia('(orientation: portrait)').matches;
+  const smallWidth = window.innerWidth <= 700;
+  if (IS_COARSE && isPortrait && smallWidth){
+    tipEl.style.display = 'flex';
+  } else {
+    tipEl.style.display = 'none';
+  }
+}
+window.addEventListener('resize', updateLandscapeTip, {passive:true});
+window.addEventListener('orientationchange', updateLandscapeTip, {passive:true});
+
+/* --------------------------
    HELPERS
 --------------------------- */
 function shuffled(arr){
@@ -321,55 +348,6 @@ function fmtTime(totalSec){
   return `${m}:${s}`;
 }
 
-/* Fit all words on one line for mobile by reducing gap, padding, then font-size */
-function fitMobileToOneLine(){
-  if (window.innerWidth > 520) { // reset any inline tweaks on desktop/tablet
-    stage.style.gap='';
-    [...stage.querySelectorAll('.word')].forEach(w=>{
-      w.style.fontSize=''; w.style.padding='';
-    });
-    return;
-  }
-  const words = [...stage.querySelectorAll('.word')];
-  if (!words.length) return;
-
-  // Reset to mobile base before measuring
-  stage.style.gap = '6px';
-  words.forEach(w=>{ w.style.padding='10px 12px'; w.style.fontSize='18px'; });
-
-  const avail = stage.getBoundingClientRect().width;
-  const minGap = 2;
-  const minPadX = 6;
-  const minFont = 12;
-
-  let gap = 6, padX = 12, padY = 10, font = 18;
-
-  const totalWidth = () => {
-    // Ensure layout is up to date
-    let sum = 0;
-    words.forEach(w => { sum += w.getBoundingClientRect().width; });
-    // column gap * (n-1)
-    return sum + gap * Math.max(0, words.length - 1);
-  };
-
-  // Try shrinking: gaps -> padding -> font
-  let guard = 0;
-  while (totalWidth() > avail && guard++ < 500){
-    if (gap > minGap){ gap -= 1; stage.style.gap = gap + 'px'; continue; }
-    if (padX > minPadX){
-      padX -= 1;
-      words.forEach(w => w.style.padding = `${padY}px ${padX}px`);
-      continue;
-    }
-    if (font > minFont){
-      font -= 1;
-      words.forEach(w => w.style.fontSize = font + 'px');
-      continue;
-    }
-    break; // can't shrink further
-  }
-}
-
 /* --------------------------
    TIMER
 --------------------------- */
@@ -384,7 +362,7 @@ function startTimer(){
 function stopTimer(){ clearInterval(timerInterval); timerInterval=null; }
 
 /* --------------------------
-   MUSIC + MUTE UI
+   MUSIC + MUTE UI (robust mobile unlock)
 --------------------------- */
 function syncMuteIcon(){
   muteBtn.setAttribute('aria-pressed', String(bgm.muted));
@@ -400,34 +378,37 @@ function revealMuteButton(){
 muteBtn.addEventListener('click', ()=>{ bgm.muted = !bgm.muted; syncMuteIcon(); });
 bgm.addEventListener('playing', revealMuteButton);
 
-/* On first user gesture (drag start), try to start audio immediately */
-function startActivityIfNeeded(){
-  if(hasStartedActivity) return;
-  hasStartedActivity = true;
+/* Attempt to play; if blocked, set one-time unlock listeners */
+async function ensureAudio(){
   try{
     bgm.currentTime = 0;
-    const p = bgm.play();
-    if (p && typeof p.then === 'function'){ p.catch(()=>{}); }
-  }catch(e){}
-  startTimer();
+    await bgm.play();
+    revealMuteButton();
+  }catch(e){
+    const unlock = async ()=>{
+      try{
+        bgm.currentTime = 0;
+        await bgm.play();
+        revealMuteButton();
+      }catch{}
+      window.removeEventListener('pointerup', unlock, opts);
+      window.removeEventListener('touchend', unlock, opts);
+      window.removeEventListener('click', unlock, opts);
+      window.removeEventListener('keydown', unlock, opts);
+    };
+    const opts = {once:true, passive:true};
+    window.addEventListener('pointerup', unlock, opts);
+    window.addEventListener('touchend', unlock, opts);
+    window.addEventListener('click', unlock, opts);
+    window.addEventListener('keydown', unlock, opts);
+  }
 }
 
-/* Safety net on mobile: if audio didn’t start on pointerdown, try again on pointerup/click */
-let oneTimeUnlock = true;
-function tryUnlockOnce(){
-  if (!hasStartedActivity) return;
-  if (!bgm.paused || bgm.currentTime > 0) {
-    window.removeEventListener('pointerup', tryUnlockOnce, {passive:true});
-    window.removeEventListener('click', tryUnlockOnce, {passive:true});
-    oneTimeUnlock=false; return;
-  }
-  try {
-    const p = bgm.play();
-    if (p && typeof p.then === 'function'){ p.catch(()=>{}); }
-  } catch {}
-  window.removeEventListener('pointerup', tryUnlockOnce, {passive:true});
-  window.removeEventListener('click', tryUnlockOnce, {passive:true});
-  oneTimeUnlock=false;
+async function startActivityIfNeeded(){
+  if(hasStartedActivity) return;
+  hasStartedActivity = true;
+  await ensureAudio();  // start music (or arm unlock if blocked)
+  startTimer();         // start timer on first drag
 }
 
 /* --------------------------
@@ -444,12 +425,9 @@ function renderCurrent(){
     w.className = 'word';
     w.textContent = token;
     /* Enable native HTML5 drag on desktop only */
-    w.draggable = !(IS_COARSE);
+    w.draggable = !IS_COARSE;
     stage.appendChild(w);
   });
-
-  // Ensure single-line fit on mobile (reduce gaps/padding/font in that order)
-  fitMobileToOneLine();
 }
 
 function wordsOf(){ return [...stage.querySelectorAll('.word')]; }
@@ -460,7 +438,8 @@ function isCorrect(){ return textArray().join(' ') === items[idx].answer.join(' 
    CELEBRATION
 --------------------------- */
 function setControlsDuringCelebration(active){
-  shuffleBtn.disabled = active;               // disable "other" buttons; Reset stays enabled
+  // Disable "Shuffle anagram" during celebration; Reset stays active to close overlay.
+  shuffleBtn.disabled = active;
   shuffleBtn.setAttribute('aria-disabled', String(active));
 }
 function endCelebration(){
@@ -510,14 +489,10 @@ function bindDesktopDnD(){
 
   let dragWord=null;
 
-  document.addEventListener('dragstart', e=>{
+  document.addEventListener('dragstart', async e=>{
     if(locked) return e.preventDefault();
     if(e.target.classList.contains('word')){
-      startActivityIfNeeded();                  // no await to keep gesture chain
-      if (oneTimeUnlock){
-        window.addEventListener('pointerup', tryUnlockOnce, {once:true, passive:true});
-        window.addEventListener('click', tryUnlockOnce, {once:true, passive:true});
-      }
+      await startActivityIfNeeded();
       dragWord = e.target;
       dragWord.classList.add('dragging');
     }
@@ -561,7 +536,7 @@ function attachTouchDnDIfNeeded(){
   }
 
   function nearestElementIndex(x,y){
-    const items = [...stage.children].filter(el=>el!==dragging.placeholder);
+    const items = [...stage.children].filter(el=>el!==dragging?.placeholder);
     if(items.length===0) return 0;
     let bestIdx=items.length, bestDist=Infinity, bestEl=null;
     items.forEach((el,i)=>{
@@ -579,6 +554,7 @@ function attachTouchDnDIfNeeded(){
   }
 
   function insertPlaceholderAt(x,y){
+    if(!dragging) return;
     const targetIndex = nearestElementIndex(x,y);
     const currentIndex = [...stage.children].indexOf(dragging.placeholder);
     if(targetIndex !== currentIndex){
@@ -590,6 +566,7 @@ function attachTouchDnDIfNeeded(){
   function endTouchDrag(e){
     if(!dragging) return;
     const {tile, ghost, placeholder} = dragging;
+    // place tile where placeholder is
     const i = [...stage.children].indexOf(placeholder);
     if(i >= stage.children.length) stage.appendChild(tile);
     else stage.insertBefore(tile, stage.children[i]);
@@ -602,17 +579,13 @@ function attachTouchDnDIfNeeded(){
     if(isCorrect()) markSuccessForTwoSecondsThenNext();
   }
 
-  stage.addEventListener('pointerdown', (e)=>{
+  stage.addEventListener('pointerdown', async (e)=>{
     const t = e.target;
     if(!t.classList.contains('word')) return;
     if(locked) return;
 
-    // Start the activity (audio + timer) on first user gesture
-    startActivityIfNeeded();                     // no await
-    if (oneTimeUnlock){
-      window.addEventListener('pointerup', tryUnlockOnce, {once:true, passive:true});
-      window.addEventListener('click', tryUnlockOnce, {once:true, passive:true});
-    }
+    // Start timer + (attempt) music on first drag
+    await startActivityIfNeeded();
 
     e.preventDefault();
 
@@ -672,13 +645,12 @@ function shuffleCurrent(){
   stage.innerHTML = '';
   shuffledNodes.forEach(n=>{
     n.classList.remove('success','dragging');
-    n.draggable = !(IS_COARSE);
+    n.draggable = !IS_COARSE;
     stage.appendChild(n);
   });
-  fitMobileToOneLine(); // keep single-line fit after shuffle
 }
 
-function resetActivity(){
+async function resetActivity(){
   // Close celebration immediately and stop applause if showing
   if(celebrating) endCelebration();
 
@@ -706,6 +678,7 @@ function resetActivity(){
   setControlsDuringCelebration(false);
 
   renderCurrent();           // shows anagram 1 (fresh random order)
+  // handlers already bound (guarded), no need to rebind
 }
 
 shuffleBtn.addEventListener('click', shuffleCurrent);
@@ -717,8 +690,8 @@ resetBtn.addEventListener('click', resetActivity);
 renderCurrent();
 attachTouchDnDIfNeeded();
 bindDesktopDnD();
+updateLandscapeTip();
 timerEl.textContent = '00:00';
-window.addEventListener('resize', fitMobileToOneLine, {passive:true});
 </script>
 </body>
 </html>
