@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes, maximum-scale=5" />
+<title>Past Participles – Multiple Choice (A2)</title>
+<style>
+  :root{
+    --bg:#FDFBED;
+    --ink:#222;
+    --accent:#8A0000;   /* red theme accent */
+    --card:#fff;
+
+    /* Feedback borders (exact tones) */
+    --okBorder:#2f7d32;     /* green border for correct */
+    --wrongBorder:#8b0002;  /* red border for chosen incorrect */
+
+    /* Neutral option styling (yellow box + darker yellow border) */
+    --optionBg:#F7E27A;     /* soft yellow fill */
+    --optionBorder:#B89200; /* darker yellow border */
+
+    --gap:28px;
+    --btnGap:0px;
+    --row-gap:10px;
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"MS Reference Sans Serif", Arial, sans-serif;
+  }
+  .wrap{max-width:1000px;margin:24px auto;padding:16px}
+  h1{font-weight:600;font-size:1.3rem;margin:0 0 10px;text-align:center}
+  .note{font-size:.95rem;color:#444;margin:0 0 16px;line-height:1.45;text-align:center}
+
+  .board{
+    position:relative; display:block; background:var(--card);
+    border-radius:14px; box-shadow:0 6px 24px rgba(0,0,0,.08);
+    padding:72px 18px 72px;
+    overflow:visible; /* allow overlays & hover lift to overflow */
+    touch-action: pan-y; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
+  }
+  /* Transparent until Begin Quiz is clicked */
+  .board.transparent{
+    background:transparent;
+    box-shadow:none;
+  }
+
+  /* Topbar (hidden until Begin Quiz) */
+  .topbar{
+    position:absolute; top:12px; left:18px; right:18px;
+    display:none; align-items:center; justify-content:space-between; gap:12px; z-index:300;
+  }
+  .topbar.show{ display:flex; }
+  .tcluster{ display:flex; align-items:center; gap:8px; }
+  .pill{
+    background:#111; color:#fff; padding:6px 12px; border-radius:999px;
+    font-weight:600; letter-spacing:.3px; box-shadow:0 2px 10px rgba(0,0,0,.12);
+  }
+
+  .muteBtn{
+    visibility:hidden; display:inline-flex; background:transparent; border:none; padding:6px;
+    width:40px; height:40px; border-radius:999px; cursor:pointer; line-height:0;
+  }
+  .muteBtn:focus-visible{ outline:2px solid #000; outline-offset:2px; }
+  .muteBtn img{ width:24px; height:24px; display:block; }
+
+  /* Quiz kept in flow but hidden initially to lock board size */
+  .quiz{
+    max-width:820px; margin:0 auto;
+    display:flex; flex-direction:column; gap:16px;
+    align-items:center; text-align:center;
+    visibility:hidden; opacity:0; pointer-events:none;
+  }
+  .quiz.show{ visibility:visible; opacity:1; pointer-events:auto; }
+
+  .questionCard{ border:none; padding:0; background:transparent; width:100%; }
+
+  .qIndicator{
+    font-weight:700;
+    font-size:clamp(1rem, 1.8vw, 1.1rem);
+    margin:0 0 6px;
+    text-align:center;
+    letter-spacing:.2px;
+  }
+
+  .qtext{
+    font-size:clamp(1.05rem, 1.8vw, 1.25rem);
+    margin:0 0 12px;
+    text-align:center;
+  }
+
+  .options{
+    display:flex; flex-direction:row; gap:var(--row-gap);
+    justify-content:center; align-items:center;
+    overflow-x:auto; overflow-y:visible; /* allow hover lift to show */
+    white-space:nowrap; padding:2px 0 4px; /* top padding so lift never clips */
+    -webkit-overflow-scrolling: touch; scroll-behavior:smooth;
+    width:100%;
+  }
+  .options::-webkit-scrollbar{ height:8px; }
+  .options::-webkit-scrollbar-thumb{ background:#ccc; border-radius:999px; }
+  .options::-webkit-scrollbar-track{ background:transparent; }
+
+  .option{
+    display:inline-flex; align-items:center; justify-content:center;
+    background:var(--optionBg);
+    color:#111;
+    border:2px solid var(--optionBorder);
+    border-radius:12px;
+    min-height:52px;
+    padding:12px 20px;
+    line-height:1.25;
+    font-size:1.05rem;
+    box-shadow:0 2px 10px rgba(0,0,0,.04);
+    cursor:pointer; user-select:none;
+    transition: border-color .15s ease, transform .06s ease;
+    will-change: transform;
+  }
+  .option:hover{ transform: translateY(-1px); }
+
+  /* Feedback: border only */
+  .option.correct { border-color: var(--okBorder) !important; }
+  .option.wrong   { border-color: var(--wrongBorder) !important; }
+
+  .optLabel{ font-weight:700; margin-right:8px; }
+
+  /* Single counter under the choices */
+  .score{
+    margin-top:10px;
+    font-weight:600;
+    letter-spacing:.2px;
+    text-align:center;
+  }
+
+  /* Bottom controls — bottom-right placement */
+  .controls{
+    position:absolute; right:18px; bottom:16px;   /* bottom-right */
+    display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;
+    visibility:hidden; opacity:0; pointer-events:none;
+  }
+  .controls.show{ visibility:visible; opacity:1; pointer-events:auto; }
+  .btn{
+    background:var(--accent); color:#fff; border:none; padding:10px 16px; border-radius:10px;
+    font-weight:600; letter-spacing:.2px; cursor:pointer; box-shadow:0 3px 10px rgba(138,0,0,.25)
+  }
+  .btn[disabled]{opacity:.45; cursor:not-allowed; box-shadow:none}
+  .ghost{ background:#eee; color:#111; box-shadow:none }
+
+  /* Begin Quiz overlay */
+  #startOverlay{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    z-index:500; background:rgba(0,0,0,0.02);
+  }
+  #beginBtn{
+    background:#193873;      /* blue fill (requested) */
+    color:#fff;
+    border:2px solid #000;   /* solid black border */
+    padding:20px 32px; border-radius:14px;
+    font-size:1.2rem; font-weight:800; letter-spacing:.3px; cursor:pointer;
+    box-shadow:none;         /* no shadow */
+  }
+
+  /* Round Result overlay (after rounds 1–5) */
+  #roundOverlay{
+    position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+    z-index:99990; pointer-events:auto; background:rgba(0,0,0,0.02);
+  }
+  .roundBox{
+    background:#fff; color:#111; border:2px solid var(--accent);
+    border-radius:14px; padding:16px 22px; font-weight:700; letter-spacing:.2px;
+    box-shadow:none; /* no shadow per request */
+    text-align:center; min-width:260px;
+  }
+  .roundBox p{ margin:6px 0 14px; }
+
+  /* Final overlay (celebratory image only) */
+  #finalOverlay{
+    position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+    z-index:99991; pointer-events:none; /* let clicks pass through; don't close on click */
+    text-align:center; background:rgba(0,0,0,0.02);
+  }
+  /* 20% smaller than before (70% → 56%, 520px → 416px) */
+  #finalImg{ width:clamp(220px, 56%, 416px); height:auto; display:block; animation:none; }
+
+  /* Final score below container */
+  #finalScoreBelow{
+    display:none;
+    text-align:center;
+    font-weight:800;
+    margin:10px 0 0;
+  }
+  #finalScoreBelow.show{ display:block; }
+
+  /* Pre-round overlay (image + audio) */
+  #preRoundOverlay{
+    position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+    z-index:99992; pointer-events:auto; background:rgba(0,0,0,0.02);
+    text-align:center;
+  }
+  #preRoundImg{ width:clamp(220px, 70%, 520px); height:auto; display:block; animation:none; }
+
+  /* Shared zoom animation */
+  @keyframes congratsZoom{
+    0%   { transform: scale(.70); opacity:0; }
+    8%   { opacity:1; }
+    100% { transform: scale(1.0); opacity:1; }
+  }
+
+  @media (max-width:520px){
+    :root{ --btnGap:54px; }
+    .board{ padding:62px 12px calc(40px + var(--btnGap)); }
+    .muteBtn{ width:36px; height:36px; padding:6px; }
+    .muteBtn img{ width:22px; height:22px; }
+    .option{ min-height:54px; font-size:1.02rem; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Past Participles – Multiple Choice</h1>
+  <p class="note">Choose the correct <b>past participle</b> for each infinitive verb. One question at a time.</p>
+
+  <div class="board transparent" id="board">
+    <!-- Hidden until start -->
+    <div class="topbar" id="topbar">
+      <div class="tcluster">
+        <div class="pill" id="roundTag">Round 1/5</div>
+      </div>
+      <button class="muteBtn" id="muteBtn" aria-pressed="false" aria-label="Mute background music" title="Mute">
+        <img id="muteIcon" alt="" src="https://schredder222.github.io/Assets/Unmute.svg" />
+      </button>
+    </div>
+
+    <!-- Start overlay -->
+    <div id="startOverlay">
+      <button id="beginBtn" class="btn">Begin Quiz</button>
+    </div>
+
+    <!-- Quiz UI -->
+    <div class="quiz" id="quiz" aria-live="polite">
+      <div class="questionCard">
+        <div class="qIndicator" id="qIndicator">Question 1/10</div>
+        <p class="qtext" id="qtext"></p>
+        <div class="options" id="options"></div>
+        <div class="score" id="scoreCounter">Correct: 0/10</div>
+      </div>
+    </div>
+
+    <!-- Bottom controls (bottom-right) -->
+    <div class="controls" id="controls">
+      <button class="btn ghost" id="restartBtn">Restart Quiz</button>
+    </div>
+
+    <!-- Round Result Overlay -->
+    <div id="roundOverlay" aria-hidden="true">
+      <div class="roundBox">
+        <div id="roundTitle">Round 1 complete</div>
+        <p id="roundScoreMsg">Score: 0/10</p>
+        <button class="btn" id="nextRoundBtn">Next Round</button>
+      </div>
+    </div>
+
+    <!-- Final Overlay (celebratory image only; non-click-to-dismiss) -->
+    <div id="finalOverlay" aria-hidden="true">
+      <img id="finalImg" alt="Session result">
+    </div>
+
+    <!-- Pre-round Overlay (image + audio) -->
+    <div id="preRoundOverlay" aria-hidden="true">
+      <img id="preRoundImg" alt="Round starting">
+    </div>
+  </div>
+
+  <!-- Final score readout below container -->
+  <div id="finalScoreBelow">Final score: 0/50</div>
+</div>
+
+<!-- Audio -->
+<audio id="correctSound" preload="metadata" src="https://cdn.pixabay.com/download/audio/2022/03/24/audio_dcde83efa6.mp3?filename=ui_correct_button2-103167.mp3"></audio>
+<audio id="incorrectSound" preload="metadata" src="https://cdn.pixabay.com/download/audio/2024/05/03/audio_6130b029fd.mp3"></audio>
+<audio id="bgm" preload="auto" loop src="https://cdn.pixabay.com/download/audio/2025/07/20/audio_d39b1267f3.mp3"></audio>
+<!-- re-used audio tag for round intros -->
+<audio id="roundIntro" preload="auto"></audio>
+<!-- applause for high final scores -->
+<audio id="applauseFinal" preload="auto" src="https://schredder222.github.io/Assets/Applause.mp3"></audio>
+<!-- UI click sound for Begin / Restart -->
+<audio id="uiClick" preload="auto" src="https://cdn.pixabay.com/download/audio/2024/04/21/audio_1b8d3bcd3d.mp3?filename=click-buttons-ui-menu-sounds-effects-button-7-203601.mp3"></audio>
+
+<script>
+/* ====== DATA (50 verbs) ====== */
+const BANK = [
+  {inf:"be",part:"been"}, {inf:"begin",part:"begun"}, {inf:"break",part:"broken"},
+  {inf:"bring",part:"brought"}, {inf:"build",part:"built"}, {inf:"buy",part:"bought"},
+  {inf:"choose",part:"chosen"}, {inf:"come",part:"come"}, {inf:"do",part:"done"},
+  {inf:"drink",part:"drunk"}, {inf:"drive",part:"driven"}, {inf:"eat",part:"eaten"},
+  {inf:"fall",part:"fallen"}, {inf:"feel",part:"felt"}, {inf:"find",part:"found"},
+  {inf:"fly",part:"flown"}, {inf:"forget",part:"forgotten"}, {inf:"get",part:"got"},
+  {inf:"give",part:"given"}, {inf:"go",part:"gone"}, {inf:"have",part:"had"},
+  {inf:"hear",part:"heard"}, {inf:"keep",part:"kept"}, {inf:"know",part:"known"},
+  {inf:"leave",part:"left"}, {inf:"make",part:"made"}, {inf:"meet",part:"met"},
+  {inf:"pay",part:"paid"}, {inf:"put",part:"put"}, {inf:"read",part:"read"},
+  {inf:"run",part:"run"}, {inf:"say",part:"said"}, {inf:"see",part:"seen"},
+  {inf:"sell",part:"sold"}, {inf:"send",part:"sent"}, {inf:"sing",part:"sung"},
+  {inf:"sit",part:"sat"}, {inf:"speak",part:"spoken"}, {inf:"take",part:"taken"},
+  {inf:"write",part:"written"},
+  {inf:"think",part:"thought"}, {inf:"tell",part:"told"}, {inf:"hold",part:"held"},
+  {inf:"stand",part:"stood"}, {inf:"lose",part:"lost"}, {inf:"cut",part:"cut"},
+  {inf:"grow",part:"grown"}, {inf:"win",part:"won"}, {inf:"understand",part:"understood"},
+  {inf:"draw",part:"drawn"}
+];
+
+/* Multi-correct verbs (only "get") */
+const MULTI_CORRECT = {
+  "get": ["got", "gotten"]
+};
+
+/* Same-verb distractors (no -ed, no other verbs, not the infinitive) */
+const SAME_VERB_DISTRACT = {
+  "been": ["was","being"], "begun": ["began","begon"], "broken": ["broke","break"],
+  "brought": ["brang","brung"], "built": ["build","bilt"], "bought": ["boughten","baut"],
+  "chosen": ["chose","choosen"], "come": ["came","comen"], "done": ["did","do"],
+  "drunk": ["drank","drunken"], "driven": ["drove","droven"], "eaten": ["ate","eeten"],
+  "fallen": ["fell","falln"], "felt": ["feel","fellt"], "found": ["find","founde"],
+  "flown": ["flew","fly"], "forgotten": ["forgot","forget"], "got": ["gotten","gett"],
+  "given": ["gave","gav"], "gone": ["went","gonne"], "had": ["has","hav"],
+  "heard": ["hear","hearn"], "kept": ["keept","keep"], "known": ["knew","knon"],
+  "left": ["lefts","leve"], "made": ["mak","make"], "met": ["mett","meet"],
+  "paid": ["pai","pay"], "put": ["puts","putt"], "read": ["readen","rede"],
+  "run": ["ran","runne"], "said": ["sai","say"], "seen": ["saw","see"],
+  "sold": ["selt","sell"], "sent": ["sentt","send"], "sung": ["sang","sing"],
+  "sat": ["sate","sit"], "spoken": ["spoke","speak"], "taken": ["took","tooken"],
+  "written": ["writ","wrote"], "thought": ["thunk","thinkt"], "told": ["tellt","tell"],
+  "held": ["holden","hold"], "stood": ["stoode","stand"], "lost": ["loos","lose"],
+  "cut": ["cutt","cuts"], "grown": ["grew","grow"], "won": ["wun","wonne"],
+  "understood": ["understod","understand"], "drawn": ["drew","draw"]
+};
+
+/* ====== ROUND INTRO MEDIA ====== */
+const ROUND_MEDIA = [
+  { img:'https://schredder222.github.io/Assets/Round%201.png', audio:'https://schredder222.github.io/Assets/Round%201.mp3' },
+  { img:'https://schredder222.github.io/Assets/Round%202.png', audio:'https://schredder222.github.io/Assets/Round%202.mp3' },
+  { img:'https://schredder222.github.io/Assets/Round%203.png', audio:'https://schredder222.github.io/Assets/Round%203.mp3' },
+  { img:'https://schredder222.github.io/Assets/Round%204.png', audio:'https://schredder222.github.io/Assets/Round%204.mp3' },
+  { img:'https://schredder222.github.io/Assets/Round%205.png', audio:'https://schredder222.github.io/Assets/Round%205.mp3' }
+];
+
+/* ====== ELEMENTS ====== */
+const board       = document.getElementById('board');
+const topbar      = document.getElementById('topbar');
+const roundTag    = document.getElementById('roundTag');
+const muteBtn     = document.getElementById('muteBtn');
+const muteIcon    = document.getElementById('muteIcon');
+const bgm         = document.getElementById('bgm');
+const roundIntro  = document.getElementById('roundIntro');
+
+const startOverlay= document.getElementById('startOverlay');
+const beginBtn    = document.getElementById('beginBtn');
+
+const quizEl      = document.getElementById('quiz');
+const qIndicatorEl= document.getElementById('qIndicator');
+const qtextEl     = document.getElementById('qtext');
+const optionsEl   = document.getElementById('options');
+const scoreEl     = document.getElementById('scoreCounter');
+
+const controls    = document.getElementById('controls');
+const restartBtn  = document.getElementById('restartBtn');
+
+const roundOverlay= document.getElementById('roundOverlay');
+const roundTitleEl= document.getElementById('roundTitle');
+const roundScoreMsg= document.getElementById('roundScoreMsg');
+const nextRoundBtn= document.getElementById('nextRoundBtn');
+
+const finalOverlay= document.getElementById('finalOverlay');
+const finalImg    = document.getElementById('finalImg');
+const finalScoreBelow = document.getElementById('finalScoreBelow');
+
+const preRoundOverlay = document.getElementById('preRoundOverlay');
+const preRoundImg     = document.getElementById('preRoundImg');
+
+const applauseFinal = document.getElementById('applauseFinal');
+const correctSound  = document.getElementById('correctSound');
+const incorrectSound= document.getElementById('incorrectSound');
+const uiClick       = document.getElementById('uiClick');
+
+/* Volumes */
+bgm.volume = 0.10;          // BGM at 10%
+correctSound.volume = 0.60; // Correct SFX at 60%
+
+/* Icons */
+const MUTE_ICON_URL   = 'https://schredder222.github.io/Assets/Mute.svg';
+const UNMUTE_ICON_URL = 'https://schredder222.github.io/Assets/Unmute.svg';
+
+/* ====== UTIL ====== */
+const shuffle = a => { a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]] = [a[j],a[i]]; } return a; };
+const chunk = (a, n) => Array.from({length: Math.ceil(a.length/n)}, (_,i)=> a.slice(i*n, i*n+n));
+
+/* ====== SESSION/ROUND STATE ====== */
+const ROUNDS = 5;
+const NEXT_DELAY_MS = 1500;
+
+let started=false;
+let roundIdx=0;              // 0..4
+let allRounds=[];            // 5 arrays of 10 verbs each
+let quiz=[];                 // current round's 10
+let qi=0, score=0;           // per-round
+let totalScore=0;            // cumulative across rounds
+let hasAnswered=false;
+let endOfRound=false;
+let hasAudioPlayed=false;
+let pendingAdvance = null;   // timeout id for auto-next
+
+/* Build session: 5 rounds x 10 unique verbs (covers all 50) */
+function buildAllRounds(){
+  const shuffled = shuffle(BANK);
+  allRounds = chunk(shuffled, 10);
+}
+
+/* ====== MUSIC / MUTE ====== */
+function syncMuteUI(){
+  const muted = bgm.muted;
+  muteBtn.setAttribute('aria-pressed', String(muted));
+  muteIcon.src = muted ? MUTE_ICON_URL : UNMUTE_ICON_URL;
+  muteBtn.title = muted ? 'Unmute' : 'Mute';
+  muteBtn.setAttribute('aria-label', muted ? 'Unmute background music' : 'Mute background music');
+}
+
+/* ====== OVERLAYS ====== */
+function showRoundOverlay(){
+  roundTitleEl.textContent = `Round ${roundIdx+1} complete`;
+  roundScoreMsg.textContent = `Score: ${score}/10`;
+  nextRoundBtn.textContent = (roundIdx < ROUNDS - 1) ? 'Next Round' : 'Close';
+
+  /* Hide questions beneath the popup */
+  quizEl.classList.remove('show');
+
+  /* Cancel any pending auto-advance just in case */
+  if (pendingAdvance){ clearTimeout(pendingAdvance); pendingAdvance = null; }
+
+  roundOverlay.style.display = 'flex';
+  roundOverlay.setAttribute('aria-hidden','false');
+}
+function hideRoundOverlay(){
+  roundOverlay.style.display = 'none';
+  roundOverlay.setAttribute('aria-hidden','true');
+}
+
+/* Final celebratory overlay:
+   - Uses the SAME zoom animation as pre-round images.
+   - Plays applause if totalScore > 40.
+   - Shows final score BELOW the container and turns Restart button red. */
+function showFinalOverlay(){
+  // Choose celebratory image (updated URL with exclamation mark)
+  let src = '';
+  if (totalScore > 40){
+    src = 'https://schredder222.github.io/Assets/OutOfThisWorld!.png';
+  } else if (totalScore >= 20){
+    src = 'https://schredder222.github.io/Assets/Not%20Bad.png';
+  } else {
+    src = 'https://schredder222.github.io/Assets/Keep%20Practising.png';
+  }
+  finalImg.src = src;
+
+  // Retrigger same zoom animation used for round intros
+  finalImg.style.animation = 'none'; void finalImg.offsetWidth;
+  finalImg.style.animation = 'congratsZoom 8s ease-out forwards';
+
+  // Pause BGM under celebratory card; optionally play applause for > 40
+  try { bgm.pause(); } catch{}
+  if (totalScore > 40){
+    try { applauseFinal.currentTime = 0; applauseFinal.play(); } catch{}
+  }
+
+  // Show overlay image (non-click-to-dismiss; pointer-events disabled in CSS)
+  finalOverlay.style.display = 'flex';
+  finalOverlay.setAttribute('aria-hidden','false');
+
+  // Show final score directly below the container
+  finalScoreBelow.textContent = `Final score: ${totalScore}/50`;
+  finalScoreBelow.classList.add('show');
+
+  // Turn existing bottom-right Restart button from grey to red
+  restartBtn.classList.remove('ghost');
+}
+
+/* ====== PRE-ROUND INTRO (image + audio) ====== */
+function setRoundTag(){ roundTag.textContent = `Round ${roundIdx+1}/${ROUNDS}`; }
+
+/* Plays round intro (image+audio), then starts round and ONLY THEN starts/resumes BGM. */
+function showPreRoundAndStart(idx){
+  const media = ROUND_MEDIA[idx];
+  preRoundImg.src = media.img;
+
+  /* retrigger the zoom animation each time */
+  preRoundImg.style.animation = 'none'; void preRoundImg.offsetWidth;
+  preRoundImg.style.animation = 'congratsZoom 8s ease-out forwards';
+
+  preRoundOverlay.style.display = 'flex';
+  preRoundOverlay.setAttribute('aria-hidden','false');
+
+  // Pause BGM during the intro card
+  try { bgm.pause(); } catch{}
+
+  roundIntro.src = media.audio;
+  roundIntro.currentTime = 0;
+  roundIntro.volume = 1.0;
+
+  let done=false;
+  const advance = ()=>{
+    if (done) return; done = true;
+
+    preRoundOverlay.style.display = 'none';
+    preRoundOverlay.setAttribute('aria-hidden','true');
+    roundIntro.pause();
+
+    // Start the round
+    startRound(idx);
+    quizEl.classList.add('show');
+
+    // Start/resume background music ONLY AFTER the intro finishes/advance
+    bgm.volume = 0.10;   // ensure 10%
+    try { bgm.play(); } catch{}
+
+    preRoundOverlay.removeEventListener('click', advance);
+    roundIntro.removeEventListener('ended', advance);
+  };
+
+  // Allow user to tap to proceed early, but default is "after audio finishes"
+  preRoundOverlay.addEventListener('click', advance);
+  roundIntro.addEventListener('ended', advance);
+
+  roundIntro.play().catch(()=>{ /* if blocked, click overlay to advance */ });
+}
+
+/* ====== CHOICES (always same verb) ====== */
+function fabricateSameVerb(inf, part){
+  const lowerInf = (inf||'').toLowerCase();
+  const cands = [];
+  if (!/n$/.test(part)) cands.push(part + 'n');
+  if (/en$/.test(part)) cands.push(part.replace(/en$/,'on'));
+  if (!/en$/.test(lowerInf)) cands.push(lowerInf + 'en');
+  if (lowerInf) cands.push(lowerInf + lowerInf.slice(-1));
+
+  const out = [];
+  for (const c of cands){
+    if (!c) continue;
+    if (/ed$/i.test(c)) continue;
+    if (c === part) continue;
+    if (c.toLowerCase() === lowerInf) continue;
+    if (!out.includes(c)) out.push(c);
+    if (out.length === 2) break;
+  }
+  while (out.length < 2){
+    const pad = (lowerInf + 'n').slice(0, lowerInf.length + out.length + 1);
+    if (!/ed$/i.test(pad) && pad.toLowerCase() !== lowerInf && pad !== part && !out.includes(pad)) out.push(pad);
+    else break;
+  }
+  return out.slice(0,2);
+}
+
+/* Get distractors for the SAME verb; exclude all correct forms and the infinitive */
+function getSameVerbDistractors(inf, correctParts){
+  let base = [];
+  for (const cp of correctParts){
+    base = base.concat(SAME_VERB_DISTRACT[cp] || []);
+  }
+  if (base.length === 0 && correctParts.length){
+    base = (SAME_VERB_DISTRACT[correctParts[0]] || []);
+  }
+  const lowerInf = (inf||'').toLowerCase();
+  const corrSet = new Set(correctParts.map(x=>x.toLowerCase()));
+  base = base
+    .filter(Boolean)
+    .filter(x => !/ed$/i.test(x))
+    .filter(x => !corrSet.has(x.toLowerCase()))
+    .filter(x => x.toLowerCase() !== lowerInf);
+
+  while (base.length < 2){
+    const extra = fabricateSameVerb(inf, correctParts[0] || '');
+    for (const e of extra){
+      if (!base.includes(e) && !corrSet.has(e.toLowerCase()) && e.toLowerCase() !== lowerInf) base.push(e);
+      if (base.length >= 2) break;
+    }
+    break;
+  }
+  return [...new Set(base)];
+}
+
+/* ====== QUIZ ENGINE ====== */
+function startRound(idx){
+  roundIdx = idx;
+  setRoundTag();
+  quiz = shuffle(allRounds[roundIdx].slice()); // shuffle order within round
+  qi = 0; score = 0; hasAnswered=false; endOfRound=false;
+
+  if (pendingAdvance){ clearTimeout(pendingAdvance); pendingAdvance = null; }
+
+  updateScore();
+  updateQIndicator();
+  renderQuestion();
+}
+
+function updateScore(){ scoreEl.textContent = `Correct: ${score}/10`; }
+function updateQIndicator(){ qIndicatorEl.textContent = `Question ${qi+1}/10`; }
+
+function renderQuestion(){
+  const {inf, part} = quiz[qi];
+
+  // Determine all correct answers for this verb
+  const correctParts = MULTI_CORRECT[inf] ? MULTI_CORRECT[inf].slice() : [part];
+
+  qtextEl.innerHTML = `What is the past participle of <b>${inf}</b>?`;
+
+  // Build options:
+  let optionsArr = [];
+  if (correctParts.length >= 2){
+    // Two correct options + one distractor
+    const pool = getSameVerbDistractors(inf, correctParts);
+    const distractor = (pool.find(x=>true)) || fabricateSameVerb(inf, correctParts[0])[0] || 'was';
+    optionsArr = [correctParts[0], correctParts[1], distractor];
+  } else {
+    // One correct + two distractors
+    const pool = getSameVerbDistractors(inf, correctParts);
+    let d1 = pool[0], d2 = pool[1];
+    if (!d1 || !d2){
+      const extra = fabricateSameVerb(inf, correctParts[0]);
+      const merged = [...(pool||[]), ...(extra||[])].filter(Boolean);
+      d1 = merged[0]; d2 = merged.find(x=>x && x!==d1);
+    }
+    optionsArr = [correctParts[0], d1 || 'was', d2 || 'wos'];
+  }
+
+  const opts = shuffle(optionsArr);
+  const letters = ['A','B','C'];
+
+  optionsEl.innerHTML = '';
+  opts.forEach((opt, idx)=>{
+    const div = document.createElement('div');
+    div.className = 'option';
+    div.dataset.value = opt;
+    div.setAttribute('role','button'); div.setAttribute('tabindex','0');
+
+    const label = document.createElement('span'); label.className='optLabel'; label.textContent = letters[idx] + '.';
+    const text  = document.createElement('span'); text.textContent = opt;
+    div.append(label, text);
+
+    const choose = ()=>{
+      if (!started || hasAnswered || endOfRound) return;
+      hasAnswered = true;
+
+      const children = [...optionsEl.children];
+      const isCorrect = correctParts.map(s=>s.toLowerCase()).includes(opt.toLowerCase());
+
+      if (isCorrect){
+        // Mark ALL correct options green
+        children.forEach(c=>{
+          if (correctParts.map(s=>s.toLowerCase()).includes(c.dataset.value.toLowerCase())){
+            c.classList.add('correct');
+          }
+        });
+        try { correctSound.currentTime=0; correctSound.play(); } catch{}
+        score++;
+      } else {
+        div.classList.add('wrong');
+        // Mark all correct options
+        children.forEach(c=>{
+          if (correctParts.map(s=>s.toLowerCase()).includes(c.dataset.value.toLowerCase())){
+            c.classList.add('correct');
+          }
+        });
+        try { incorrectSound.currentTime=0; incorrectSound.play(); } catch{}
+      }
+
+      updateScore();
+
+      // Auto-advance after 1.5s
+      if (pendingAdvance){ clearTimeout(pendingAdvance); }
+      pendingAdvance = setTimeout(()=>{
+        pendingAdvance = null;
+
+        if (qi === quiz.length - 1){ // end of round
+          endOfRound = true;
+          totalScore += score;
+          try { bgm.pause(); } catch{}
+          showRoundOverlay();         // score + Next / Close
+        } else {
+          qi++; hasAnswered = false;
+          updateQIndicator();
+          renderQuestion();
+        }
+      }, NEXT_DELAY_MS);
+    };
+
+    div.addEventListener('click', choose, {passive:true});
+    div.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); choose(); }});
+
+    optionsEl.appendChild(div);
+  });
+}
+
+/* ====== FLOW / UI ====== */
+function goToStart(){
+  started = false;
+  hideRoundOverlay();
+  // Hide any final image & score
+  finalOverlay.style.display = 'none';
+  finalOverlay.setAttribute('aria-hidden','true');
+  finalScoreBelow.classList.remove('show');
+  // Reset restart button to grey
+  restartBtn.classList.add('ghost');
+
+  // Make board transparent again for the start screen
+  board.classList.add('transparent');
+
+  preRoundOverlay.style.display='none';
+  preRoundOverlay.setAttribute('aria-hidden','true');
+  startOverlay.style.display='flex';
+  topbar.classList.remove('show');
+  quizEl.classList.remove('show');
+  controls.classList.remove('show');
+  if (pendingAdvance){ clearTimeout(pendingAdvance); pendingAdvance = null; }
+  try { bgm.pause(); } catch{}
+}
+
+/* Begin Quiz button: play click sfx, then proceed. */
+beginBtn.addEventListener('click', ()=>{
+  try { uiClick.currentTime = 0; uiClick.play(); } catch{}
+  if (started) return;
+  started = true;
+
+  // Restore board background when quiz begins
+  board.classList.remove('transparent');
+
+  // Reveal UI (but BGM should NOT start yet)
+  startOverlay.style.display='none';
+  topbar.classList.add('show');
+  quizEl.classList.add('show');
+  controls.classList.add('show');
+
+  // Build session (5 rounds of 10), then show Round 1 intro (image+audio)
+  buildAllRounds();
+  totalScore = 0;
+  finalScoreBelow.classList.remove('show');
+  restartBtn.classList.add('ghost'); // ensure grey at start
+
+  // Start AFTER round-1 intro finishes (handled inside showPreRoundAndStart)
+  showPreRoundAndStart(0);
+});
+
+nextRoundBtn.addEventListener('click', ()=>{
+  hideRoundOverlay();
+  if (roundIdx < ROUNDS - 1){
+    // Show next round's intro; music resumes ONLY after intro finishes
+    showPreRoundAndStart(roundIdx + 1);
+  } else {
+    // Last round: Close → final celebratory overlay + score below + red restart button
+    showFinalOverlay();
+  }
+});
+
+/* Bottom-right Restart — back to Begin screen, with click sfx */
+restartBtn.addEventListener('click', ()=>{
+  try { uiClick.currentTime = 0; uiClick.play(); } catch{}
+  if (pendingAdvance){ clearTimeout(pendingAdvance); pendingAdvance = null; }
+  goToStart();
+});
+
+/* Mute */
+muteBtn.addEventListener('click', ()=>{
+  const isMuted = !bgm.muted; bgm.muted = isMuted; syncMuteUI();
+});
+bgm.addEventListener('playing', ()=>{
+  if (!hasAudioPlayed){ hasAudioPlayed = true; muteBtn.style.visibility='visible'; syncMuteUI(); }
+});
+
+/* One-time audio unlock — no auto-start until Begin Quiz */
+const opts = {once:true, passive:true};
+function unlockAudioOnce(){
+  ['pointerdown','pointerup','touchend','click','keydown'].forEach(type=>{
+    document.removeEventListener(type, unlockAudioOnce, opts);
+  });
+}
+['pointerdown','pointerup','touchend','click'].forEach(type=> document.addEventListener(type, unlockAudioOnce, opts));
+document.addEventListener('keydown', unlockAudioOnce, {once:true});
+
+/* INIT — prebuild hidden content to lock size */
+(function init(){
+  buildAllRounds();
+  // Prepare first question layout (hidden)
+  quiz = allRounds[0].slice();
+  qi = 0; score = 0; totalScore = 0; hasAnswered = false; endOfRound=false;
+  roundIdx = 0; setRoundTag();
+  qIndicatorEl.textContent = `Question ${qi+1}/10`;
+  qtextEl.innerHTML = `What is the past participle of <b>${quiz[0].inf}</b>?`;
+  optionsEl.innerHTML = '';
+})();
+</script>
+</body>
+</html>
