@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Past Participles – Flashcards</title>
+<title>Past Participle Flashcards</title>
 <style>
   :root{
     --bg:#FDFBED;
@@ -136,8 +136,9 @@ let flippedAll = false;
 
 const flipSound = new Audio("https://schredder222.github.io/Assets/UI%20Exit.mp3");
 flipSound.volume = 0.05;
-const bgMusic = new 
-Audio("https://cdn.pixabay.com/download/audio/2025/06/13/audio_cd802a7e4b.mp3");
+const uiClick = new Audio("https://cdn.pixabay.com/download/audio/2024/04/21/audio_1b8d3bcd3d.mp3?filename=click-buttons-ui-menu-sounds-effects-button-7-203601.mp3");
+uiClick.volume = 0.4;
+const bgMusic = new Audio("https://cdn.pixabay.com/download/audio/2025/06/13/audio_cd802a7e4b.mp3");
 bgMusic.loop = true;
 bgMusic.volume = 0.7;
 let musicStarted = false;
@@ -229,7 +230,10 @@ render(current);
 // Start with Alphabetical active
 resetBtn.classList.add('active');
 
+function playUIClick(){ uiClick.currentTime = 0; uiClick.play(); }
+
 shuffleBtn.addEventListener('click', ()=>{
+  playUIClick();
   current = shuffle(current);
   flippedAll = false;
   flipAllBtn.textContent = 'Flip All';
@@ -239,6 +243,7 @@ shuffleBtn.addEventListener('click', ()=>{
 });
 
 resetBtn.addEventListener('click', ()=>{
+  playUIClick();
   current = VERBS.slice();
   flippedAll = false;
   flipAllBtn.textContent = 'Flip All';
@@ -248,6 +253,7 @@ resetBtn.addEventListener('click', ()=>{
 });
 
 flipAllBtn.addEventListener('click', ()=>{
+  playUIClick();
   const cards = Array.from(document.querySelectorAll('.card'));
   flippedAll = !flippedAll;
   cards.forEach(c=> c.classList.toggle('flipped', flippedAll));
@@ -263,6 +269,7 @@ search.addEventListener('input', (e)=>{
 });
 
 muteBtn.addEventListener('click', ()=>{
+  playUIClick();
   bgMusic.muted = !bgMusic.muted;
   setMuteIcon();
 });
