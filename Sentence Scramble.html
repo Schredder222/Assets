@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5" />
+<title>Sentence Scramble – Present Perfect Simple 1 (Urban Living)</title>
+<style>
+  :root{
+    --bg:#FDFBED;
+    --ink:#111;
+    --accent:#8A0000;
+    --ok:#1E8E3E;
+  }
+
+  *{ box-sizing:border-box }
+  html,body{ height:100% }
+
+  body{
+    margin:0;
+    font-family:"MS Reference Sans Serif", Arial, sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:20px 14px 48px;
+  }
+
+  h1{
+    color:#111;
+    margin:0 0 12px 0; /* space under title */
+    font-size:clamp(20px,3.2vw,28px);
+    letter-spacing:.2px;
+  }
+
+  .instructions{
+    margin:0 0 10px 0;
+    font-size:clamp(14px,2.6vw,16px);
+    text-align:center;
+    max-width:900px;
+  }
+
+  /* Top bar: timer + mute (kept on one line; no layout shift) */
+  .topbar{
+    width:min(1000px,96vw);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin:8px auto 10px;
+    gap:12px;
+    flex-wrap:nowrap;       /* never wrap */
+    min-height:40px;        /* reserve height to prevent vertical jiggle */
+  }
+  .timer{
+    background:#111; color:#fff; padding:6px 12px; border-radius:999px;
+    font-weight:600; letter-spacing:.3px; box-shadow:0 2px 10px rgba(0,0,0,.12);
+    font-variant-numeric:tabular-nums;
+    white-space:nowrap;
+  }
+  .muteBtn{
+    /* Reserve space from the start to prevent any layout shift */
+    display:inline-flex;
+    align-items:center; justify-content:center;
+    background:transparent; border:none;
+    padding:6px; width:40px; height:40px; border-radius:999px;
+    cursor:pointer; line-height:0; flex:0 0 auto;
+
+    /* hidden but space-reserved until audio starts */
+    visibility:hidden; opacity:0; pointer-events:none;
+  }
+  .muteBtn--ready{ visibility:visible; opacity:1; pointer-events:auto; }
+  .muteBtn:focus-visible{ outline:2px solid #000; outline-offset:2px; }
+  .muteBtn img{ width:24px; height:24px; display:block; }
+
+  /* Activity wrap (overlay context) */
+  .activity-wrap{
+    position:relative;
+    width:min(1000px, 96vw);
+    margin:0 auto;
+  }
+
+  /* Counter centred above the anagram */
+  .counter{
+    text-align:center;
+    font-weight:700;
+    font-size:clamp(18px,3.8vw,24px); /* slightly smaller */
+    margin:4px 0 6px;
+  }
+
+  /* Stage: no background; centred large tiles */
+  .stage{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px 12px;
+    justify-content:center;
+    align-items:center;
+    min-height:120px;
+    margin:6px auto 10px;
+    padding:0;
+  }
+
+  .word{
+    background:#fff;
+    border:1px solid #BDBDBD;
+    border-radius:14px;
+    padding:14px 16px;
+    cursor:grab;
+    user-select:none;
+    font-weight:bold;
+    line-height:1.15;
+    box-shadow:0 2px 6px rgba(0,0,0,.06);
+    transition:transform .12s ease, box-shadow .12s ease, background-color .15s ease, border-color .15s ease, color .15s ease;
+    font-size:clamp(18px,3.6vw,28px);
+  }
+  .word:active{ cursor:grabbing; transform:scale(.98) }
+  .word.dragging{ opacity:.6 }
+
+  /* Success state: solid green for 2 seconds */
+  .word.success{
+    background:#DFF5E3;
+    border-color:var(--ok);
+    color:#0b4c1c;
+  }
+
+  /* Controls row (bottom buttons) */
+  .controls{
+    display:flex;
+    gap:10px;
+    justify-content:flex-end;
+    margin-top:8px;
+  }
+  .btn{
+    background:var(--accent); color:#fff; border:none;
+    padding:10px 16px; border-radius:10px;
+    font-weight:600; letter-spacing:.2px; cursor:pointer;
+    box-shadow:0 3px 10px rgba(138,0,0,.25);
+    transition:background .2s, transform .15s;
+  }
+  .btn:hover{ transform:translateY(-1px) }
+  .btn:active{ transform:translateY(0) scale(.98) }
+  .btn.ghost{ background:#eee; color:#111; box-shadow:none; }
+  /* Disabled styling & behaviour (as in your other activity) */
+  .btn[disabled]{ opacity:.5; cursor:not-allowed; box-shadow:none; pointer-events:none; }
+
+  /* Fade between items */
+  @keyframes fadeIn {
+    from { opacity:0; transform:translateY(6px) scale(.985) }
+    to   { opacity:1; transform:translateY(0)   scale(1) }
+  }
+  @keyframes fadeOut {
+    from { opacity:1; transform:translateY(0)   scale(1) }
+    to   { opacity:0; transform:translateY(-6px) scale(.985) }
+  }
+  .fade-in{ animation:fadeIn .35s ease forwards }
+  .fade-out{ animation:fadeOut .25s ease forwards }
+
+  /* === Congrats overlay (matching your other activity) === */
+  #congratsOverlay{
+    position:absolute; inset:0;
+    display:none; align-items:center; justify-content:center;
+    z-index:99999; pointer-events:none;
+  }
+  #congratsOverlay[aria-hidden="false"]{ display:flex; }
+  #congratsOverlay img{
+    width:clamp(160px, 60%, 400px);
+    height:auto; animation:none; will-change:transform, opacity;
+    border:none; outline:none; box-shadow:none;
+  }
+  @keyframes congratsZoom{
+    0%   { transform: scale(0.70); opacity:0; }
+    8%   { opacity:1; }
+    100% { transform: scale(1.0); opacity:1; }
+  }
+
+  @media (max-width:520px){
+    .stage{ min-height:100px }
+    .muteBtn{ width:36px; height:36px; padding:6px; }
+    .muteBtn img{ width:22px; height:22px; }
+    .timer{ padding:5px 10px; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Sentence Scramble</h1>
+<p class="instructions">
+  Unscramble the words to make a correct sentence in <b>Present Perfect</b>.
+</p>
+
+<div class="topbar">
+  <div class="timer" id="timer">00:00</div>
+  <button class="muteBtn" id="muteBtn" aria-pressed="false" aria-label="Mute background music" title="Mute" aria-hidden="true">
+    <img id="muteIcon" alt="" src="https://schredder222.github.io/Assets/Unmute.svg" />
+  </button>
+</div>
+
+<div class="activity-wrap" id="activityWrap">
+  <!-- Counter centred above the anagram -->
+  <div class="counter" id="counter">1 / 8</div>
+
+  <div class="stage fade-in" id="stage"></div>
+
+  <div class="controls">
+    <button class="btn ghost" id="shuffleBtn" type="button">Shuffle anagram</button>
+    <button class="btn" id="resetBtn" type="button">Reset activity</button>
+  </div>
+
+  <!-- Congrats overlay -->
+  <div id="congratsOverlay" aria-hidden="true">
+    <img src="https://schredder222.github.io/Assets/OutOfThisWorld!.png" alt="Out of this world!">
+  </div>
+</div>
+
+<!-- Audio: background music (loop), correct SFX, final applause, drop SFX, shuffle SFX, reset SFX -->
+<audio id="bgm" src="https://cdn.pixabay.com/download/audio/2024/02/10/audio_58dac346c5.mp3" loop preload="auto"></audio>
+<audio id="sfxCorrect" src="https://cdn.pixabay.com/download/audio/2022/03/24/audio_dcde83efa6.mp3?filename=ui_correct_button2-103167.mp3" preload="auto"></audio>
+<audio id="applause" src="https://schredder222.github.io/Assets/Applause.mp3" preload="auto"></audio>
+<audio id="sfxDrop" src="https://cdn.pixabay.com/download/audio/2025/03/20/audio_99fc376452.mp3?filename=ui-pop-sound-316482.mp3" preload="auto"></audio>
+<audio id="sfxShuffle" src="https://cdn.pixabay.com/download/audio/2025/07/30/audio_b3087a581e.mp3" preload="auto"></audio>
+<audio id="sfxReset" src="https://cdn.pixabay.com/download/audio/2024/04/21/audio_1b8d3bcd3d.mp3?filename=click-buttons-ui-menu-sounds-effects-button-7-203601.mp3" preload="auto"></audio>
+
+<script>
+/* --------------------------
+   DATA: 8 anagrams (A2), PPS1
+   No "ever"/"never"/"yet".
+--------------------------- */
+const items = [
+  { answer:["I","have","visited","London."],
+    scramble:["visited","have","I","London."] },
+
+  { answer:["She","has","not","lived","in","a","big","city."],
+    scramble:["city.","She","lived","has","a","big","in","not"] },
+
+  { answer:["They","have","moved","to","Melbourne."],
+    scramble:["moved","They","to","Melbourne.","have"] },
+
+  { answer:["We","have","not","seen","a","concert","in","the","park."],
+    scramble:["park.","have","We","seen","the","a","concert","not","in"] },
+
+  { answer:["Has","he","taken","the","underground?"],
+    scramble:["Has","underground?","the","taken","he"] },
+
+  { answer:["The","two","cities","have","had","a","rivalry","since","2000."],
+    scramble:["two","have","since","cities","The","2000.","a","had","rivalry"] },
+
+  { answer:["Have","you","visited","Sydney","or","Melbourne?"],
+    scramble:["visited","Have","or","Melbourne?","Sydney","you"] },
+
+  { answer:["My","friends","have","found","an","apartment."],
+    scramble:["an","friends","have","apartment.","found","My"] }
+];
+
+const stage = document.getElementById('stage');
+const counterEl = document.getElementById('counter');
+const overlay = document.getElementById('congratsOverlay');
+
+const bgm = document.getElementById('bgm');
+const sfxCorrect = document.getElementById('sfxCorrect');
+const applause = document.getElementById('applause');
+const sfxDrop = document.getElementById('sfxDrop');
+const sfxShuffle = document.getElementById('sfxShuffle');
+const sfxReset = document.getElementById('sfxReset');
+
+const timerEl = document.getElementById('timer');
+const muteBtn = document.getElementById('muteBtn');
+const muteIcon = document.getElementById('muteIcon');
+const MUTE_ICON_URL   = 'https://schredder222.github.io/Assets/Mute.svg';
+const UNMUTE_ICON_URL = 'https://schredder222.github.io/Assets/Unmute.svg';
+
+const shuffleBtn = document.getElementById('shuffleBtn');
+const resetBtn   = document.getElementById('resetBtn');
+
+bgm.volume = 0.25;              // background music
+sfxCorrect.volume = 1.0;        // SFX independent of music
+applause.volume = 1.0;
+sfxDrop.volume = 0.8;
+sfxShuffle.volume = 1.0;
+sfxReset.volume = 1.0;
+
+let idx = 0;
+let dragWord = null;
+let locked = false;             // lock interactions during 2s success hold
+let timerInterval = null;
+let elapsedMs = 0;
+let startedAt = null;
+
+/* start gate: only begin music/timer on first drag */
+let hasStartedActivity = false;
+
+/* celebration state */
+let celebrating = false;
+let overlayTimeoutId = null;
+
+/* --------------------------
+   SMALL HELPERS
+--------------------------- */
+function shuffled(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+function shuffledFromAnswer(ans){
+  const target = ans.join(' ');
+  // Try up to 10 times to avoid a solved start
+  for(let tries=0; tries<10; tries++){
+    const cand = shuffled(ans);
+    if (cand.join(' ') !== target) return cand;
+  }
+  // If very unlucky, just return a shuffle anyway
+  return shuffled(ans);
+}
+function fmtTime(totalSec){
+  const m = String(Math.floor(totalSec/60)).padStart(2,'0');
+  const s = String(totalSec%60).padStart(2,'0');
+  return `${m}:${s}`;
+}
+
+/* --------------------------
+   TIMER
+--------------------------- */
+function startTimer(){
+  if(timerInterval) return;
+  startedAt = performance.now() - elapsedMs;
+  timerInterval = setInterval(()=>{
+    elapsedMs = performance.now() - startedAt;
+    const totalSec = Math.floor(elapsedMs/1000);
+    timerEl.textContent = fmtTime(totalSec);
+  }, 250);
+}
+function stopTimer(){
+  clearInterval(timerInterval);
+  timerInterval = null;
+}
+
+/* --------------------------
+   MUSIC + MUTE UI
+--------------------------- */
+function syncMuteIcon(){
+  muteBtn.setAttribute('aria-pressed', String(bgm.muted));
+  muteIcon.src = bgm.muted ? MUTE_ICON_URL : UNMUTE_ICON_URL;
+  muteBtn.title = bgm.muted ? 'Unmute' : 'Mute';
+  muteBtn.setAttribute('aria-label', bgm.muted ? 'Unmute background music' : 'Mute background music');
+}
+function revealMuteButton(){
+  muteBtn.classList.add('muteBtn--ready');
+  muteBtn.removeAttribute('aria-hidden');
+  syncMuteIcon();
+}
+muteBtn.addEventListener('click', ()=>{
+  bgm.muted = !bgm.muted;
+  syncMuteIcon();
+});
+bgm.addEventListener('playing', revealMuteButton);
+
+/* Begin timer + music only when the FIRST tile is dragged */
+async function startActivityIfNeeded(){
+  if (hasStartedActivity) return;
+  hasStartedActivity = true;
+  try{
+    bgm.currentTime = 0;
+    await bgm.play();
+  }catch(e){}
+  startTimer();
+}
+
+/* --------------------------
+   RENDER & CHECK
+--------------------------- */
+function renderCurrent(){
+  stage.innerHTML = "";
+  stage.classList.remove('fade-out');
+  stage.classList.add('fade-in');
+  counterEl.textContent = `${idx+1} / ${items.length}`;
+
+  // Random starting order each time we (re)render an item
+  const tokens = shuffledFromAnswer(items[idx].answer);
+
+  tokens.forEach(token=>{
+    const w = document.createElement('div');
+    w.className = 'word';
+    w.draggable = true;
+    w.textContent = token;
+    stage.appendChild(w);
+  });
+}
+
+function wordsOf(el){ return [...el.querySelectorAll('.word')]; }
+function textArray(){ return wordsOf(stage).map(w=>w.textContent); }
+function isCorrect(){
+  return textArray().join(' ') === items[idx].answer.join(' ');
+}
+
+/* --------------------------
+   CELEBRATION
+--------------------------- */
+function setControlsDuringCelebration(active){
+  // Disable Shuffle while celebrating (Reset stays enabled so you can restart)
+  shuffleBtn.disabled = active;
+  shuffleBtn.setAttribute('aria-disabled', String(active));
+}
+function endCelebration(){
+  celebrating = false;
+  if (overlayTimeoutId){ clearTimeout(overlayTimeoutId); overlayTimeoutId = null; }
+  overlay.setAttribute('aria-hidden','true');   // hide image immediately
+  try{ applause.pause(); applause.currentTime = 0; }catch(e){}
+  setControlsDuringCelebration(false);
+}
+function showCongrats(){
+  const img = overlay.querySelector('img');
+  img.style.animation = 'none'; void img.offsetWidth;
+  img.style.animation = 'congratsZoom 8s ease-out forwards';
+  celebrating = true;
+  setControlsDuringCelebration(true);
+  overlay.setAttribute('aria-hidden','false');
+  try { applause.currentTime = 0; applause.play(); } catch {}
+  if (overlayTimeoutId) clearTimeout(overlayTimeoutId);
+  overlayTimeoutId = setTimeout(()=>{ endCelebration(); }, 9000);
+}
+
+function markSuccessForTwoSecondsThenNext(){
+  // Turn all words solid green
+  wordsOf(stage).forEach(w=>w.classList.add('success'));
+  // Play success SFX
+  try{ sfxCorrect.currentTime = 0; sfxCorrect.play(); }catch(e){}
+
+  locked = true; // disable interactions briefly
+  setTimeout(()=>{
+    if(idx < items.length - 1){
+      idx++;
+      locked = false;
+      renderCurrent(); // next item starts shuffled
+    }else{
+      // Finished all
+      try{ bgm.pause(); }catch(e){}
+      stopTimer();
+      const totalSec = Math.floor(elapsedMs/1000);
+      timerEl.textContent = `Completed in ${fmtTime(totalSec)}`;
+      showCongrats();
+    }
+  }, 2000);
+}
+
+/* --------------------------
+   DRAG-AND-DROP ONLY
+--------------------------- */
+document.addEventListener('dragstart', async e=>{
+  if(locked) return e.preventDefault();
+  if(e.target.classList.contains('word')){
+    // START gate here: first drag begins timer + music
+    await startActivityIfNeeded();
+
+    dragWord = e.target;
+    dragWord.classList.add('dragging');
+  }
+});
+document.addEventListener('dragend', e=>{
+  if(e.target.classList.contains('word')){
+    e.target.classList.remove('dragging');
+    dragWord = null;
+  }
+});
+stage.addEventListener('dragover', e=>{
+  if(locked) return;
+  e.preventDefault();
+  const after = wordsOf(stage).find(el => e.clientX < el.getBoundingClientRect().left + el.offsetWidth/2);
+  if(after) stage.insertBefore(dragWord, after);
+  else stage.appendChild(dragWord);
+});
+document.addEventListener('drop', (e)=>{
+  if(locked) return;
+  // Drop SFX on placement
+  try{ sfxDrop.currentTime = 0; sfxDrop.play(); }catch(err){}
+  if(isCorrect()){
+    markSuccessForTwoSecondsThenNext();
+  }
+});
+
+/* --------------------------
+   BUTTONS: Shuffle & Reset
+--------------------------- */
+function shuffleCurrent(){
+  if(locked) return;
+  // If the sentence is already correct, do nothing (no SFX, no shuffle)
+  if(isCorrect()) return;
+
+  try{ sfxShuffle.currentTime = 0; sfxShuffle.play(); }catch(err){}
+
+  const nodes = wordsOf(stage);
+  const shuffledNodes = nodes.slice().sort(()=>Math.random()-0.5);
+  stage.innerHTML = '';
+  shuffledNodes.forEach(n=>{
+    n.classList.remove('success','dragging');
+    n.draggable = true;
+    stage.appendChild(n);
+  });
+}
+
+async function resetActivity(){
+  // If celebrating, close immediately and stop applause
+  if (celebrating) { endCelebration(); }
+
+  try{ sfxReset.currentTime = 0; sfxReset.play(); }catch(err){}
+
+  // Reset to start
+  idx = 0;
+  locked = false;
+
+  // Reset timer (do not start here)
+  stopTimer();
+  elapsedMs = 0;
+  startedAt = null;
+  timerEl.textContent = '00:00';
+
+  // Reset music (do not play here)
+  try{
+    bgm.pause();
+    bgm.currentTime = 0;
+  }catch(e){}
+
+  // Hide/disable mute until audio actually starts again
+  muteBtn.classList.remove('muteBtn--ready');
+  muteBtn.setAttribute('aria-hidden','true');
+
+  // Gate will re-open on first drag
+  hasStartedActivity = false;
+
+  // Re-enable controls
+  setControlsDuringCelebration(false);
+
+  renderCurrent(); // will render with a fresh random scramble
+}
+
+shuffleBtn.addEventListener('click', shuffleCurrent);
+resetBtn.addEventListener('click', resetActivity);
+
+/* --------------------------
+   INIT
+--------------------------- */
+renderCurrent();          // initial random scramble
+timerEl.textContent = '00:00';
+</script>
+</body>
+</html>
