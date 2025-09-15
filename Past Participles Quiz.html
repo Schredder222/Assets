@@ -30,15 +30,15 @@
     font-family:"MS Reference Sans Serif", Arial, sans-serif;
   }
   .wrap{max-width:1000px;margin:24px auto;padding:16px}
-  h1{font-weight:600;font-size:1.3rem;margin:0 0 10px;text-align:center}
-  .note{font-size:.95rem;color:#444;margin:0 0 16px;line-height:1.45;text-align:center}
+  h1{font-weight:600;font-size:clamp(20px,3.4vw,22px);margin:0 0 10px;text-align:center}
+  .note{font-size:clamp(14px,2.8vw,15.5px);color:#444;margin:0 0 16px;line-height:1.45;text-align:center}
 
   .board{
     position:relative; display:block; background:var(--card);
     border-radius:14px; box-shadow:0 6px 24px rgba(0,0,0,.08);
     padding:72px 18px 72px;
     overflow:visible; /* allow overlays & hover lift to overflow */
-    touch-action: pan-y; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
+    touch-action: manipulation; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
   }
   /* Transparent until Begin Quiz is clicked */
   .board.transparent{
@@ -48,19 +48,20 @@
 
   /* Topbar (hidden until Begin Quiz) */
   .topbar{
-    position:absolute; top:12px; left:18px; right:18px;
-    display:none; align-items:center; justify-content:space-between; gap:12px; z-index:300;
+    position:absolute; top:12px; left:12px; right:12px;
+    display:none; align-items:center; justify-content:space-between; gap:8px; z-index:300;
   }
   .topbar.show{ display:flex; }
-  .tcluster{ display:flex; align-items:center; gap:8px; }
+  .tcluster{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
   .pill{
-    background:#111; color:#fff; padding:6px 12px; border-radius:999px;
-    font-weight:600; letter-spacing:.3px; box-shadow:0 2px 10px rgba(0,0,0,.12);
+    background:#111; color:#fff; padding:6px 10px; border-radius:999px;
+    font-weight:600; letter-spacing:.2px; box-shadow:0 2px 10px rgba(0,0,0,.12);
+    font-size:clamp(12px,2.8vw,14px);
   }
 
   .muteBtn{
     visibility:hidden; display:inline-flex; background:transparent; border:none; padding:6px;
-    width:40px; height:40px; border-radius:999px; cursor:pointer; line-height:0;
+    width:40px; height:40px; border-radius:999px; cursor:pointer; line-height:0; flex:0 0 auto;
   }
   .muteBtn:focus-visible{ outline:2px solid #000; outline-offset:2px; }
   .muteBtn img{ width:24px; height:24px; display:block; }
@@ -68,7 +69,7 @@
   /* Quiz kept in flow but hidden initially to lock board size */
   .quiz{
     max-width:820px; margin:0 auto;
-    display:flex; flex-direction:column; gap:16px;
+    display:flex; flex-direction:column; gap:12px;
     align-items:center; text-align:center;
     visibility:hidden; opacity:0; pointer-events:none;
   }
@@ -78,15 +79,15 @@
 
   .qIndicator{
     font-weight:700;
-    font-size:clamp(1rem, 1.8vw, 1.1rem);
-    margin:0 0 6px;
+    font-size:clamp(0.95rem, 3.8vw, 1.05rem);
+    margin:0 0 4px;
     text-align:center;
     letter-spacing:.2px;
   }
 
   .qtext{
-    font-size:clamp(1.05rem, 1.8vw, 1.25rem);
-    margin:0 0 12px;
+    font-size:clamp(1.0rem, 4.4vw, 1.2rem);
+    margin:0 0 10px;
     text-align:center;
   }
 
@@ -108,16 +109,20 @@
     color:#111;
     border:2px solid var(--optionBorder);
     border-radius:12px;
-    min-height:52px;
-    padding:12px 20px;
+    min-height:48px;
+    padding:12px 16px;
     line-height:1.25;
-    font-size:1.05rem;
+    font-size:clamp(0.98rem, 4.2vw, 1.05rem);
     box-shadow:0 2px 10px rgba(0,0,0,.04);
     cursor:pointer; user-select:none;
     transition: border-color .15s ease, transform .06s ease;
     will-change: transform;
+    max-width: 100%;
   }
-  .option:hover{ transform: translateY(-1px); }
+  /* Hover lift on devices that actually support hover */
+  @media (hover:hover){
+    .option:hover{ transform: translateY(-1px); }
+  }
 
   /* Feedback: border only */
   .option.correct { border-color: var(--okBorder) !important; }
@@ -127,22 +132,24 @@
 
   /* Single counter under the choices */
   .score{
-    margin-top:10px;
+    margin-top:8px;
     font-weight:600;
     letter-spacing:.2px;
     text-align:center;
+    font-size:clamp(0.95rem, 3.6vw, 1rem);
   }
 
-  /* Bottom controls — bottom-right placement */
+  /* Bottom controls — bottom-right placement (safe-area aware) */
   .controls{
-    position:absolute; right:18px; bottom:16px;   /* bottom-right */
+    position:absolute; right:12px; bottom:calc(12px + env(safe-area-inset-bottom, 0px));
     display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;
     visibility:hidden; opacity:0; pointer-events:none;
   }
   .controls.show{ visibility:visible; opacity:1; pointer-events:auto; }
   .btn{
-    background:var(--accent); color:#fff; border:none; padding:10px 16px; border-radius:10px;
-    font-weight:600; letter-spacing:.2px; cursor:pointer; box-shadow:0 3px 10px rgba(138,0,0,.25)
+    background:var(--accent); color:#fff; border:none; padding:10px 14px; border-radius:10px;
+    font-weight:600; letter-spacing:.2px; cursor:pointer; box-shadow:0 3px 10px rgba(138,0,0,.25);
+    font-size:clamp(14px,3.4vw,15px);
   }
   .btn[disabled]{opacity:.45; cursor:not-allowed; box-shadow:none}
   .ghost{ background:#eee; color:#111; box-shadow:none }
@@ -151,37 +158,44 @@
   #startOverlay{
     position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     z-index:500; background:rgba(0,0,0,0.02);
+    padding:12px;
   }
   #beginBtn{
     background:#193873;      /* blue fill (requested) */
     color:#fff;
     border:2px solid #000;   /* solid black border */
-    padding:20px 32px; border-radius:14px;
-    font-size:1.2rem; font-weight:800; letter-spacing:.3px; cursor:pointer;
+    padding:18px 26px; border-radius:14px;
+    font-size:clamp(16px,4.6vw,18px); font-weight:800; letter-spacing:.3px; cursor:pointer;
     box-shadow:none;         /* no shadow */
+    max-width:min(92vw, 420px);
+    width:fit-content;
   }
 
   /* Round Result overlay (after rounds 1–5) */
   #roundOverlay{
     position:absolute; inset:0; display:none; align-items:center; justify-content:center;
     z-index:99990; pointer-events:auto; background:rgba(0,0,0,0.02);
+    padding:12px;
   }
   .roundBox{
     background:#fff; color:#111; border:2px solid var(--accent);
-    border-radius:14px; padding:16px 22px; font-weight:700; letter-spacing:.2px;
+    border-radius:14px; padding:14px 16px; font-weight:700; letter-spacing:.2px;
     box-shadow:none; /* no shadow per request */
-    text-align:center; min-width:260px;
+    text-align:center; min-width:min(260px, 92vw);
+    max-width:min(480px, 94vw);
+    font-size:clamp(14px,3.6vw,16px);
   }
-  .roundBox p{ margin:6px 0 14px; }
+  .roundBox p{ margin:6px 0 12px; }
 
   /* Final overlay (celebratory image only) */
   #finalOverlay{
     position:absolute; inset:0; display:none; align-items:center; justify-content:center;
-    z-index:99991; pointer-events:none; /* let clicks pass through; don't close on click */
+    z-index:99991; pointer-events:none; /* don't close on click */
     text-align:center; background:rgba(0,0,0,0.02);
+    padding:12px;
   }
   /* 20% smaller than before (70% → 56%, 520px → 416px) */
-  #finalImg{ width:clamp(220px, 56%, 416px); height:auto; display:block; animation:none; }
+  #finalImg{ width:clamp(200px, 56vw, 416px); height:auto; display:block; animation:none; }
 
   /* Final score below container */
   #finalScoreBelow{
@@ -189,6 +203,7 @@
     text-align:center;
     font-weight:800;
     margin:10px 0 0;
+    font-size:clamp(16px,4.6vw,18px);
   }
   #finalScoreBelow.show{ display:block; }
 
@@ -196,9 +211,9 @@
   #preRoundOverlay{
     position:absolute; inset:0; display:none; align-items:center; justify-content:center;
     z-index:99992; pointer-events:auto; background:rgba(0,0,0,0.02);
-    text-align:center;
+    text-align:center; padding:12px;
   }
-  #preRoundImg{ width:clamp(220px, 70%, 520px); height:auto; display:block; animation:none; }
+  #preRoundImg{ width:clamp(200px, 70vw, 520px); height:auto; display:block; animation:none; }
 
   /* Shared zoom animation */
   @keyframes congratsZoom{
@@ -207,12 +222,40 @@
     100% { transform: scale(1.0); opacity:1; }
   }
 
+  /* ------- MOBILE LAYOUT TWEAKS ------- */
+  @media (max-width:640px){
+    .board{ padding:62px 12px calc(58px + env(safe-area-inset-bottom, 0px)); }
+    .topbar{ left:10px; right:10px; }
+    .options{ gap:8px; }
+    .option{ padding:12px 14px; }
+  }
+
+  /* Small phones: stack options vertically, full-width buttons */
   @media (max-width:520px){
     :root{ --btnGap:54px; }
-    .board{ padding:62px 12px calc(40px + var(--btnGap)); }
-    .muteBtn{ width:36px; height:36px; padding:6px; }
-    .muteBtn img{ width:22px; height:22px; }
-    .option{ min-height:54px; font-size:1.02rem; }
+    .options{
+      flex-wrap:wrap;               /* allow wrap */
+      white-space:normal;           /* allow breaking/wrapping */
+      overflow:visible;             /* no scroll, everything fits */
+      justify-content:stretch;
+      align-items:stretch;
+      gap:8px;
+    }
+    .option{
+      width:100%;                   /* full width buttons */
+      justify-content:flex-start;   /* align label+text nicely */
+    }
+    .optLabel{ margin-right:10px; flex:0 0 auto; }
+    .qtext{ margin-bottom:8px; }
+    .score{ margin-top:6px; }
+  }
+
+  /* Ultra-narrow devices */
+  @media (max-width:360px){
+    .option{ padding:10px 12px; font-size:clamp(0.95rem, 4.8vw, 1rem); }
+    .qtext{ font-size:clamp(0.95rem, 4.8vw, 1.05rem); }
+    .qIndicator{ font-size:clamp(0.9rem, 4.6vw, 1rem); }
+    #beginBtn{ padding:16px 20px; }
   }
 </style>
 </head>
@@ -450,7 +493,6 @@ function hideRoundOverlay(){
    - Plays applause if totalScore > 40.
    - Shows final score BELOW the container and turns Restart button red. */
 function showFinalOverlay(){
-  // Choose celebratory image (updated URL with exclamation mark)
   let src = '';
   if (totalScore > 40){
     src = 'https://schredder222.github.io/Assets/OutOfThisWorld!.png';
@@ -461,26 +503,21 @@ function showFinalOverlay(){
   }
   finalImg.src = src;
 
-  // Retrigger same zoom animation used for round intros
   finalImg.style.animation = 'none'; void finalImg.offsetWidth;
   finalImg.style.animation = 'congratsZoom 8s ease-out forwards';
 
-  // Pause BGM under celebratory card; optionally play applause for > 40
   try { bgm.pause(); } catch{}
   if (totalScore > 40){
     try { applauseFinal.currentTime = 0; applauseFinal.play(); } catch{}
   }
 
-  // Show overlay image (non-click-to-dismiss; pointer-events disabled in CSS)
   finalOverlay.style.display = 'flex';
   finalOverlay.setAttribute('aria-hidden','false');
 
-  // Show final score directly below the container
   finalScoreBelow.textContent = `Final score: ${totalScore}/50`;
   finalScoreBelow.classList.add('show');
 
-  // Turn existing bottom-right Restart button from grey to red
-  restartBtn.classList.remove('ghost');
+  restartBtn.classList.remove('ghost'); // turn button red
 }
 
 /* ====== PRE-ROUND INTRO (image + audio) ====== */
@@ -491,14 +528,12 @@ function showPreRoundAndStart(idx){
   const media = ROUND_MEDIA[idx];
   preRoundImg.src = media.img;
 
-  /* retrigger the zoom animation each time */
   preRoundImg.style.animation = 'none'; void preRoundImg.offsetWidth;
   preRoundImg.style.animation = 'congratsZoom 8s ease-out forwards';
 
   preRoundOverlay.style.display = 'flex';
   preRoundOverlay.setAttribute('aria-hidden','false');
 
-  // Pause BGM during the intro card
   try { bgm.pause(); } catch{}
 
   roundIntro.src = media.audio;
@@ -513,19 +548,16 @@ function showPreRoundAndStart(idx){
     preRoundOverlay.setAttribute('aria-hidden','true');
     roundIntro.pause();
 
-    // Start the round
     startRound(idx);
     quizEl.classList.add('show');
 
-    // Start/resume background music ONLY AFTER the intro finishes/advance
-    bgm.volume = 0.10;   // ensure 10%
+    bgm.volume = 0.10;
     try { bgm.play(); } catch{}
 
     preRoundOverlay.removeEventListener('click', advance);
     roundIntro.removeEventListener('ended', advance);
   };
 
-  // Allow user to tap to proceed early, but default is "after audio finishes"
   preRoundOverlay.addEventListener('click', advance);
   roundIntro.addEventListener('ended', advance);
 
@@ -652,7 +684,6 @@ function renderQuestion(){
       const isCorrect = correctParts.map(s=>s.toLowerCase()).includes(opt.toLowerCase());
 
       if (isCorrect){
-        // Mark ALL correct options green
         children.forEach(c=>{
           if (correctParts.map(s=>s.toLowerCase()).includes(c.dataset.value.toLowerCase())){
             c.classList.add('correct');
@@ -662,7 +693,6 @@ function renderQuestion(){
         score++;
       } else {
         div.classList.add('wrong');
-        // Mark all correct options
         children.forEach(c=>{
           if (correctParts.map(s=>s.toLowerCase()).includes(c.dataset.value.toLowerCase())){
             c.classList.add('correct');
@@ -673,7 +703,6 @@ function renderQuestion(){
 
       updateScore();
 
-      // Auto-advance after 1.5s
       if (pendingAdvance){ clearTimeout(pendingAdvance); }
       pendingAdvance = setTimeout(()=>{
         pendingAdvance = null;
@@ -688,7 +717,7 @@ function renderQuestion(){
           updateQIndicator();
           renderQuestion();
         }
-      }, NEXT_DELAY_MS);
+      }, 1500);
     };
 
     div.addEventListener('click', choose, {passive:true});
@@ -702,16 +731,11 @@ function renderQuestion(){
 function goToStart(){
   started = false;
   hideRoundOverlay();
-  // Hide any final image & score
   finalOverlay.style.display = 'none';
   finalOverlay.setAttribute('aria-hidden','true');
   finalScoreBelow.classList.remove('show');
-  // Reset restart button to grey
   restartBtn.classList.add('ghost');
-
-  // Make board transparent again for the start screen
   board.classList.add('transparent');
-
   preRoundOverlay.style.display='none';
   preRoundOverlay.setAttribute('aria-hidden','true');
   startOverlay.style.display='flex';
@@ -722,43 +746,37 @@ function goToStart(){
   try { bgm.pause(); } catch{}
 }
 
-/* Begin Quiz button: play click sfx, then proceed. */
+/* Begin Quiz */
 beginBtn.addEventListener('click', ()=>{
   try { uiClick.currentTime = 0; uiClick.play(); } catch{}
   if (started) return;
   started = true;
 
-  // Restore board background when quiz begins
   board.classList.remove('transparent');
 
-  // Reveal UI (but BGM should NOT start yet)
   startOverlay.style.display='none';
   topbar.classList.add('show');
   quizEl.classList.add('show');
   controls.classList.add('show');
 
-  // Build session (5 rounds of 10), then show Round 1 intro (image+audio)
   buildAllRounds();
   totalScore = 0;
   finalScoreBelow.classList.remove('show');
-  restartBtn.classList.add('ghost'); // ensure grey at start
+  restartBtn.classList.add('ghost');
 
-  // Start AFTER round-1 intro finishes (handled inside showPreRoundAndStart)
   showPreRoundAndStart(0);
 });
 
 nextRoundBtn.addEventListener('click', ()=>{
   hideRoundOverlay();
   if (roundIdx < ROUNDS - 1){
-    // Show next round's intro; music resumes ONLY after intro finishes
     showPreRoundAndStart(roundIdx + 1);
   } else {
-    // Last round: Close → final celebratory overlay + score below + red restart button
     showFinalOverlay();
   }
 });
 
-/* Bottom-right Restart — back to Begin screen, with click sfx */
+/* Bottom-right Restart — back to Begin screen */
 restartBtn.addEventListener('click', ()=>{
   try { uiClick.currentTime = 0; uiClick.play(); } catch{}
   if (pendingAdvance){ clearTimeout(pendingAdvance); pendingAdvance = null; }
@@ -773,7 +791,7 @@ bgm.addEventListener('playing', ()=>{
   if (!hasAudioPlayed){ hasAudioPlayed = true; muteBtn.style.visibility='visible'; syncMuteUI(); }
 });
 
-/* One-time audio unlock — no auto-start until Begin Quiz */
+/* One-time audio unlock */
 const opts = {once:true, passive:true};
 function unlockAudioOnce(){
   ['pointerdown','pointerup','touchend','click','keydown'].forEach(type=>{
@@ -786,7 +804,6 @@ document.addEventListener('keydown', unlockAudioOnce, {once:true});
 /* INIT — prebuild hidden content to lock size */
 (function init(){
   buildAllRounds();
-  // Prepare first question layout (hidden)
   quiz = allRounds[0].slice();
   qi = 0; score = 0; totalScore = 0; hasAnswered = false; endOfRound=false;
   roundIdx = 0; setRoundTag();
