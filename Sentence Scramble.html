@@ -85,7 +85,7 @@
     margin:4px 0 6px;
   }
 
-  /* Stage: centred large tiles */
+  /* Stage: centred tiles */
   .stage{
     display:flex;
     flex-wrap:wrap;                 /* desktop default */
@@ -101,7 +101,7 @@
     background:#fff;
     border:1px solid #BDBDBD;
     border-radius:14px;
-    padding:14px 16px;
+    padding:14px 16px;               /* desktop padding */
     cursor:grab;
     user-select:none;
     font-weight:bold;
@@ -179,11 +179,19 @@
     100% { transform: scale(1.0); opacity:1; }
   }
 
+  /* ===== Mobile tweaks: single line + tighter boxes ===== */
   @media (max-width:520px){
     .stage{
       flex-wrap:nowrap;            /* force single line on mobile */
+      gap:6px;                     /* tighter gaps by default */
       min-height:80px;
       overflow:hidden;             /* hide any tiny overflow before fitting runs */
+      justify-content:flex-start;  /* pack from the left so measuring feels natural */
+    }
+    .word{
+      padding:10px 12px;           /* smaller mobile padding; JS may shrink more */
+      font-size:18px;              /* base; JS fitting may shrink further */
+      border-radius:12px;
     }
     .muteBtn{ width:36px; height:36px; padding:6px; }
     .muteBtn img{ width:22px; height:22px; }
@@ -313,28 +321,52 @@ function fmtTime(totalSec){
   return `${m}:${s}`;
 }
 
-/* Fit all words on one line for mobile by reducing font-size if needed */
+/* Fit all words on one line for mobile by reducing gap, padding, then font-size */
 function fitMobileToOneLine(){
-  if (window.innerWidth > 520) return; // desktop/tablet: ignore
+  if (window.innerWidth > 520) { // reset any inline tweaks on desktop/tablet
+    stage.style.gap='';
+    [...stage.querySelectorAll('.word')].forEach(w=>{
+      w.style.fontSize=''; w.style.padding='';
+    });
+    return;
+  }
   const words = [...stage.querySelectorAll('.word')];
   if (!words.length) return;
 
-  // Reset any inline size first
-  words.forEach(w => w.style.fontSize = '');
+  // Reset to mobile base before measuring
+  stage.style.gap = '6px';
+  words.forEach(w=>{ w.style.padding='10px 12px'; w.style.fontSize='18px'; });
 
-  const gapPx = parseFloat(getComputedStyle(stage).columnGap) || 12;
   const avail = stage.getBoundingClientRect().width;
+  const minGap = 2;
+  const minPadX = 6;
+  const minFont = 12;
 
-  // Start from 22px and shrink down to 12px until it fits
-  let size = 22;
-  const min = 12;
-  while (size >= min){
-    words.forEach(w => w.style.fontSize = size + 'px');
-    // Force layout and measure
-    let total = words.reduce((sum, w) => sum + w.getBoundingClientRect().width, 0);
-    total += gapPx * (words.length - 1);
-    if (total <= avail) break;
-    size -= 1;
+  let gap = 6, padX = 12, padY = 10, font = 18;
+
+  const totalWidth = () => {
+    // Ensure layout is up to date
+    let sum = 0;
+    words.forEach(w => { sum += w.getBoundingClientRect().width; });
+    // column gap * (n-1)
+    return sum + gap * Math.max(0, words.length - 1);
+  };
+
+  // Try shrinking: gaps -> padding -> font
+  let guard = 0;
+  while (totalWidth() > avail && guard++ < 500){
+    if (gap > minGap){ gap -= 1; stage.style.gap = gap + 'px'; continue; }
+    if (padX > minPadX){
+      padX -= 1;
+      words.forEach(w => w.style.padding = `${padY}px ${padX}px`);
+      continue;
+    }
+    if (font > minFont){
+      font -= 1;
+      words.forEach(w => w.style.fontSize = font + 'px');
+      continue;
+    }
+    break; // can't shrink further
   }
 }
 
@@ -368,8 +400,7 @@ function revealMuteButton(){
 muteBtn.addEventListener('click', ()=>{ bgm.muted = !bgm.muted; syncMuteIcon(); });
 bgm.addEventListener('playing', revealMuteButton);
 
-/* On first user gesture (drag start), try to start audio immediately
-   without awaiting the promise to avoid breaking the gesture chain */
+/* On first user gesture (drag start), try to start audio immediately */
 function startActivityIfNeeded(){
   if(hasStartedActivity) return;
   hasStartedActivity = true;
@@ -381,12 +412,15 @@ function startActivityIfNeeded(){
   startTimer();
 }
 
-/* As a safety net on mobile, if audio didn't start on pointerdown,
-   try again on the first pointerup/click */
+/* Safety net on mobile: if audio didn’t start on pointerdown, try again on pointerup/click */
 let oneTimeUnlock = true;
 function tryUnlockOnce(){
   if (!hasStartedActivity) return;
-  if (!bgm.paused || bgm.currentTime > 0) { window.removeEventListener('pointerup', tryUnlockOnce, {passive:true}); window.removeEventListener('click', tryUnlockOnce, {passive:true}); oneTimeUnlock=false; return; }
+  if (!bgm.paused || bgm.currentTime > 0) {
+    window.removeEventListener('pointerup', tryUnlockOnce, {passive:true});
+    window.removeEventListener('click', tryUnlockOnce, {passive:true});
+    oneTimeUnlock=false; return;
+  }
   try {
     const p = bgm.play();
     if (p && typeof p.then === 'function'){ p.catch(()=>{}); }
@@ -414,7 +448,7 @@ function renderCurrent(){
     stage.appendChild(w);
   });
 
-  // Ensure single-line fit on mobile
+  // Ensure single-line fit on mobile (reduce gaps/padding/font in that order)
   fitMobileToOneLine();
 }
 
