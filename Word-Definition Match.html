@@ -241,7 +241,7 @@
       </div>
     </div>
 
-    <!-- Congrats overlay now lives INSIDE the board -->
+    <!-- Congrats overlay INSIDE the board -->
     <div id="congratsOverlay" aria-hidden="true" style="display:none">
       <img src="https://schredder222.github.io/Assets/Great%20Job.png" alt="Great job!">
     </div>
@@ -307,6 +307,14 @@ let timerStartMs = 0;
 let timerInterval = null;
 let hasAudioPlayed = false;
 let timerHiddenForAnswers = false;
+
+/* Congrats state */
+const congratsOverlay = document.getElementById('congratsOverlay');
+const congratsImg = congratsOverlay.querySelector('img');
+const bigCongratsAudio = new Audio("https://schredder222.github.io/Assets/Applause.mp3");
+bigCongratsAudio.preload = "auto";
+let isCongratsShowing = false;
+let congratsHideId = null;
 
 function fmtTime(ms){
   const total = Math.floor(ms/1000);
@@ -383,6 +391,60 @@ function showTimerIfHidden(){
     timerEl.style.visibility = 'visible';
     timerHiddenForAnswers = false;
   }
+}
+
+/* Disable/enable buttons during congrats (Reset stays enabled) */
+function setButtonsDuringCongrats(disabled){
+  // content buttons
+  shuffleBtn.disabled = disabled;
+  showBtn.disabled = disabled;
+  checkBtn.disabled = disabled;
+  // topbar mute button
+  muteBtn.disabled = disabled;
+  // keep Reset available
+  resetBtn.disabled = false;
+}
+
+/* Show/hide celebratory overlay */
+function showCongrats(){
+  if (isCongratsShowing) return;
+  isCongratsShowing = true;
+
+  // lock UI (except Reset)
+  setButtonsDuringCongrats(true);
+
+  // animate image
+  congratsImg.style.animation = 'none'; void congratsImg.offsetWidth;
+  congratsImg.style.animation = 'congratsZoom 8s ease-out forwards';
+
+  // show overlay
+  congratsOverlay.style.display = 'flex';
+  congratsOverlay.setAttribute('aria-hidden','false');
+
+  // play sfx
+  try { bigCongratsAudio.currentTime = 0; bigCongratsAudio.play(); } catch {}
+
+  // auto-hide after 9s
+  congratsHideId = setTimeout(hideCongrats, 9000);
+}
+
+function hideCongrats(){
+  if (!isCongratsShowing) return;
+
+  if (congratsHideId){ clearTimeout(congratsHideId); congratsHideId = null; }
+
+  // stop sfx
+  try { bigCongratsAudio.pause(); bigCongratsAudio.currentTime = 0; } catch {}
+
+  // hide overlay
+  congratsOverlay.style.display = 'none';
+  congratsOverlay.setAttribute('aria-hidden','true');
+
+  isCongratsShowing = false;
+
+  // unlock UI (restore button states; Check re-computed below)
+  setButtonsDuringCongrats(false);
+  updateCheckState();
 }
 
 /* Utils */
@@ -857,25 +919,12 @@ function attachEvents(){
 }
 
 function updateCheckState(){
-  checkBtn.disabled = connections.size !== PAIRS.length;
-}
-
-/* Congrats */
-const bigCongratsAudio = new Audio("https://cdn.pixabay.com/download/audio/2024/08/31/audio_aa510c96aa.mp3");
-bigCongratsAudio.preload = "auto";
-function showCongrats(){
-  const ov  = document.getElementById('congratsOverlay');
-  if(!ov) return;
-  const img = ov.querySelector('img');
-  img.style.animation = 'none'; void img.offsetWidth;
-  img.style.animation = 'congratsZoom 8s ease-out forwards';
-  ov.style.display = 'flex';
-  try { bigCongratsAudio.currentTime = 0; bigCongratsAudio.play(); } catch {}
-  setTimeout(()=>{ ov.style.display = 'none'; }, 9000);
+  checkBtn.disabled = connections.size !== PAIRS.length || isCongratsShowing;
 }
 
 /* Buttons */
 checkBtn.addEventListener('click', ()=>{
+  if (isCongratsShowing) return; // safety
   showTimerIfHidden();
   startTimerAndMusic();
   let countCorrect = 0;
@@ -906,6 +955,9 @@ checkBtn.addEventListener('click', ()=>{
 });
 
 resetBtn.addEventListener('click', ()=>{
+  // If celebratory message is showing, close it immediately
+  if (isCongratsShowing) hideCongrats();
+
   clickSound.currentTime = 0; clickSound.play();
 
   if (timerHiddenForAnswers || timerFrozen) {
@@ -925,6 +977,7 @@ resetBtn.addEventListener('click', ()=>{
 });
 
 shuffleBtn.addEventListener('click', ()=>{
+  if (isCongratsShowing) return; // should be disabled anyway
   showTimerIfHidden();
   startTimerAndMusic();
 
@@ -940,6 +993,7 @@ shuffleBtn.addEventListener('click', ()=>{
 });
 
 showBtn.addEventListener('click', ()=>{
+  if (isCongratsShowing) return; // should be disabled anyway
   showTimerIfHidden();
   startTimerAndMusic();
 
@@ -981,6 +1035,7 @@ bgm.addEventListener('playing', ()=>{
 
 /* Mute toggle */
 muteBtn.addEventListener('click', ()=>{
+  if (isCongratsShowing) return; // disabled anyway
   const isMuted = !bgm.muted;
   bgm.muted = isMuted;
   syncMuteUI();
