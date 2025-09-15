@@ -85,10 +85,10 @@
     margin:4px 0 6px;
   }
 
-  /* Stage: no background; centred large tiles */
+  /* Stage: centred large tiles */
   .stage{
     display:flex;
-    flex-wrap:wrap;
+    flex-wrap:wrap;                 /* desktop default */
     gap:10px 12px;
     justify-content:center;
     align-items:center;
@@ -108,7 +108,7 @@
     line-height:1.15;
     box-shadow:0 2px 6px rgba(0,0,0,.06);
     transition:transform .12s ease, box-shadow .12s ease, background-color .15s ease, border-color .15s ease, color .15s ease;
-    font-size:clamp(18px,3.6vw,28px);
+    font-size:clamp(18px,3.6vw,28px);  /* desktop & default */
     touch-action:none; /* smoother touch drag */
   }
   .word:active{ cursor:grabbing; transform:scale(.98) }
@@ -169,7 +169,7 @@
   }
   #congratsOverlay[aria-hidden="false"]{ display:flex; }
   #congratsOverlay img{
-    width:clamp(160px, 50%, 400px); /* half-size at full width */
+    width:clamp(160px, 50%, 400px);
     height:auto; animation:none; will-change:transform, opacity;
     border:none; outline:none; box-shadow:none;
   }
@@ -180,7 +180,11 @@
   }
 
   @media (max-width:520px){
-    .stage{ min-height:100px }
+    .stage{
+      flex-wrap:nowrap;            /* force single line on mobile */
+      min-height:80px;
+      overflow:hidden;             /* hide any tiny overflow before fitting runs */
+    }
     .muteBtn{ width:36px; height:36px; padding:6px; }
     .muteBtn img{ width:22px; height:22px; }
     .timer{ padding:5px 10px; }
@@ -309,6 +313,31 @@ function fmtTime(totalSec){
   return `${m}:${s}`;
 }
 
+/* Fit all words on one line for mobile by reducing font-size if needed */
+function fitMobileToOneLine(){
+  if (window.innerWidth > 520) return; // desktop/tablet: ignore
+  const words = [...stage.querySelectorAll('.word')];
+  if (!words.length) return;
+
+  // Reset any inline size first
+  words.forEach(w => w.style.fontSize = '');
+
+  const gapPx = parseFloat(getComputedStyle(stage).columnGap) || 12;
+  const avail = stage.getBoundingClientRect().width;
+
+  // Start from 22px and shrink down to 12px until it fits
+  let size = 22;
+  const min = 12;
+  while (size >= min){
+    words.forEach(w => w.style.fontSize = size + 'px');
+    // Force layout and measure
+    let total = words.reduce((sum, w) => sum + w.getBoundingClientRect().width, 0);
+    total += gapPx * (words.length - 1);
+    if (total <= avail) break;
+    size -= 1;
+  }
+}
+
 /* --------------------------
    TIMER
 --------------------------- */
@@ -339,11 +368,32 @@ function revealMuteButton(){
 muteBtn.addEventListener('click', ()=>{ bgm.muted = !bgm.muted; syncMuteIcon(); });
 bgm.addEventListener('playing', revealMuteButton);
 
-async function startActivityIfNeeded(){
+/* On first user gesture (drag start), try to start audio immediately
+   without awaiting the promise to avoid breaking the gesture chain */
+function startActivityIfNeeded(){
   if(hasStartedActivity) return;
   hasStartedActivity = true;
-  try{ bgm.currentTime = 0; await bgm.play(); }catch(e){}
+  try{
+    bgm.currentTime = 0;
+    const p = bgm.play();
+    if (p && typeof p.then === 'function'){ p.catch(()=>{}); }
+  }catch(e){}
   startTimer();
+}
+
+/* As a safety net on mobile, if audio didn't start on pointerdown,
+   try again on the first pointerup/click */
+let oneTimeUnlock = true;
+function tryUnlockOnce(){
+  if (!hasStartedActivity) return;
+  if (!bgm.paused || bgm.currentTime > 0) { window.removeEventListener('pointerup', tryUnlockOnce, {passive:true}); window.removeEventListener('click', tryUnlockOnce, {passive:true}); oneTimeUnlock=false; return; }
+  try {
+    const p = bgm.play();
+    if (p && typeof p.then === 'function'){ p.catch(()=>{}); }
+  } catch {}
+  window.removeEventListener('pointerup', tryUnlockOnce, {passive:true});
+  window.removeEventListener('click', tryUnlockOnce, {passive:true});
+  oneTimeUnlock=false;
 }
 
 /* --------------------------
@@ -360,9 +410,12 @@ function renderCurrent(){
     w.className = 'word';
     w.textContent = token;
     /* Enable native HTML5 drag on desktop only */
-    w.draggable = !IS_COARSE;
+    w.draggable = !(IS_COARSE);
     stage.appendChild(w);
   });
+
+  // Ensure single-line fit on mobile
+  fitMobileToOneLine();
 }
 
 function wordsOf(){ return [...stage.querySelectorAll('.word')]; }
@@ -423,10 +476,14 @@ function bindDesktopDnD(){
 
   let dragWord=null;
 
-  document.addEventListener('dragstart', async e=>{
+  document.addEventListener('dragstart', e=>{
     if(locked) return e.preventDefault();
     if(e.target.classList.contains('word')){
-      await startActivityIfNeeded();
+      startActivityIfNeeded();                  // no await to keep gesture chain
+      if (oneTimeUnlock){
+        window.addEventListener('pointerup', tryUnlockOnce, {once:true, passive:true});
+        window.addEventListener('click', tryUnlockOnce, {once:true, passive:true});
+      }
       dragWord = e.target;
       dragWord.classList.add('dragging');
     }
@@ -499,7 +556,6 @@ function attachTouchDnDIfNeeded(){
   function endTouchDrag(e){
     if(!dragging) return;
     const {tile, ghost, placeholder} = dragging;
-    // place tile where placeholder is
     const i = [...stage.children].indexOf(placeholder);
     if(i >= stage.children.length) stage.appendChild(tile);
     else stage.insertBefore(tile, stage.children[i]);
@@ -512,11 +568,18 @@ function attachTouchDnDIfNeeded(){
     if(isCorrect()) markSuccessForTwoSecondsThenNext();
   }
 
-  stage.addEventListener('pointerdown', async (e)=>{
+  stage.addEventListener('pointerdown', (e)=>{
     const t = e.target;
     if(!t.classList.contains('word')) return;
     if(locked) return;
-    await startActivityIfNeeded();
+
+    // Start the activity (audio + timer) on first user gesture
+    startActivityIfNeeded();                     // no await
+    if (oneTimeUnlock){
+      window.addEventListener('pointerup', tryUnlockOnce, {once:true, passive:true});
+      window.addEventListener('click', tryUnlockOnce, {once:true, passive:true});
+    }
+
     e.preventDefault();
 
     const rect = t.getBoundingClientRect();
@@ -575,13 +638,13 @@ function shuffleCurrent(){
   stage.innerHTML = '';
   shuffledNodes.forEach(n=>{
     n.classList.remove('success','dragging');
-    n.draggable = !IS_COARSE;
+    n.draggable = !(IS_COARSE);
     stage.appendChild(n);
   });
-  // touch handler remains bound at container level
+  fitMobileToOneLine(); // keep single-line fit after shuffle
 }
 
-async function resetActivity(){
+function resetActivity(){
   // Close celebration immediately and stop applause if showing
   if(celebrating) endCelebration();
 
@@ -609,7 +672,6 @@ async function resetActivity(){
   setControlsDuringCelebration(false);
 
   renderCurrent();           // shows anagram 1 (fresh random order)
-  // handlers were already bound (guarded), no need to rebind
 }
 
 shuffleBtn.addEventListener('click', shuffleCurrent);
@@ -622,6 +684,7 @@ renderCurrent();
 attachTouchDnDIfNeeded();
 bindDesktopDnD();
 timerEl.textContent = '00:00';
+window.addEventListener('resize', fitMobileToOneLine, {passive:true});
 </script>
 </body>
 </html>
