@@ -28,7 +28,7 @@
 
   h1{
     color:#111;
-    margin:0 0 12px 0;             /* spaced title */
+    margin:0 0 12px 0;
     font-size:clamp(20px,3.2vw,28px);
     letter-spacing:.2px;
   }
@@ -42,12 +42,12 @@
 
   /* Landscape tip: centred IN THE FLOW (one line) */
   .landscape-tip{
-    display:none;                              /* JS toggles to flex when needed */
+    display:none; /* JS toggles to flex when needed */
     align-items:center;
-    justify-content:center;                    /* centre the content on the line */
+    justify-content:center;
     gap:10px;
     width:min(1000px,96vw);
-    margin:8px auto 10px;                      /* centre the bar itself */
+    margin:8px auto 10px;
     background:#fff;
     border:1px solid #dcd6be;
     color:#222;
@@ -65,7 +65,7 @@
     width:min(1000px,96vw);
     display:flex; align-items:center; justify-content:space-between;
     margin:8px auto 10px; gap:12px; flex-wrap:nowrap;
-    min-height:40px; /* prevents drop when audio/mute appears */
+    min-height:40px;
   }
   .timer{
     background:#111; color:#fff; padding:6px 12px; border-radius:999px;
@@ -76,7 +76,7 @@
     display:inline-flex; align-items:center; justify-content:center;
     background:transparent; border:none; padding:6px;
     width:40px; height:40px; border-radius:999px; cursor:pointer; line-height:0; flex:0 0 auto;
-    visibility:hidden; opacity:0; pointer-events:none;   /* reveals without layout shift */
+    visibility:hidden; opacity:0; pointer-events:none;
   }
   .muteBtn--ready{ visibility:visible; opacity:1; pointer-events:auto; }
   .muteBtn:focus-visible{ outline:2px solid #000; outline-offset:2px; }
@@ -84,20 +84,16 @@
 
   .activity-wrap{ position:relative; width:min(1000px,96vw); margin:0 auto; }
 
-  /* Counter above the anagram */
   .counter{
     text-align:center; font-weight:700;
-    font-size:clamp(18px,3.8vw,24px); /* slightly smaller per request */
+    font-size:clamp(18px,3.8vw,24px);
     margin:4px 0 6px;
   }
 
-  /* Stage: isolate to reduce repaints; promote to GPU */
   .stage{
     display:flex; flex-wrap:wrap; gap:10px 12px; justify-content:center; align-items:center;
     min-height:120px; margin:6px auto 10px; padding:0;
-    contain:layout paint;
-    isolation:isolate;
-    transform:translateZ(0);
+    contain:layout paint; isolation:isolate; transform:translateZ(0);
   }
 
   .word{
@@ -110,9 +106,8 @@
   }
   .word:active{ cursor:grabbing; transform:scale(.985) translateZ(0) }
   .word.dragging{ opacity:.95; transition:none !important; will-change:transform; }
-  .word.placeholder{ visibility:hidden; } /* keep layout stable */
+  .word.placeholder{ visibility:hidden; }
 
-  /* Floating ghost for touch drag */
   .drag-ghost{
     position:fixed; left:0; top:0; z-index:9999;
     pointer-events:none; opacity:.97;
@@ -139,7 +134,6 @@
   .fade-in{ animation:fadeIn .35s ease forwards }
   .fade-out{ animation:fadeOut .25s ease forwards }
 
-  /* Congrats overlay */
   #congratsOverlay{
     position:absolute; inset:0; display:none; align-items:center; justify-content:center;
     z-index:99999; pointer-events:none;
@@ -163,7 +157,6 @@
   Unscramble the words to make a correct sentence in <b>Present Perfect</b>.
 </p>
 
-<!-- Portrait tip (centred line) -->
 <div class="landscape-tip" id="landscapeTip" role="note" aria-live="polite">
   <span class="icon" aria-hidden="true">📱↻</span>
   <span>Tip: for more space, turn your phone to landscape.</span>
@@ -181,12 +174,12 @@
   <div class="stage fade-in" id="stage"></div>
 
   <div class="controls">
-    <button class="btn ghost" id="shuffleBtn" type="button">Shuffle anagram</button>
-    <button class="btn" id="resetBtn" type="button">Reset activity</button>
+    <button class="btn ghost" id="shuffleBtn" type="button">shuffle</button>
+    <button class="btn" id="resetBtn" type="button">Restart quiz</button>
   </div>
 
   <div id="congratsOverlay" aria-hidden="true">
-    <img src="https://schredder222.github.io/Assets/Well%20Done.png" alt="Out of this world!">
+    <img src="https://schredder222.github.io/Assets/OutOfThisWorld!.png" alt="Out of this world!">
   </div>
 </div>
 
@@ -196,6 +189,7 @@
 <audio id="applause" src="https://schredder222.github.io/Assets/Applause.mp3" preload="auto"></audio>
 <audio id="sfxDrop" src="https://cdn.pixabay.com/download/audio/2025/03/20/audio_99fc376452.mp3?filename=ui-pop-sound-316482.mp3" preload="auto"></audio>
 <audio id="sfxShuffle" src="https://cdn.pixabay.com/download/audio/2025/07/30/audio_b3087a581e.mp3" preload="auto"></audio>
+<!-- Restart sound effect (as requested) -->
 <audio id="sfxReset" src="https://cdn.pixabay.com/download/audio/2024/04/21/audio_1b8d3bcd3d.mp3?filename=click-buttons-ui-menu-sounds-effects-button-7-203601.mp3" preload="auto"></audio>
 
 <script>
@@ -234,7 +228,7 @@ const shuffleBtn = document.getElementById('shuffleBtn');
 const resetBtn   = document.getElementById('resetBtn');
 
 /* volumes */
-bgm.volume = 0.25; sfxCorrect.volume = 1.0; applause.volume = 1.0;
+bgm.volume = 0.40; sfxCorrect.volume = 1.0; applause.volume = 1.0;
 sfxDrop.volume = 0.8; sfxShuffle.volume = 1.0; sfxReset.volume = 1.0;
 
 /* state */
@@ -253,7 +247,7 @@ let desktopBound = false, touchBound = false;
 const tipEl = document.getElementById('landscapeTip');
 function updateLandscapeTip(){
   const isPortraitMQ = window.matchMedia && window.matchMedia('(orientation: portrait)').matches;
-  const isPortraitFallback = window.innerHeight > window.innerWidth + 20; // tolerance
+  const isPortraitFallback = window.innerHeight > window.innerWidth + 20;
   const isPortrait = isPortraitMQ || isPortraitFallback;
   const smallWidth = window.innerWidth <= 700;
   tipEl.style.display = (IS_COARSE && isPortrait && smallWidth) ? 'flex' : 'none';
@@ -269,7 +263,7 @@ function resetOrder(){ order = shuffled([...items.keys()]); idx = 0; }
 function currentItem(){ return items[ order[idx] ]; }
 function shuffledFromAnswer(ans){
   const target = ans.join(' ');
-  for(let t=0;t<10;t++){ const c=shuffled(ans); if(c.join(' ')!==target) return c; }
+  for(let t=0;t<10;t++){ const c=shuffled(ans); if(c.join(' ') ) if(c.join(' ')!==target) return c; }
   return shuffled(ans);
 }
 function fmtTime(s){ const m=String(Math.floor(s/60)).padStart(2,'0'); const ss=String(s%60).padStart(2,'0'); return `${m}:${ss}`; }
@@ -402,7 +396,7 @@ function bindDesktopDnD(){
 }
 
 /* --------------------------
-   TOUCH / POINTER DnD (row-stable, rAF-throttled; flicker-free)
+   TOUCH / POINTER DnD (flicker-free)
 --------------------------- */
 function attachTouchDnDIfNeeded(){
   if(!IS_COARSE || touchBound) return; touchBound = true;
@@ -534,6 +528,8 @@ async function resetActivity(){
   if(celebrating) endCelebration();
   if(successTimeoutId){ clearTimeout(successTimeoutId); successTimeoutId=null; }
   locked=false;
+
+  /* play the requested restart sound */
   try{ sfxReset.currentTime=0; sfxReset.play(); }catch{}
 
   // Back to the very start with a NEW random order
