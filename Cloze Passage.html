@@ -4,7 +4,6 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Australia's Rival Cities</title>
-<link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#fdfbed; --ink:#111; --accent:#8A0000; --muted:#e9e4cf;
@@ -13,10 +12,16 @@
   }
 
   html,body{margin:0}
-  body{font-family:'Josefin Sans',sans-serif;background:var(--bg);color:var(--ink);padding:20px}
+  body{
+    font-family:"MS Reference Sans Serif","Segoe UI",Tahoma,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);padding:20px
+  }
   .wrap{max-width:900px;margin:0 auto}
   h1{font-weight:600;margin:.2rem 0 1rem}
-  .passage{font-size:1.05rem;background:#fff;border:1px solid var(--muted);border-radius:12px;padding:16px 18px}
+  .passage{
+    font-size:1.05rem;background:#fff;border:1px solid var(--muted);border-radius:12px;padding:16px 18px;
+    position:relative; /* anchor overlays to the passage */
+  }
   .passage p{line-height:1.6}
 
   /* Image above passage */
@@ -26,42 +31,25 @@
   .blank{
     --slot-w:10ch;
     width:var(--slot-w);
-    display:inline-block;
-    vertical-align:baseline;
-    position:relative;
-    white-space:nowrap;
-    margin:0 .18rem 0;
-    background:#fff;
-    border-radius:.25rem;
-    color:#777;
-    text-align:center;
-    padding:var(--pt) var(--px) var(--pb);
-    height:calc(1em + var(--pb));
-    line-height:1;
-    box-sizing:content-box;
-    top:var(--yshift);
-    touch-action:none; /* for custom touch drag */
+    display:inline-block;vertical-align:baseline;position:relative;white-space:nowrap;
+    margin:0 .18rem 0;background:#fff;border-radius:.25rem;color:#777;text-align:center;
+    padding:var(--pt) var(--px) var(--pb);height:calc(1em + var(--pb));line-height:1;box-sizing:content-box;
+    top:var(--yshift);touch-action:none;
   }
   .blank *{line-height:1}
-
   .blank .hit{position:absolute;left:-.25em;right:-.25em;top:-.60em;bottom:-.45em;background:transparent;pointer-events:none;}
-  .blank.empty::after{
-    content:"";position:absolute;left:.25em;right:.25em;height:2px;background:var(--accent);bottom:var(--pb);border-radius:2px;pointer-events:none;
-  }
+  .blank.empty::after{content:"";position:absolute;left:.25em;right:.25em;height:2px;background:var(--accent);bottom:var(--pb);border-radius:2px;pointer-events:none;}
   .blank.filled::after{content:none;}
 
-  /* Fixed-size wrapper that receives correctness outline */
   .fill-wrap{
     display:inline-flex;align-items:center;justify-content:center;
     width:100%;height:1em;position:relative;top:-0.10em;border-radius:.25rem;box-sizing:content-box;
   }
   .fill-wrap.correct{outline:2px solid var(--ok);}
   .fill-wrap.incorrect{outline:2px solid var(--bad);}
-
   .placing .blank{cursor:copy;}
 
-  .blank .tile,
-  .blank .answer-text{
+  .blank .tile,.blank .answer-text{
     display:inline-block;border:0!important;background:transparent!important;padding:0!important;box-shadow:none!important;color:#193873;
     line-height:1;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
   }
@@ -75,46 +63,64 @@
   .tile{
     display:inline-flex;align-items:center;justify-content:center;
     padding:.35rem .6rem;border:1px solid #ccc;border-radius:.55rem;background:#fff;
-    cursor:grab;white-space:nowrap;font-weight:600;text-transform:lowercase;color:#193873;
+    cursor:grab;white-space:nowrap;
+    font-family:inherit;font-size:1.05rem;font-weight:700;text-transform:lowercase;color:#193873;
     transition:transform .08s ease,border .08s ease,background .08s ease;
-    touch-action:none;-webkit-user-drag:none; /* off by default (touch) */
+    touch-action:none;-webkit-user-drag:none;
   }
-  /* On desktop, explicitly allow WebKit element dragging (Safari/Chrome) */
   html.desktop .tile{-webkit-user-drag:element;}
-
   .tile:active{cursor:grabbing;transform:scale(.98)}
   .tile.selected{border:2px solid #555;background:#f9f9f9}
 
   .controls{display:flex;gap:.5rem;margin:1rem 0 0}
   button{
     border:none;padding:10px 16px;border-radius:10px;font-weight:600;letter-spacing:.2px;cursor:pointer;
-    transition:background .2s,transform .15s;
+    transition:background .2s,transform .15s;font-family:inherit;
   }
   button.red{background:#8A0000;color:#fff;box-shadow:0 3px 10px rgba(138,0,0,.25)}
   button.red:hover{background:#a80000;transform:translateY(-1px)}
   button.red:active{background:#700000;transform:translateY(1px);box-shadow:0 2px 6px rgba(0,0,0,.2)}
   button.ghost{background:#eee;color:#111;box-shadow:none}
   button.ghost:hover{background:#ddd}
+  button:disabled{opacity:.5; cursor:not-allowed; pointer-events:none;}
 
-  /* Touch drag ghost */
   .drag-ghost{
     position:fixed;left:0;top:0;transform:translate(-9999px,-9999px);
     padding:.35rem .6rem;border:1px solid #ccc;border-radius:.55rem;background:#fff;
-    font:600 1rem 'Josefin Sans',sans-serif;white-space:nowrap;color:#193873;
-    pointer-events:none;opacity:.95;z-index:9999;
+    font:700 1.05rem "MS Reference Sans Serif","Segoe UI",Tahoma,Arial,sans-serif;
+    white-space:nowrap;color:#193873;pointer-events:none;opacity:.95;z-index:9999;
   }
 
-  /* === Congrats overlay (smaller, no border, slow zoom) === */
+  /* === Congrats overlay (centred over the passage) === */
   #congratsOverlay{
-    position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:99999;pointer-events:none;
+    position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+    z-index:10; pointer-events:none;
   }
-  #congratsOverlay img{
-    width:min(60vw,400px);height:auto;animation:none;will-change:transform,opacity;border:none;outline:none;box-shadow:none;
+  #congratsOverlay img{width:min(60%,400px);height:auto;animation:none;will-change:transform,opacity;border:none;outline:none;box-shadow:none;}
+  @keyframes congratsZoom{0%{transform:scale(0.70);opacity:0}8%{opacity:1}100%{transform:scale(1.0);opacity:1}}
+
+  /* === AFL term === */
+  .term{border-bottom:1px dashed var(--accent);cursor:help;}
+  .no-afl #aflTerm{pointer-events:none;cursor:default;}
+
+  /* === Info popup (over the passage) — consistent look === */
+  .passage-tip{
+    position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+    z-index:12; pointer-events:none;
   }
-  @keyframes congratsZoom{
-    0%{transform:scale(0.70);opacity:0}
-    8%{opacity:1}
-    100%{transform:scale(1.0);opacity:1}
+  .passage-tip .card{
+    background:#fff;border:1px solid var(--muted);border-radius:12px;
+    max-width:min(560px,90%);padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.18);
+    display:flex;gap:12px;align-items:flex-start;pointer-events:auto;
+  }
+  .passage-tip img{width:140px;height:auto;border-radius:8px;flex:0 0 auto;object-fit:cover;}
+  .passage-tip .text{font-size:.98rem;line-height:1.45}
+  .passage-tip .close{margin-left:auto;background:#eee;border:none;border-radius:8px;padding:6px 10px;cursor:pointer;font-family:inherit;}
+  .hidden{display:none !important;}
+
+  @media (max-width:520px){
+    .passage-tip .card{flex-direction:column;align-items:center;text-align:center}
+    .passage-tip img{width:70%}
   }
 </style>
 </head>
@@ -127,6 +133,22 @@
          alt="Sydney and Melbourne" class="city-image">
 
     <div class="passage">
+      <!-- Congrats overlay -->
+      <div id="congratsOverlay" aria-hidden="true">
+        <img src="https://schredder222.github.io/Assets/Love%20Your%20Work!.png" alt="Love your work!">
+      </div>
+
+      <!-- AFL info popup -->
+      <div class="passage-tip" id="aflTip" aria-hidden="true" role="dialog" aria-label="What is AFL?">
+        <div class="card">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/d/d9/Kick_for_goal_02_170525.jpg" alt="AFL player kicking for goal">
+          <div class="text">
+            <strong>Australian Rules Football (AFL):</strong> an Australian code of football played on an oval-shaped field with 18 players on each team.
+          </div>
+          <button class="close hidden" type="button" aria-label="Close">Close</button>
+        </div>
+      </div>
+
       <p>
         Have you ever visited Sydney or Melbourne? These two cities are the biggest in Australia and are known for their very different styles. Sydney is famous for the Opera House, the Harbour Bridge, and its beautiful
         <span class="blank empty" data-answer="beaches"></span>.
@@ -134,7 +156,7 @@
         <span class="blank empty" data-answer="tourists"></span>
         visit to enjoy the harbour or
         <span class="blank empty" data-answer="relax"></span>
-        on Bondi Beach. Melbourne, on the other hand, is well known for its culture, cafés, and sport. People enjoy visiting art galleries, watching the Australian Open tennis, or going to an Aussie Rules (AFL) football match. The two cities have had a
+        on Bondi Beach. Melbourne, on the other hand, is well known for its culture, cafés, and sport. People enjoy visiting art galleries, watching the Australian Open tennis, or going to an <span class="term" id="aflTerm" tabindex="0" role="button" aria-controls="aflTip" aria-expanded="false">Aussie Rules (AFL) football</span> match. The two cities have had a
         <span class="blank empty" data-answer="rivalry"></span>
         since the 19th century when they both competed to be the
         <span class="blank empty" data-answer="capital"></span>
@@ -159,11 +181,6 @@
     </div>
   </div>
 
-  <!-- Congrats overlay -->
-  <div id="congratsOverlay" aria-hidden="true">
-    <img src="https://schredder222.github.io/Assets/Great%20Job.png" alt="Great job!">
-  </div>
-
 <script>
 (function(){
   const ANSWERS=["beaches","tourists","relax","rivalry","capital","rapidly","decades"];
@@ -174,33 +191,126 @@
   const resetBtn=document.getElementById('resetBtn');
   const scoreEl=document.getElementById('score');
 
-  const successAudio=new Audio("https://cdn.pixabay.com/download/audio/2022/03/24/audio_dcde83efa6.mp3?filename=ui_correct_button2-103167.mp3");
+  const successAudio=new Audio("https://schredder222.github.io/Assets/Applause.mp3");
   const errorAudio  =new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_b0669294aa.mp3?filename=training-program-incorrect1-88736.mp3");
   const dropAudio   =new Audio("https://cdn.pixabay.com/download/audio/2025/03/20/audio_99fc376452.mp3?filename=ui-pop-sound-316482.mp3");
   const clickAudio  =new Audio("https://cdn.pixabay.com/download/audio/2024/04/21/audio_1b8d3bcd3d.mp3?filename=click-buttons-ui-menu-sounds-effects-button-7-203601.mp3");
   [successAudio,errorAudio,dropAudio,clickAudio].forEach(a=>a.preload="auto");
   const play=a=>{try{a.currentTime=0;a.play()}catch{}};
 
-  /* Celebration */
   const bigCongratsAudio = new Audio("https://cdn.pixabay.com/download/audio/2024/08/31/audio_aa510c96aa.mp3");
   bigCongratsAudio.preload = "auto";
+
+  /* --- AFL popup controls --- */
+  const term = document.getElementById('aflTerm');
+  const tip  = document.getElementById('aflTip');
+  const closeBtn = tip.querySelector('.close');
+  let tipMode = null; // 'hover' | 'click' | null
+  let aflEnabled = true;
+
+  function setAflEnabled(on){
+    aflEnabled = !!on;
+    if(on){
+      document.body.classList.remove('no-afl');
+      term.setAttribute('aria-disabled','false');
+      term.tabIndex = 0;
+    }else{
+      hideTip(); // ensure closed while celebrating
+      document.body.classList.add('no-afl');
+      term.setAttribute('aria-disabled','true');
+      term.tabIndex = -1; // prevent keyboard focus
+    }
+  }
+
+  function showTip(mode){
+    if(!aflEnabled) return;  // blocked while celebrating
+    tipMode = mode || 'hover';
+    tip.style.display='flex';
+    term.setAttribute('aria-expanded','true');
+    // Hide Close in hover mode; show in click mode
+    if(tipMode === 'hover'){ closeBtn.classList.add('hidden'); }
+    else { closeBtn.classList.remove('hidden'); }
+  }
+  function hideTip(){
+    tip.style.display='none';
+    term.setAttribute('aria-expanded','false');
+    tipMode = null;
+  }
+
+  // Hover/focus open; auto-close only if opened via hover
+  term.addEventListener('mouseenter', ()=> showTip('hover'));
+  term.addEventListener('mouseleave', ()=> { if(tipMode==='hover') hideTip(); });
+  term.addEventListener('focus',    ()=> showTip('hover'));
+  term.addEventListener('blur',     ()=> { if(tipMode==='hover') hideTip(); });
+
+  // Click opens persistent popup (with Close)
+  term.addEventListener('click', (e)=>{
+    e.preventDefault();
+    showTip('click');
+  });
+
+  // Close button (only visible in click mode)
+  closeBtn.addEventListener('click', hideTip);
+
+  // Click outside the card closes only when in click mode
+  document.addEventListener('click',(e)=>{
+    const insideTerm = e.target.closest && e.target.closest('#aflTerm');
+    const insideCard = e.target.closest && e.target.closest('#aflTip .card');
+    if(!insideTerm && !insideCard && tip.style.display==='flex' && tipMode==='click'){
+      hideTip();
+    }
+  });
+
+  /* --- Celebration controls and button states --- */
+  let celebrating = false;
+  let congratsTimer = null;
+
+  function setControlsDuringCelebration(active){
+    // Disable all except Reset
+    checkBtn.disabled = active;
+    showBtn.disabled  = active;
+    resetBtn.disabled = false;
+
+    checkBtn.setAttribute('aria-disabled', String(active));
+    showBtn .setAttribute('aria-disabled', String(active));
+    resetBtn.setAttribute('aria-disabled', 'false');
+  }
+
+  function endCelebration(){
+    const ov  = document.getElementById('congratsOverlay');
+    if(congratsTimer){ clearTimeout(congratsTimer); congratsTimer = null; }
+    ov.style.display = 'none';
+    // Stop both celebration fanfare and applause immediately
+    try { bigCongratsAudio.pause(); bigCongratsAudio.currentTime = 0; } catch {}
+    try { successAudio.pause();     successAudio.currentTime     = 0; } catch {}
+    celebrating = false;
+    setAflEnabled(true);
+    setControlsDuringCelebration(false);
+  }
+
   function showCongrats(){
+    if(celebrating) return; // avoid double-start
     const ov  = document.getElementById('congratsOverlay');
     const img = ov.querySelector('img');
     img.style.animation = 'none';
     void img.offsetWidth;
     img.style.animation = 'congratsZoom 8s ease-out forwards';
     ov.style.display = 'flex';
+
+    celebrating = true;
+    setAflEnabled(false);
+    setControlsDuringCelebration(true);
+
     try { bigCongratsAudio.currentTime = 0; bigCongratsAudio.play(); } catch {}
-    setTimeout(()=>{ ov.style.display = 'none'; }, 9000);
+    congratsTimer = setTimeout(endCelebration, 9000);
   }
 
+  /* --- Core activity logic --- */
   const shuffle=a=>a.slice().sort(()=>Math.random()-.5);
   const findTile=word=>Array.from(document.querySelectorAll('.tile')).find(t=>t.dataset.value===word);
 
-  /* Detect coarse pointers (touch); tag desktop for WebKit dragging */
   const IS_COARSE = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || ('ontouchstart' in window);
-  if(!IS_COARSE){ document.documentElement.classList.add('desktop'); } // enables -webkit-user-drag: element
+  if(!IS_COARSE){ document.documentElement.classList.add('desktop'); }
 
   let selectedTile=null;
   function setPlacingMode(on){ document.body.classList.toggle('placing', !!on); }
@@ -213,21 +323,15 @@
     if(selectedTile){ selectedTile.classList.remove('selected'); selectedTile=null; setPlacingMode(false); }
   }
 
-  /* Create tiles */
   function makeTile(word){
     const t=document.createElement('div');
     t.className='tile';
     t.dataset.value=word; t.textContent=word;
-
-    // Always enable native desktop drag
     t.draggable = true;
-
     t.addEventListener('dragstart', e=>{
       if(e.dataTransfer){
         e.dataTransfer.setData('text/plain', word);
         e.dataTransfer.effectAllowed = 'move';
-
-        /* Provide a drag image so Chrome/Safari reliably initiate drag on DIVs */
         const img = t.cloneNode(true);
         img.style.position='absolute'; img.style.left='-9999px'; img.style.top='-9999px';
         document.body.appendChild(img);
@@ -236,11 +340,9 @@
       }
       selectTile(t);
     });
-
     return t;
   }
 
-  /* Hit layer for easier tapping/dropping */
   function ensureHit(blank){
     if(!blank.querySelector('.hit')){
       const hit=document.createElement('span'); hit.className='hit';
@@ -261,13 +363,8 @@
   function initBank(){
     bankTiles.innerHTML='';
     shuffle(ANSWERS).forEach(w=>bankTiles.appendChild(makeTile(w)));
-
-    /* Desktop/native DnD targets — always on */
     const bank=document.getElementById('bank');
-    bank.addEventListener('dragover',e=>{
-      e.preventDefault();
-      if(e.dataTransfer) e.dataTransfer.dropEffect='move';
-    });
+    bank.addEventListener('dragover',e=>{ e.preventDefault(); if(e.dataTransfer) e.dataTransfer.dropEffect='move'; });
     bank.addEventListener('drop',e=>{
       e.preventDefault();
       const w=e.dataTransfer && e.dataTransfer.getData('text/plain');
@@ -285,14 +382,12 @@
     const existingWrap=blank.querySelector('.fill-wrap');
     const existingTile=existingWrap?.querySelector('.tile');
     if(src===blank) return;
-
     if(existingTile){
       if(src){ makeFilled(src, existingTile); }
       else{ bankTiles.appendChild(existingTile); }
     }
     makeFilled(blank,tile);
     if(src && !existingTile) makeEmpty(src);
-
     play(dropAudio);
     selectTile(tile);
   }
@@ -300,19 +395,13 @@
   function initBlanks(){
     blanks.forEach(b=>{
       makeEmpty(b);
-
-      /* Desktop/native DnD targets — always on */
-      b.addEventListener('dragover',e=>{
-        e.preventDefault();
-        if(e.dataTransfer) e.dataTransfer.dropEffect='move';
-      });
+      b.addEventListener('dragover',e=>{ e.preventDefault(); if(e.dataTransfer) e.dataTransfer.dropEffect='move'; });
       b.addEventListener('drop',e=>{
         e.preventDefault();
         const w=e.dataTransfer && e.dataTransfer.getData('text/plain');
         const t=findTile(w);
         placeTile(t,b);
       });
-
       b.addEventListener('click',()=>{ if(selectedTile) placeTile(selectedTile,b); });
     });
   }
@@ -320,8 +409,7 @@
   function checkAnswers(){
     let correct=0;
     blanks.forEach(b=>{
-      const wrap=b.querySelector('.fill-wrap');
-      if(!wrap) return;
+      const wrap=b.querySelector('.fill-wrap'); if(!wrap) return;
       wrap.classList.remove('correct','incorrect');
       const t=wrap.querySelector('.tile');
       if(t){
@@ -329,9 +417,10 @@
         else { wrap.classList.add('incorrect'); }
       }
     });
-    scoreEl.textContent=`Score: ${correct}/${blanks.length}`;
-    play(correct===blanks.length?successAudio:errorAudio);
-    if(correct===blanks.length) showCongrats();
+    const total=blanks.length;
+    scoreEl.textContent=`Score: ${correct}/${total}`;
+    play(correct===total?successAudio:errorAudio);
+    if(correct===total) showCongrats();
   }
 
   function showAnswers(){
@@ -346,6 +435,8 @@
   }
 
   function resetAll(){
+    // Close celebration immediately if showing (and stop audios)
+    if(celebrating){ endCelebration(); }
     blanks.forEach(b=>{
       const tile=b.querySelector('.fill-wrap .tile');
       if(tile) bankTiles.appendChild(tile);
@@ -357,11 +448,11 @@
     scoreEl.textContent='';
   }
 
-  /* ---------- TOUCH/POINTER: tap-vs-drag with auto-scroll ---------- */
-  let dragging=null;      // { tile, ghost, offsetX, offsetY, pointerId }
-  let pendingTouch=null;  // { tile, pointerId, startX, startY, moved }
+  /* ---------- TOUCH/POINTER helpers ---------- */
+  let dragging=null;
+  let pendingTouch=null;
   let suppressNextClick=false;
-  const TAP_DRAG_THRESHOLD=6; // px
+  const TAP_DRAG_THRESHOLD=6;
 
   let autoScrollDir=0; let autoScrollRAF=null;
   function startAutoScrollLoop(){
@@ -384,10 +475,8 @@
     const ghost=document.createElement('div');
     ghost.className='drag-ghost'; ghost.textContent=tile.textContent; document.body.appendChild(ghost);
     tile.style.visibility='hidden';
-
     const rect=tile.getBoundingClientRect();
     const offsetX=e.clientX-rect.left, offsetY=e.clientY-rect.top;
-
     dragging={tile,ghost,offsetX,offsetY,pointerId:e.pointerId};
     moveGhost(e.clientX,e.clientY); setAutoScrollFromY(e.clientY);
     try{ tile.setPointerCapture(e.pointerId); }catch{}
@@ -413,20 +502,17 @@
     const dropTarget=targetFromPoint(x,y);
     const blank=dropTarget && dropTarget.closest && dropTarget.closest('.blank');
     const bank=dropTarget && dropTarget.closest && dropTarget.closest('#bank');
-
     if(blank){ placeTile(tile,blank); }
     else if(bank){
       const src=tile.closest('.blank'); if(src) makeEmpty(src);
       bankTiles.appendChild(tile); play(dropAudio); selectTile(tile);
     }
-
     tile.style.visibility=''; ghost.remove(); dragging=null;
     document.body.style.touchAction=''; stopAutoScroll();
   }
 
-  // Touch/stylus tap-vs-drag (also works for placed tiles via .fill-wrap)
   window.addEventListener('pointerdown',(e)=>{
-    const isTouchLike=(e.pointerType && e.pointerType!=='mouse') || IS_COARSE;
+    const isTouchLike=(e.pointerType && e.pointerType!=='mouse') || ('ontouchstart' in window);
     if(!isTouchLike) return;
     let tile=e.target.closest && e.target.closest('.tile');
     if(!tile){
@@ -459,15 +545,12 @@
     pendingTouch=null; if(dragging){ document.body.style.touchAction=''; stopAutoScroll(); dragging=null; }
   });
 
-  /* ---- Selection helpers ---- */
-  // Mouse: select on pointerdown (capture) — doesn't interfere with native drag
   document.addEventListener('pointerdown',(e)=>{
     if(e.pointerType!=='mouse') return;
     const tile=e.target.closest && e.target.closest('.tile');
     if(tile) selectTile(tile);
   }, true);
 
-  // Click fallback (ignore synthetic clicks immediately after a touch)
   document.addEventListener('click',(e)=>{
     if(suppressNextClick){ suppressNextClick=false; return; }
     let tile=e.target.closest && e.target.closest('.tile');
