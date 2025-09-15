@@ -335,7 +335,7 @@
 
     // Do NOT select on drag; also deselect any existing selection when a drag starts
     t.addEventListener('dragstart', e=>{
-      deselect(); // dragging another word clears selection of any placed word
+      deselect(); // dragging a different word clears any selection
       if(e.dataTransfer){
         e.dataTransfer.setData('text/plain', word);
         e.dataTransfer.effectAllowed = 'move';
@@ -415,6 +415,7 @@
     blanks.forEach(b=>{
       makeEmpty(b);
 
+      /* Drag targets */
       b.addEventListener('dragover',e=>{
         e.preventDefault();
         if(e.dataTransfer) e.dataTransfer.dropEffect='move';
@@ -426,23 +427,35 @@
         placeTile(t,b,false); // never keep selection on drag placement
       });
 
-      // Click to place selected tile into this blank (supports swapping)
-      // – If clicking the same blank that holds the selected tile, toggle OFF selection.
+      /* CLICK behaviour inside blanks:
+         - Click a tile in this blank when none selected -> SELECT that tile.
+         - Click the same selected tile -> DESELECT it.
+         - Click a different blank while a tile is selected -> PLACE/SWAP selected into this blank (then deselect).
+         - Click empty space in blank while a tile is selected -> PLACE into this blank (then deselect). */
       b.addEventListener('click',(e)=>{
-        if(selectedTile){
-          const selBlank = selectedTile.closest('.blank');
-          if(selBlank === b){
-            // Toggle off when clicking a selected placed word's own blank
-            deselect();
-            suppressSelectOnce = true; // stop the doc click from reselecting
-            e.stopPropagation();
-            return;
+        const clickedTile = e.target.closest && e.target.closest('.tile');
+        const clickedInsideThisBlank = !!clickedTile && b.contains(clickedTile);
+
+        if(clickedInsideThisBlank){
+          if(!selectedTile){
+            selectTile(clickedTile);            // select placed word
+            e.stopPropagation(); return;
           }
-          // Otherwise place/swap into this blank, then remove border after placing
-          placeTile(selectedTile,b,false);
-          suppressSelectOnce = true;
-          e.stopPropagation();
+          if(selectedTile === clickedTile){
+            deselect();                         // toggle off
+            e.stopPropagation(); return;
+          }
+          // Different tile already selected elsewhere -> swap into this blank
+          placeTile(selectedTile,b,false);      // remove border after swap
+          e.stopPropagation(); return;
         }
+
+        // Clicked the blank area (not directly on its tile)
+        if(selectedTile){
+          placeTile(selectedTile,b,false);      // remove border after placing
+          e.stopPropagation(); return;
+        }
+        // else: nothing selected and clicked empty area of blank -> do nothing
       });
     });
   }
@@ -493,7 +506,6 @@
   let dragging=null;
   let pendingTouch=null;
   let suppressNextClick=false;
-  let suppressSelectOnce=false;
   const TAP_DRAG_THRESHOLD=6;
 
   let autoScrollDir=0; let autoScrollRAF=null;
@@ -554,22 +566,20 @@
     document.body.style.touchAction=''; stopAutoScroll();
   }
 
-  // Selection is handled on 'click' only
+  // Click selection for tiles not inside blanks (e.g., bank), plus outside click to clear.
   document.addEventListener('click',(e)=>{
     if(suppressNextClick){ suppressNextClick=false; return; }
-    if(suppressSelectOnce){ suppressSelectOnce=false; return; }
+
+    // If the click happened inside a blank, that blank's handler already dealt with it.
+    if(e.target.closest && e.target.closest('.blank')) return;
 
     let tile=e.target.closest && e.target.closest('.tile');
-    if(!tile){
-      const wrap=e.target.closest && e.target.closest('.fill-wrap');
-      if(wrap) tile=wrap.querySelector('.tile');
-    }
     if(tile){
       if(tile===selectedTile){ deselect(); return; } // toggle off
       selectTile(tile);
       return;
     }
-    if(!e.target.closest('.tile, .blank, .bank, .controls')) deselect();
+    if(!e.target.closest('.tile, .bank, .controls')) deselect();
   });
 
   // Touch tap-vs-drag setup
@@ -597,10 +607,21 @@
 
   window.addEventListener('pointerup',(e)=>{
     if(pendingTouch && e.pointerId===pendingTouch.pointerId){
-      if(!dragging){ // tap => toggle selection
-        if(selectedTile===pendingTouch.tile){ deselect(); }
-        else{ selectTile(pendingTouch.tile); }
-      }else{ endTouchDrag(e); }
+      if(!dragging){
+        // tap => delegate to normal click flow
+        const el = document.elementFromPoint(e.clientX, e.clientY);
+        if(el && el.closest('.blank')){ /* handled by blank click */ }
+        else{
+          const t = el && (el.closest('.tile') || el.closest('.fill-wrap')?.querySelector('.tile'));
+          if(t){
+            if(selectedTile===t){ deselect(); } else { selectTile(t); }
+          }else{
+            if(!el.closest('.controls') && !el.closest('.bank')) deselect();
+          }
+        }
+      }else{
+        endTouchDrag(e);
+      }
       pendingTouch=null; setTimeout(()=>{ suppressNextClick=false; },0);
     }
   },{passive:false});
