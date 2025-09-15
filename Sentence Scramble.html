@@ -27,35 +27,38 @@
   }
 
   h1{
-    color:#111;                     /* black heading */
+    color:#111;
     margin:0 0 12px 0;              /* space under title */
     font-size:clamp(20px,3.2vw,28px);
     letter-spacing:.2px;
   }
 
   .instructions{
-    margin:0 0 10px 0;              /* space under instructions */
+    margin:0 0 10px 0;
     font-size:clamp(14px,2.6vw,16px);
     text-align:center;
     max-width:900px;
   }
 
-  /* Portrait-only landscape tip (mobile) */
+  /* Portrait-only landscape tip (mobile) — centred */
   .landscape-tip{
     display:none;
     width:min(1000px,96vw);
-    margin:4px auto 8px;
+    margin:8px auto 8px;            /* auto -> centred in the screen */
     background:#fff;
     border:1px solid #dcd6be;
     color:#222;
     border-radius:10px;
-    padding:8px 12px;
+    padding:10px 14px;
     font-size:clamp(13px,2.6vw,15px);
     line-height:1.35;
+    display:flex;
+    justify-content:center;         /* centre contents */
     align-items:center;
-    gap:8px;
+    gap:10px;
+    text-align:center;
   }
-  .landscape-tip .icon{ font-size:1.1em }
+  .landscape-tip .icon{ font-size:1.15em }
 
   /* Top bar: timer + mute (kept on one line; no layout shift) */
   .topbar{
@@ -102,7 +105,7 @@
     margin:4px 0 6px;
   }
 
-  /* Stage: no background; centred large tiles */
+  /* Stage: centred large tiles; contain to reduce paint flicker */
   .stage{
     display:flex;
     flex-wrap:wrap;
@@ -112,6 +115,7 @@
     min-height:120px;
     margin:6px auto 10px;
     padding:0;
+    contain:layout paint;          /* isolates layout/paint to cut flicker */
   }
 
   .word{
@@ -121,15 +125,24 @@
     padding:14px 16px;
     cursor:grab;
     user-select:none;
+    -webkit-user-select:none;
+    -webkit-touch-callout:none;
+    -webkit-tap-highlight-color:transparent;
     font-weight:bold;
     line-height:1.15;
     box-shadow:0 2px 6px rgba(0,0,0,.06);
     transition:transform .12s ease, box-shadow .12s ease, background-color .15s ease, border-color .15s ease, color .15s ease;
     font-size:clamp(18px,3.6vw,28px);
     touch-action:none; /* smoother touch drag */
+    backface-visibility:hidden;
   }
   .word:active{ cursor:grabbing; transform:scale(.98) }
-  .word.dragging{ opacity:.6 }
+  .word.dragging{
+    opacity:.9;
+    transition:none !important;    /* avoid flicker while dragging */
+    will-change:transform;
+    transform:translateZ(0);       /* promote to its own layer */
+  }
   .word.placeholder{ visibility:hidden; } /* keeps layout space while dragging */
 
   /* Floating ghost for touch drag */
@@ -137,7 +150,9 @@
     position:fixed; left:0; top:0; z-index:9999;
     pointer-events:none; opacity:.95;
     box-shadow:0 6px 18px rgba(0,0,0,.18);
-    transform:translate(-9999px,-9999px);
+    transform:translate(-9999px,-9999px) translateZ(0);
+    will-change:transform;
+    backface-visibility:hidden;
   }
 
   /* Success state: solid green for 2 seconds */
@@ -186,7 +201,7 @@
   }
   #congratsOverlay[aria-hidden="false"]{ display:flex; }
   #congratsOverlay img{
-    width:clamp(160px, 50%, 400px); /* half-size at full width */
+    width:clamp(160px, 50%, 400px);
     height:auto; animation:none; will-change:transform, opacity;
     border:none; outline:none; box-shadow:none;
   }
@@ -212,7 +227,7 @@
   Unscramble the words to make a correct sentence in <b>Present Perfect</b>.
 </p>
 
-<!-- Mobile portrait tip -->
+<!-- Mobile portrait tip (centred in the screen) -->
 <div class="landscape-tip" id="landscapeTip" role="note" aria-live="polite">
   <span class="icon" aria-hidden="true">📱↻</span>
   <span>Tip: for more space, turn your phone to landscape.</span>
@@ -522,41 +537,66 @@ function bindDesktopDnD(){
 }
 
 /* --------------------------
-   TOUCH / POINTER DnD (mobile)
+   TOUCH / POINTER DnD (mobile) — flicker-reduced
 --------------------------- */
 function attachTouchDnDIfNeeded(){
   if(!IS_COARSE || touchBound) return;
   touchBound = true;
 
   let dragging=null;
+  let rafId=null;
+  let pendingMove=null;
+
+  function scheduleMove(x,y){
+    pendingMove = {x,y};
+    if(rafId) return;
+    rafId = requestAnimationFrame(()=>{
+      const {x,y} = pendingMove || {};
+      if(!dragging){ rafId=null; return; }
+      moveGhost(x,y);
+      insertPlaceholderAt(x,y);
+      rafId=null;
+      if(pendingMove && (pendingMove.x!==x || pendingMove.y!==y)){
+        scheduleMove(pendingMove.x, pendingMove.y);
+      }
+    });
+  }
 
   function moveGhost(x,y){
     if(!dragging) return;
-    dragging.ghost.style.transform = `translate(${Math.round(x-dragging.offX)}px, ${Math.round(y-dragging.offY)}px)`;
+    dragging.ghost.style.transform =
+      `translate(${Math.round(x-dragging.offX)}px, ${Math.round(y-dragging.offY)}px) translateZ(0)`;
   }
 
-  function nearestElementIndex(x,y){
-    const items = [...stage.children].filter(el=>el!==dragging?.placeholder);
-    if(items.length===0) return 0;
-    let bestIdx=items.length, bestDist=Infinity, bestEl=null;
-    items.forEach((el,i)=>{
+  // Hysteresis around the midpoint to avoid rapid before/after toggling
+  function nearestElementIndex(x,y,currentIndex){
+    const itemsEls = [...stage.children].filter(el=>el!==dragging?.placeholder);
+    if(itemsEls.length===0) return 0;
+    let bestIdx=itemsEls.length, bestDist=Infinity, bestEl=null;
+    itemsEls.forEach((el,i)=>{
       const r = el.getBoundingClientRect();
       const cx = r.left + r.width/2;
       const cy = r.top  + r.height/2;
       const d = (cx-x)*(cx-x) + (cy-y)*(cy-y);
       if(d < bestDist){ bestDist=d; bestEl=el; bestIdx=i; }
     });
-    if(!bestEl) return 0;
+    if(!bestEl) return currentIndex ?? 0;
+
     const r = bestEl.getBoundingClientRect();
-    const before = x < r.left + r.width/2;
+    const mid = r.left + r.width/2;
+    const hysteresis = Math.max(6, r.width*0.05);  // 6px or 5% of width
+    const before = x < (mid - hysteresis);
+    const after  = x > (mid + hysteresis);
+
+    if(!before && !after) return currentIndex ?? [...stage.children].indexOf(bestEl);
     const baseIndex = [...stage.children].indexOf(bestEl);
     return before ? baseIndex : baseIndex+1;
   }
 
   function insertPlaceholderAt(x,y){
     if(!dragging) return;
-    const targetIndex = nearestElementIndex(x,y);
     const currentIndex = [...stage.children].indexOf(dragging.placeholder);
+    const targetIndex = nearestElementIndex(x,y,currentIndex);
     if(targetIndex !== currentIndex){
       if(targetIndex >= stage.children.length) stage.appendChild(dragging.placeholder);
       else stage.insertBefore(dragging.placeholder, stage.children[targetIndex]);
@@ -566,7 +606,6 @@ function attachTouchDnDIfNeeded(){
   function endTouchDrag(e){
     if(!dragging) return;
     const {tile, ghost, placeholder} = dragging;
-    // place tile where placeholder is
     const i = [...stage.children].indexOf(placeholder);
     if(i >= stage.children.length) stage.appendChild(tile);
     else stage.insertBefore(tile, stage.children[i]);
@@ -591,7 +630,7 @@ function attachTouchDnDIfNeeded(){
 
     const rect = t.getBoundingClientRect();
     const ghost = t.cloneNode(true);
-    ghost.classList.add('drag-ghost');
+    ghost.classList.add('drag-ghost','dragging');
     ghost.style.width = rect.width + 'px';
     ghost.style.height = rect.height + 'px';
     document.body.appendChild(ghost);
@@ -602,6 +641,7 @@ function attachTouchDnDIfNeeded(){
     placeholder.style.height = rect.height + 'px';
     stage.insertBefore(placeholder, t);
     t.style.visibility = 'hidden';
+    t.classList.add('dragging');
 
     dragging = {
       tile: t,
@@ -610,20 +650,20 @@ function attachTouchDnDIfNeeded(){
       offX: e.clientX - rect.left,
       offY: e.clientY - rect.top
     };
-    moveGhost(e.clientX, e.clientY);
-    insertPlaceholderAt(e.clientX, e.clientY);
+    scheduleMove(e.clientX, e.clientY);
 
     document.body.style.touchAction='none';
 
     const onMove = (ev)=>{
       if(!dragging) return;
-      moveGhost(ev.clientX, ev.clientY);
-      insertPlaceholderAt(ev.clientX, ev.clientY);
+      ev.preventDefault();
+      scheduleMove(ev.clientX, ev.clientY);
     };
     const onUp = (ev)=>{
       window.removeEventListener('pointermove', onMove, {passive:false});
       window.removeEventListener('pointerup', onUp, {passive:false});
       window.removeEventListener('pointercancel', onUp, {passive:false});
+      if(dragging) dragging.tile.classList.remove('dragging');
       endTouchDrag(ev);
     };
 
@@ -678,7 +718,6 @@ async function resetActivity(){
   setControlsDuringCelebration(false);
 
   renderCurrent();           // shows anagram 1 (fresh random order)
-  // handlers already bound (guarded), no need to rebind
 }
 
 shuffleBtn.addEventListener('click', shuffleCurrent);
