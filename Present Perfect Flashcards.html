@@ -51,6 +51,10 @@
   /* Icon-style mute button */
   #muteBtn{width:38px;height:38px;margin-left:10px;border:1px solid var(--accent);background:transparent center/22px 22px no-repeat;border-radius:999px;font-weight:600;cursor:pointer;display:none}
   #muteBtn:hover{transform:scale(1.1)}
+
+  /* Speak button placed on the card back */
+  .speakBtn{position:absolute;top:8px;right:10px;width:34px;height:34px;border:1px solid var(--accent);border-radius:999px;background:#fff url('https://schredder222.github.io/Assets/Unmute.svg') center/18px 18px no-repeat;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.1)}
+  .speakBtn:hover{transform:scale(1.08)}
 </style>
 </head>
 <body>
@@ -140,7 +144,7 @@ const uiClick = new Audio("https://cdn.pixabay.com/download/audio/2024/04/21/aud
 uiClick.volume = 0.4;
 const bgMusic = new Audio("https://cdn.pixabay.com/download/audio/2025/06/13/audio_cd802a7e4b.mp3");
 bgMusic.loop = true;
-bgMusic.volume = 0.7;
+bgMusic.volume = 0.1;
 let musicStarted = false;
 
 const ICON_MUTE = "https://schredder222.github.io/Assets/Mute.svg";
@@ -148,6 +152,24 @@ const ICON_UNMUTE = "https://schredder222.github.io/Assets/Unmute.svg";
 
 function setMuteIcon(){
   muteBtn.style.backgroundImage = `url(${bgMusic.muted ? ICON_MUTE : ICON_UNMUTE})`;
+}
+
+// --- Pronunciation (Web Speech API) ---
+const OVERRIDE_PRONUNCIATION = {
+  'read': 'red' // past participle "read" -> pronounced /red/
+};
+function playPronunciation(v3){
+  if(!('speechSynthesis' in window)) return;
+  // Convert "got/gotten" -> "got or gotten"
+  const base = (v3 || '').toString();
+  const phrase = base.replace(/\//g, ' or ').trim();
+  const override = OVERRIDE_PRONUNCIATION[phrase.toLowerCase()] || phrase;
+  const u = new SpeechSynthesisUtterance(override);
+  // Default to Australian English to match your locale; browser may substitute if unavailable
+  u.lang = 'en-AU';
+  u.rate = 0.95; u.pitch = 1.0; u.volume = 1.0;
+  speechSynthesis.cancel(); // stop any ongoing speech
+  speechSynthesis.speak(u);
 }
 
 function createCard(v, i){
@@ -172,16 +194,18 @@ function createCard(v, i){
   const back = document.createElement('div');
   back.className = 'face back';
   back.innerHTML = `
+    <button class="speakBtn" aria-label="Play pronunciation" title="Play pronunciation"></button>
     <span class="index">#${String(i+1).padStart(2,'0')}</span>
     <div class="row"><span class="label">V2</span><span class="value">${v.v2}</span></div>
     <div class="row v3"><span class="label">V3</span><span class="value">${v.v3}</span></div>
-    <div class="hint">Click / tap to flip back</div>
+    <div class="hint">Tap speaker for pronunciation</div>
   `;
 
   inner.appendChild(front);
   inner.appendChild(back);
   card.appendChild(inner);
 
+  // Flip handlers
   function handleFlip(){
     if(card.classList.contains('flipped')){
       card.classList.remove('flipped');
@@ -189,24 +213,17 @@ function createCard(v, i){
       document.querySelectorAll('.card').forEach(c => c.classList.remove('flipped'));
       card.classList.add('flipped');
     }
-    flipSound.currentTime = 0;
-    flipSound.play();
-
-    if(!musicStarted){
-      bgMusic.play();
-      musicStarted = true;
-      muteBtn.style.display = 'inline-block';
-      setMuteIcon();
-    }
+    flipSound.currentTime = 0; flipSound.play();
+    if(!musicStarted){ bgMusic.play(); musicStarted = true; muteBtn.style.display = 'inline-block'; setMuteIcon(); }
   }
-
   card.addEventListener('click', handleFlip);
-  card.addEventListener('keydown', (e)=>{
-    if(e.key === 'Enter' || e.key === ' '){
-      e.preventDefault();
-      handleFlip();
-    }
-  });
+  card.addEventListener('keydown', (e)=>{ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); handleFlip(); } });
+
+  // Pronunciation button (stop event so it doesn't unflip)
+  const speakBtn = back.querySelector('.speakBtn');
+  speakBtn.addEventListener('click', (e)=>{ e.stopPropagation(); playPronunciation(v.v3); });
+  speakBtn.addEventListener('keydown', (e)=>{ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); e.stopPropagation(); playPronunciation(v.v3); }});
+
   return card;
 }
 
