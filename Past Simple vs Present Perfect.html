@@ -62,7 +62,7 @@
   }
   button{
     appearance:none; border:none; border-radius:999px; padding:14px 20px;
-    font-weight:800; cursor:pointer; background:#fff; color:var(--ink);
+    font-weight:800; cursor:pointer; background:#fff; color:#000;
     border:2px solid var(--accentBorder); font-size:clamp(15px,1.9vw,18px);
     transition:border-color .15s ease, color .15s ease, background-color .15s ease, box-shadow .15s ease;
   }
@@ -100,17 +100,28 @@
   .idkWrap{display:flex; justify-content:center; margin-top:8px}
   #idkBtn{display:none; min-width:180px; border-radius:999px; padding:10px 14px; font-weight:800; cursor:pointer}
 
-  .feedback{min-height:22px; text-align:center; font-weight:800; color:#000}
-  .ok{color:var(--ok)}
+  .feedback{
+    min-height:24px; text-align:center; font-weight:800; color:#000;
+    font-size:clamp(16px, 2.1vw, 18px);
+  }
+  .feedback.final{            /* larger, black final score */
+    color:#000;
+    font-size:clamp(18px, 2.4vw, 22px);
+    margin-top:6px;
+  }
 
   /* Celebration overlay — centered in the quiz container (the image area) */
   #congratsOverlay{
-    position:absolute; inset:0; display:none;
+    position:absolute; left:0; top:0; width:100%; height:100%;
     align-items:center; justify-content:center;
     z-index:999; background:rgba(0,0,0,.55);
+    display:none;                 /* hidden by default */
   }
+  #congratsOverlay.show{ display:flex; }  /* visible state */
   #congratsOverlay img{
+    display:block;
     width:clamp(200px,60%,460px); height:auto;
+    margin:0 auto;
     animation:none; will-change: transform, opacity;
   }
   @keyframes congratsZoom{
@@ -123,18 +134,15 @@
   @media (max-width: 560px){
     .stage{ aspect-ratio: 10/13; } /* taller image to fit pieces without overlap */
 
-    /* Make the instructions appear a bit lower and wider on phones
-       (per your request: below the page title, and expansive) */
     .instructionsOverlay{
-      top: 18px;                /* lower than before for breathing room under the h1 */
+      top: 18px;
       font-size: 14px;
       padding: 8px 12px;
-      max-width: 96%;           /* wider on mobile */
+      max-width: 96%;
       left: 50%;
       transform: translateX(-50%);
     }
 
-    /* Stack buttons; keep them slightly above center to free space below */
     .overBtns{
       top:56%;
       transform:translate(-50%,-50%);
@@ -148,8 +156,6 @@
       font-size:15px;
     }
 
-    /* Sentence positioning will be handled via JS to sit halfway between
-       the buttons’ bottom and the image bottom. Provide safe defaults. */
     .sentence{
       bottom:auto;              /* JS will set .style.top on mobile */
       padding:0 10px;
@@ -166,7 +172,6 @@
       width:min(14ch, 160px);
     }
 
-    /* Celebration stays perfectly centered on phones too */
     #congratsOverlay img{ width:70%; max-width:360px; }
   }
 
@@ -177,7 +182,6 @@
     .blank.small input{ width:min(12ch, 140px); }
   }
 
-  /* Short devices (e.g., landscape phones) */
   @media (max-height: 540px){
     .stage{ aspect-ratio: 16/10; }
     .overBtns{ top:52%; }
@@ -244,9 +248,7 @@ function setImageWithFallback(imgEl, sources){
 }
 const PD_FALLBACK = "https://upload.wikimedia.org/wikipedia/commons/a/a9/Example.jpg?width=1600";
 
-/* ---------- Item bank (20 total) ----------
-   (same content as your last version)
-*/
+/* ---------- Item bank (20 total) ---------- */
 const ITEMS_MASTER = [
   {srcs:[
       "https://upload.wikimedia.org/wikipedia/commons/1/15/Community_Bulletin_Board_Avalon_NJ.jpg?width=1600",
@@ -684,7 +686,7 @@ function next(){
   }else{
     const finalMsg = `Final score: ${score} / ${ITEMS.length}`;
     feedback.textContent = finalMsg;
-    feedback.className = "feedback ok";
+    feedback.className = "feedback final";   // black & slightly larger
     idkBtn.style.display = "none";
     showFinalCelebration(score, ITEMS.length);
   }
@@ -701,15 +703,25 @@ function showFinalCelebration(points, total){
     imgUrl = "https://schredder222.github.io/Assets/Fantastic.png";
     try{ applause.currentTime=0; applause.play().catch(()=>{});}catch(_){}
   }
-  const overlay = document.getElementById("congratsOverlay");
-  const img = document.getElementById("congratsImg");
-  img.src = imgUrl;
-  img.style.animation = "none"; void img.offsetWidth;
-  img.style.animation = "congratsZoom 6s ease-out forwards";
-  overlay.style.display = "flex";
-  overlay.setAttribute("aria-hidden","false");
-  setTimeout(()=>{ overlay.style.display="none"; overlay.setAttribute("aria-hidden","true"); try{ applause.pause(); }catch(_){ } }, 6000);
-  overlay.onclick = ()=>{ overlay.style.display="none"; overlay.setAttribute("aria-hidden","true"); try{ applause.pause(); }catch(_){ } };
+  congratsImg.src = imgUrl;
+  congratsImg.style.animation = "none"; void congratsImg.offsetWidth;
+  congratsImg.style.animation = "congratsZoom 6s ease-out forwards";
+
+  // Use class toggling to avoid inline display quirks
+  congratsOverlay.classList.add("show");
+  congratsOverlay.setAttribute("aria-hidden","false");
+
+  setTimeout(()=>{ 
+    congratsOverlay.classList.remove("show");
+    congratsOverlay.setAttribute("aria-hidden","true");
+    try{ applause.pause(); }catch(_){ } 
+  }, 6000);
+
+  congratsOverlay.onclick = ()=>{
+    congratsOverlay.classList.remove("show");
+    congratsOverlay.setAttribute("aria-hidden","true");
+    try{ applause.pause(); }catch(_){ }
+  };
 }
 
 /* --------- Mobile sentence positioning: halfway between buttons' bottom and image bottom --------- */
