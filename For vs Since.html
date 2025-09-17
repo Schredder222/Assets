@@ -8,6 +8,7 @@
   :root{
     --bg:#FDFBED; --ink:#222;
     --edge:#B5B5B5;
+    --edge-strong:#5f5f5f;  /* darker border when a placed word is selected */
     --ok:#1E8E3E; --bad:#B00020; --muted:#9aa1a8; --card:#fff;
 
     /* Fills */
@@ -55,12 +56,14 @@
     display:inline-flex; align-items:center; justify-content:center;
     min-width:56px; padding:5px 10px; border-radius:999px;
     border:2px solid var(--edge); background:#fff; font-weight:700; cursor:pointer;
-    transition:box-shadow .15s ease, background .15s ease; user-select:none;
+    transition:box-shadow .15s ease, background .15s ease, border-color .15s ease; user-select:none;
     touch-action: none; -webkit-tap-highlight-color: transparent;
   }
   .pill[data-value="for"]{ background:var(--for-fill); }
   .pill[data-value="since"]{ background:var(--since-fill); }
   .pill.selected{box-shadow:0 0 0 3px rgba(0,0,0,.12)}
+  /* 🔕 No inner ring when a placed word is selected; we’ll highlight the blank instead */
+  .blank .pill.selected{ box-shadow:none; }
 
   /* Sentences grid (compact) */
   .grid{display:grid; grid-template-columns:1fr; gap:8px}
@@ -85,6 +88,8 @@
   .blank.filled{border-style:solid;}
   .blank[data-filled="for"]{ background:var(--for-fill); }
   .blank[data-filled="since"]{ background:var(--since-fill); }
+  /* ✅ Darker border when the placed word in this blank is selected */
+  .blank.selected{ border-color: var(--edge-strong); }
   .blank.correct{border-color:var(--ok); background:#ecf6ef}
   .blank.incorrect{border-color:var(--bad); background:#faecef}
 
@@ -131,7 +136,7 @@
 
   /* —— Mute/unmute button (template) —— */
   .muteBtn{
-    visibility:hidden;  /* becomes visible when bgm starts */
+    visibility:hidden;  /* hidden until first word interaction */
     display:inline-flex;
     background:transparent; border:none; padding:6px;
     width:40px; height:40px; border-radius:999px; cursor:pointer; line-height:0;
@@ -145,7 +150,7 @@
     <header>
       <h1>For vs Since — Card Match</h1>
       <div class="controls">
-        <!-- Mute/unmute button placed BEFORE Reset -->
+        <!-- Mute/unmute button BEFORE Reset -->
         <button class="muteBtn" id="muteBtn" aria-pressed="false" aria-label="Mute background music" title="Mute">
           <img id="muteIcon" alt="" src="https://schredder222.github.io/Assets/Unmute.svg" />
         </button>
@@ -197,7 +202,7 @@ const SENTENCES = [
 /* Celebration images & applause */
 const URLS = {
   perfectImg: "https://schredder222.github.io/Assets/You%20Nailed%20It.png",
-  goodImg:    "https://schredder222.github.io/Assets/Bad%20bad.png",
+  goodImg:    "https://schredder222.github.io/Assets/Not%20Bad.png",
   tryImg:     "https://schredder222.github.io/Assets/Keep%20Practising.png",
   applause:   "https://schredder222.github.io/Assets/Applause.mp3"
 };
@@ -214,7 +219,9 @@ const muteBtn = document.getElementById('muteBtn');
 const muteIcon = document.getElementById('muteIcon');
 const MUTE_ICON_URL   = 'https://schredder222.github.io/Assets/Mute.svg';
 const UNMUTE_ICON_URL = 'https://schredder222.github.io/Assets/Unmute.svg';
-let hasBgmStarted = false;
+
+let hasBgmStarted = false;        // actual audio started
+let hasFirstInteraction = false;  // user has clicked/dragged a word at least once
 
 function syncMuteUI(){
   const muted = bgm.muted;
@@ -223,23 +230,34 @@ function syncMuteUI(){
   muteBtn.title = muted ? 'Unmute' : 'Mute';
   muteBtn.setAttribute('aria-label', muted ? 'Unmute background music' : 'Mute background music');
 }
+function revealMuteButtonOnce(){
+  if (!hasFirstInteraction){
+    hasFirstInteraction = true;
+    muteBtn.style.visibility = 'visible';
+    syncMuteUI();
+  }
+}
 function startBgmOnce(){
+  revealMuteButtonOnce();           // show button as soon as first word is interacted with
   if (hasBgmStarted) return;
   try { if (bgm.currentTime !== 0) bgm.currentTime = 0; } catch {}
-  bgm.volume = 0.18; // gentle background level
+  bgm.volume = 0.18; // gentle background
   const p = bgm.play();
   if (p?.then){
-    p.then(()=>{ hasBgmStarted = true; muteBtn.style.visibility='visible'; syncMuteUI(); }).catch(()=>{ /* autoplay blocked until interaction */ });
+    p.then(()=>{ hasBgmStarted = true; syncMuteUI(); })
+     .catch(()=>{ /* autoplay blocked; button is already visible */ });
   } else {
-    hasBgmStarted = true; muteBtn.style.visibility='visible'; syncMuteUI();
+    hasBgmStarted = true; syncMuteUI();
   }
 }
 bgm.addEventListener('playing', ()=>{
-  if (!hasBgmStarted){ hasBgmStarted = true; muteBtn.style.visibility = 'visible'; syncMuteUI(); }
+  if (!hasBgmStarted){ hasBgmStarted = true; revealMuteButtonOnce(); }
 });
+/* Allow toggling even before music has started */
 muteBtn.addEventListener('click', ()=>{
-  if (!hasBgmStarted) return;
-  bgm.muted = !bgm.muted; syncMuteUI();
+  bgm.muted = !bgm.muted;
+  if (!hasFirstInteraction) revealMuteButtonOnce();
+  syncMuteUI();
 });
 
 /* one-time audio unlock listeners */
@@ -316,10 +334,10 @@ function build(){
   enableBankDnD(bankFor);
   enableBankDnD(bankSince);
 
-  // Reset music state on rebuild
+  // Music state on rebuild
   try { bgm.pause(); } catch(e){}
-  hasBgmStarted = false;  // will start again on first interaction
-  muteBtn.style.visibility = 'hidden';
+  hasBgmStarted = false;
+  muteBtn.style.visibility = hasFirstInteraction ? 'visible' : 'hidden';
   syncMuteUI();
 }
 
@@ -334,28 +352,49 @@ function makeBank(type,container,count){
 
     // CLICK behaviour:
     chip.addEventListener('click',(e)=>{
-      e.stopPropagation(); // prevent blank click bubbling
+      e.stopPropagation();
       if(state.checked) return;
 
-      // 🔊 start bgm on first word click
+      // start bgm/show button on first word click
       startBgmOnce();
 
       const inBlank = chip.closest('.blank');
 
       if(inBlank){
+        // If another chip is selected, place/swap it into this same blank
         if(state.selected && state.selected!==chip){
+          // remove highlight from any previously highlighted blank
+          const oldB = state.selected.closest && state.selected.closest('.blank');
+          if (oldB) oldB.classList.remove('selected');
+
           placeChip(state.selected, inBlank);
           return;
         }
-        if(state.selected && state.selected!==chip) state.selected.classList.remove('selected');
+        // toggle selection of this placed chip
+        if(state.selected && state.selected!==chip){
+          state.selected.classList.remove('selected');
+          const oldB = state.selected.closest && state.selected.closest('.blank');
+          if (oldB) oldB.classList.remove('selected');
+        }
         chip.classList.toggle('selected');
-        state.selected = chip.classList.contains('selected') ? chip : null;
-        if(state.selected===chip) playSfx(SFX.select);
+        if (chip.classList.contains('selected')) {
+          inBlank.classList.add('selected');   // 🔷 darken blank border
+          state.selected = chip;
+          playSfx(SFX.select);
+        } else {
+          inBlank.classList.remove('selected');
+          state.selected = null;
+        }
         return;
       }
 
       // Chip in a bank
-      if(state.selected && state.selected!==chip) state.selected.classList.remove('selected');
+      if(state.selected && state.selected!==chip){
+        // clear previous blank highlight if any
+        const oldB = state.selected.closest && state.selected.closest('.blank');
+        if (oldB) oldB.classList.remove('selected');
+        state.selected.classList.remove('selected');
+      }
       chip.classList.toggle('selected');
       state.selected = chip.classList.contains('selected') ? chip : null;
       if(state.selected===chip) playSfx(SFX.select);
@@ -364,17 +403,20 @@ function makeBank(type,container,count){
     // Desktop drag source
     chip.addEventListener('dragstart', e=>{
       if(state.checked){ e.preventDefault(); return; }
-      // 🔊 start bgm on first drag
-      startBgmOnce();
+      startBgmOnce(); // start/reveal on first drag (desktop)
 
       chip.classList.add('selected');
+      // clear any highlighted blank selection
+      const oldB = state.selected?.closest && state.selected.closest('.blank');
+      if (oldB) oldB.classList.remove('selected');
+
       state.selected = chip;
       e.dataTransfer.setData('text/id', chip.id);
       e.dataTransfer.effectAllowed='move';
     });
     chip.addEventListener('dragend', ()=> chip.classList.remove('selected'));
 
-    // Mobile touch-drag
+    // Mobile touch-drag (robust start/reveal for iOS)
     addTouchDrag(chip);
 
     container.appendChild(chip);
@@ -404,10 +446,11 @@ function tryPlace(blank){
 function sendToBank(chip, container){
   const oldParent = chip.parentElement;
   container.appendChild(chip);
-  chip.classList.remove('selected');
+  // clear selection and any blank highlight
   if(state.selected===chip) state.selected=null;
+  chip.classList.remove('selected');
   if(oldParent && oldParent.classList && oldParent.classList.contains('blank')){
-    oldParent.classList.remove('filled','correct','incorrect');
+    oldParent.classList.remove('selected','filled','correct','incorrect');
     oldParent.removeAttribute('data-filled');
     const mark = oldParent.closest('.card').querySelector('.resultMark'); if(mark) mark.textContent='';
   }
@@ -417,24 +460,24 @@ function sendToBank(chip, container){
 function placeChip(chip, blank){
   if(state.checked) return;
 
+  // Clear any existing selection/highlight
+  document.querySelectorAll('.blank.selected').forEach(b=>b.classList.remove('selected'));
+  if(state.selected){ state.selected.classList.remove('selected'); state.selected=null; }
+
   const destCard = blank.closest('.card');
   if(destCard){ const mk = destCard.querySelector('.resultMark'); if(mk) mk.textContent=''; }
 
   const existing = blank.querySelector('.pill');
   const src = chip.parentElement;
 
-  if(src === blank){
-    chip.classList.remove('selected'); if(state.selected===chip) state.selected=null; return;
-  }
+  if(src === blank) return;
 
-  if(existing && existing.dataset.value === chip.dataset.value){
-    chip.classList.remove('selected'); if(state.selected===chip) state.selected=null; return;
-  }
+  if(existing && existing.dataset.value === chip.dataset.value) return;
 
   // SWAP if destination has a chip and source is another blank
   if(existing && src && src.classList && src.classList.contains('blank')){
     [src, blank].forEach(b=>{
-      b.classList.remove('correct','incorrect');
+      b.classList.remove('selected','correct','incorrect');
       const mk = b.closest('.card').querySelector('.resultMark'); if(mk) mk.textContent='';
     });
     src.appendChild(existing);
@@ -442,7 +485,6 @@ function placeChip(chip, blank){
     src.classList.add('filled'); blank.classList.add('filled');
     src.setAttribute('data-filled', existing.dataset.value);
     blank.setAttribute('data-filled', chip.dataset.value);
-    chip.classList.remove('selected'); if(state.selected===chip) state.selected=null;
     playSfx(SFX.drop);
     return;
   }
@@ -454,7 +496,7 @@ function placeChip(chip, blank){
 
   // if moving from another blank (and not swapping), tidy the source blank
   if(src && src.classList && src.classList.contains('blank')){
-    src.classList.remove('filled','correct','incorrect');
+    src.classList.remove('selected','filled','correct','incorrect');
     src.removeAttribute('data-filled');
     const mk2 = src.closest('.card').querySelector('.resultMark'); if(mk2) mk2.textContent='';
   }
@@ -462,7 +504,6 @@ function placeChip(chip, blank){
   blank.appendChild(chip);
   blank.classList.add('filled');
   blank.setAttribute('data-filled', chip.dataset.value);
-  chip.classList.remove('selected'); if(state.selected===chip) state.selected=null;
 
   playSfx(SFX.drop);
 }
@@ -472,9 +513,13 @@ btnCheck.addEventListener('click', ()=>{
   playSfx(SFX.button);
   if(state.checked) return;
 
-  // 🔇 Stop background music on check
+  // Stop background music on check
   try { bgm.pause(); } catch(e){}
   hasBgmStarted = false;
+
+  // clear any selection and highlight
+  if(state.selected){ state.selected.classList.remove('selected'); state.selected=null; }
+  document.querySelectorAll('.blank.selected').forEach(b=>b.classList.remove('selected'));
 
   let correct = 0;
   const blanks = document.querySelectorAll('.blank');
@@ -549,8 +594,7 @@ function addTouchDrag(chip){
 
   const onStart = (e)=>{
     if(state.checked) return;
-    // 🔊 start bgm on first touch
-    startBgmOnce();
+    startBgmOnce(); // start/reveal on first touch
 
     const t = e.touches && e.touches[0];
     if(!t) return;
@@ -568,7 +612,11 @@ function addTouchDrag(chip){
 
     if(!dragging && (Math.abs(dx) > 6 || Math.abs(dy) > 6)){
       dragging = true;
+      startBgmOnce(); // retry on first movement (iOS)
+
       chip.classList.add('selected');
+      // if some blank was highlighted, clear it (dragging from bank)
+      document.querySelectorAll('.blank.selected').forEach(b=>b.classList.remove('selected'));
       state.selected = chip;
 
       ghost = document.createElement('div');
@@ -594,6 +642,8 @@ function addTouchDrag(chip){
   };
 
   const onEnd = (e)=>{
+    startBgmOnce(); // final retry on release
+
     document.removeEventListener('touchmove', onMove, {passive:false});
     document.removeEventListener('touchend', onEnd, {passive:false});
 
