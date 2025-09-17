@@ -267,7 +267,8 @@ function makeBank(type,container,count){
     chip.id = `chip-${type}-${i}-${Math.random().toString(36).slice(2)}`;
 
     // CLICK behaviour:
-    chip.addEventListener('click',()=>{
+    chip.addEventListener('click',(e)=>{
+      e.stopPropagation(); // <<< prevent blank's click from firing too
       if(state.checked) return;
       const inBlank = chip.closest('.blank');
 
