@@ -33,7 +33,7 @@
     justify-content:space-between;
     flex-wrap:wrap;
   }
-  .titleWrap{ text-align:left }
+  .titleWrap{ text-align:left } /* ensure left-align by default */
   h1{ font-weight:600; margin:0; color:#000; line-height:1.2 }
   .sub{ color:var(--ink-soft); margin:0; font-size:.95rem; line-height:1.25 }
   .sub .sub-l1, .sub .sub-l2{ display:inline } /* desktop: one line */
@@ -43,14 +43,14 @@
   @media (max-width:640px){
     header{
       flex-direction:column;
-      align-items:stretch;   /* let children control their own alignment */
+      align-items:stretch;   /* let each child align itself */
       gap:6px;
       text-align:initial;
     }
-    .titleWrap{ text-align:center } /* center title/sub on mobile */
+    .titleWrap{ text-align:left } /* mobile: keep heading/sub left-aligned */
     .sub .sub-l1, .sub .sub-l2{ display:block } /* split onto two lines on mobile */
     .rightTools{
-      align-self:flex-end;   /* keep buttons to the right on mobile */
+      align-self:flex-end;   /* keep mute/restart to the right on mobile */
       justify-content:flex-end;
     }
   }
@@ -58,10 +58,10 @@
   /* ===== Sentence stage & animations ===== */
   .stage{
     position:relative;
-    min-height:90px;
+    min-height:140px; /* gives room for centered end panel later */
     padding:2px 0;
     overflow:hidden;
-    margin-top:50px; /* larger gap from header */
+    margin-top:80px; /* larger gap from header */
   }
   .sentence{
     margin:0;
@@ -93,6 +93,19 @@
   @keyframes slideOutRight{
     from{ transform:translateX(0);   opacity:1 }
     to{   transform:translateX(120%); opacity:0 }
+  }
+
+  /* ===== End panel (appears in the sentence area after animation) ===== */
+  .endPanel{
+    position:absolute; inset:0;
+    display:none;             /* shown at end */
+    align-items:center; justify-content:center;
+    flex-direction:column; gap:10px;
+    text-align:center;
+  }
+  .endPanel.show{ display:flex; }
+  .finalScore{
+    font-weight:700; color:#000; margin-top:4px;
   }
 
   /* ===== Choices ===== */
@@ -130,7 +143,7 @@
     padding:10px 14px; border-radius:10px; border:2px solid var(--accent);
     background:var(--accent); color:#fff; font-weight:700; cursor:pointer
   }
-  .playAgain{ display:none; margin:16px auto 0 }
+  .playAgain{ margin:0 auto }
 
   /* Mute button: hidden until music starts after first click, then stays visible */
   .muteBtn{
@@ -179,6 +192,12 @@
 
     <section class="stage">
       <p id="sentence" class="sentence"></p>
+
+      <!-- End-of-quiz panel that shows after the celebratory image disappears -->
+      <div id="endPanel" class="endPanel" aria-hidden="true">
+        <button class="btn playAgain" id="playAgainBtn">Play Again</button>
+        <div id="finalScore" class="finalScore"></div>
+      </div>
     </section>
 
     <div class="choices" id="choices">
@@ -189,12 +208,10 @@
       <button type="button" data-word="still">still</button>
     </div>
 
-    <footer class="hud">
+    <footer class="hud" id="hud">
       <div class="dots" id="dots"></div>
       <div class="score" id="score">Score: 0 / 10</div>
     </footer>
-
-    <button class="btn playAgain" id="playAgainBtn">Play Again</button>
 
     <!-- Overlay -->
     <div id="congratsOverlay" aria-hidden="true">
@@ -230,8 +247,11 @@
   const choiceBtns = Array.from(choicesWrap.querySelectorAll("button"));
   const dotsEl = document.getElementById("dots");
   const scoreEl = document.getElementById("score");
+  const hud = document.getElementById("hud");
   const restartBtn = document.getElementById("restartBtn");
   const playAgainBtn = document.getElementById("playAgainBtn");
+  const endPanel = document.getElementById("endPanel");
+  const finalScore = document.getElementById("finalScore");
   const sfxCorrect = document.getElementById("sfx-correct");
   const sfxWrong = document.getElementById("sfx-wrong");
   const clickSound = document.getElementById("clickSound");
@@ -251,7 +271,7 @@
   let firstAttempt = true;
 
   /* Music control */
-  let musicArmed = true;   // music should start on first answer click
+  let musicArmed = true;   // music starts on first answer click
   let muteShown = false;   // once shown, keep visible across restarts
 
   function startMusicIfArmed(){
@@ -263,7 +283,7 @@
         p.then(()=>{
           if(!muteShown){
             muteBtn.style.visibility = 'visible';
-            muteShown = true;         // persist visibility across restarts
+            muteShown = true;
           }
           syncMuteUI();
         }).catch(()=>{ /* ignored */ });
@@ -275,7 +295,7 @@
         syncMuteUI();
       }
     }catch(e){}
-    musicArmed = false; // started once; don't auto-start again until re-armed
+    musicArmed = false;
   }
   function stopMusic(){ try{ bgm.pause(); }catch(e){} }
   function armMusic(){ musicArmed = true; }
@@ -343,15 +363,20 @@
     idx=0; score=0;
     scoreEl.textContent=`Score: ${score} / ${ITEMS.length}`;
     choicesWrap.style.opacity=1;
+    choicesWrap.style.display="flex";
     overlay.style.display="none";
-    playAgainBtn.style.display="none";
+    endPanel.classList.remove("show");
+    endPanel.setAttribute("aria-hidden","true");
+    finalScore.textContent="";
+    playAgainBtn.blur();
+    hud.style.display="flex";
     restartBtn.style.display="inline-block";
 
-    stopMusic();                 // ensure music is stopped
-    armMusic();                  // will only start after first answer click
-    // Keep mute button visible if it has been shown before
+    stopMusic();  // ensure music is stopped
+    armMusic();   // will start after first answer click
     muteBtn.style.visibility = muteShown ? 'visible' : 'hidden';
 
+    sentenceEl.style.display="";
     next();
   }
 
@@ -359,8 +384,11 @@
     // stop the music on quiz finish
     stopMusic();
 
+    // Hide choices & HUD while animation plays
+    choicesWrap.style.display="none";
+    hud.style.display="none";
+
     sentenceEl.innerHTML="";
-    dotsEl.innerHTML="";
     overlay.style.display="flex";
     overlayImg.style.animation="none";
     void overlayImg.offsetWidth; /* reflow to restart animation */
@@ -372,10 +400,12 @@
     else { imgSrc="https://schredder222.github.io/Assets/Keep%20practising.png"; }
     overlayImg.src=imgSrc;
 
-    // After 6s: hide overlay, show Play Again centered, hide Restart
+    // After 6s: hide overlay, show Play Again centered in sentence area + centered score below
     setTimeout(()=>{
       overlay.style.display="none";
-      playAgainBtn.style.display="block";
+      finalScore.textContent = `Score: ${score} / ${ITEMS.length}`;
+      endPanel.classList.add("show");
+      endPanel.setAttribute("aria-hidden","false");
       restartBtn.style.display="none";
       // re-arm music for next run; mute button stays as-is (visible if previously shown)
       armMusic();
@@ -427,7 +457,6 @@
     // Stop music immediately on restart and only resume after next answer click
     stopMusic();
     armMusic();
-    // Keep mute button visibility as-is (visible if it was shown once)
     muteBtn.style.visibility = muteShown ? 'visible' : 'hidden';
 
     locked=false; sentenceEl.className="sentence";
