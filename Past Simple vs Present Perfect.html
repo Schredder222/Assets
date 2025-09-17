@@ -72,15 +72,17 @@
   .tenseBtn .tick{ margin-left:8px; font-weight:900 }
   .tenseBtn .cross{ margin-left:8px; font-weight:900 }
 
-  /* Sentence area near bottom */
+  /* Sentence area (defaults for tablet/desktop) */
   .sentence{
     position:absolute; left:0; right:0; bottom:12px; z-index:2;
     padding:0 14px; display:flex; justify-content:center; width:100%;
+    pointer-events:none; /* container */
   }
   .line{
     font-size:clamp(18px,2.2vw,28px); font-weight:700; color:#fff;
     text-align:center; line-height:1.4;
     text-shadow:0 2px 10px rgba(0,0,0,.55), 0 1px 2px rgba(0,0,0,.6);
+    pointer-events:auto; /* allow typing in inputs */
   }
   .blank{
     display:inline-flex; align-items:center; justify-content:center;
@@ -119,15 +121,24 @@
 
   /* ---------------- Mobile optimizations ---------------- */
   @media (max-width: 560px){
-    .stage{ aspect-ratio: 10/13; }                 /* a bit taller to fit content */
-    .instructionsOverlay{
-      top:10px; font-size:14px; padding:6px 10px; max-width:94%;
-    }
-    .credit{ font-size:11px; padding:2px 6px; }
+    .stage{ aspect-ratio: 10/13; } /* taller image to fit pieces without overlap */
 
+    /* Make the instructions appear a bit lower and wider on phones
+       (per your request: below the page title, and expansive) */
+    .instructionsOverlay{
+      top: 18px;                /* lower than before for breathing room under the h1 */
+      font-size: 14px;
+      padding: 8px 12px;
+      max-width: 96%;           /* wider on mobile */
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    /* Stack buttons; keep them slightly above center to free space below */
     .overBtns{
-      top:56%; transform:translate(-50%,-50%);
-      gap:8px; flex-direction:column;               /* stack buttons */
+      top:56%;
+      transform:translate(-50%,-50%);
+      gap:8px; flex-direction:column;
       width:min(88%, 420px);
       align-items:center;
     }
@@ -137,8 +148,11 @@
       font-size:15px;
     }
 
+    /* Sentence positioning will be handled via JS to sit halfway between
+       the buttons’ bottom and the image bottom. Provide safe defaults. */
     .sentence{
-      bottom:8px; padding:0 10px;
+      bottom:auto;              /* JS will set .style.top on mobile */
+      padding:0 10px;
     }
     .line{
       font-size:clamp(16px, 4.4vw, 20px);
@@ -152,7 +166,7 @@
       width:min(14ch, 160px);
     }
 
-    /* Keep celebration perfectly centered on small screens too */
+    /* Celebration stays perfectly centered on phones too */
     #congratsOverlay img{ width:70%; max-width:360px; }
   }
 
@@ -195,7 +209,7 @@
         <button id="btnPPS" class="tenseBtn">Present perfect</button>
       </div>
 
-      <div class="sentence">
+      <div class="sentence" id="sentenceWrap">
         <div class="line" id="line"><!-- dynamic --></div>
       </div>
 
@@ -231,7 +245,7 @@ function setImageWithFallback(imgEl, sources){
 const PD_FALLBACK = "https://upload.wikimedia.org/wikipedia/commons/a/a9/Example.jpg?width=1600";
 
 /* ---------- Item bank (20 total) ----------
-   (unchanged content from your last version)
+   (same content as your last version)
 */
 const ITEMS_MASTER = [
   {srcs:[
@@ -358,7 +372,7 @@ const ITEMS_MASTER = [
     expected:{ pps:["have gone","have been"], past:["went","did go","was","were"] }
   },
 
-  /* Past simple (4 drawn) */
+  /* Past simple (8; we draw 4) */
   {srcs:[
       "https://upload.wikimedia.org/wikipedia/commons/2/26/Led_traffic_lights.jpg?width=1600",
       "https://commons.wikimedia.org/wiki/Special:FilePath/Traffic_lights_junction.jpg?width=1600",
@@ -453,6 +467,8 @@ const btnPast=$("btnPast"), btnPPS=$("btnPPS");
 const idkBtn=$("idkBtn"), restartBtn=$("restartBtn");
 const sfxCorrect=$("sfx-correct"), sfxWrong=$("sfx-wrong"), sfxIdk=$("sfx-idk"), applause=$("applause");
 const congratsOverlay=$("congratsOverlay"), congratsImg=$("congratsImg");
+const sentenceWrap = $("sentenceWrap");
+const overBtns = $("overBtns");
 
 function shuffle(a){const arr=a.slice();for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
 function norm(s){
@@ -515,7 +531,7 @@ function renderQuestion(it){
 }
 
 function init(){
-  ITEMS = sampleBiased();               // <<— biased draw
+  ITEMS = sampleBiased();               // biased draw
   order = shuffle([...Array(ITEMS.length).keys()]);
   index = 0; score = 0; chosenTense = null;
   scoreEl.textContent = `1 / ${ITEMS.length}`;   // current question number
@@ -545,6 +561,9 @@ function load(){
   addAutoListeners();
 
   setInputsDisabled(true);
+
+  // Reposition the sentence for mobile so it sits halfway between buttons and image bottom
+  requestAnimationFrame(positionSentenceMobile);
 }
 
 function setInputsDisabled(dis){
@@ -617,14 +636,8 @@ function autoCheck(){
   if (correctList.includes(userString)){
     markCorrect();
     try{ sfxCorrect.currentTime=0; sfxCorrect.play().catch(()=>{});}catch(_){}
-    // no message shown under the "I don't know" button
-    feedback.textContent = "";
-    feedback.className = "feedback";
     score++;
     setTimeout(next, 1500);
-  } else {
-    feedback.textContent = "";
-    feedback.className = "feedback";
   }
 }
 
@@ -661,8 +674,6 @@ function onIdk(){
     if (inputMain) { inputMain.value = first; inputMain.disabled = true; }
   }
 
-  feedback.textContent = "";
-  feedback.className = "feedback";
   setTimeout(next, 2500);
 }
 
@@ -700,6 +711,34 @@ function showFinalCelebration(points, total){
   setTimeout(()=>{ overlay.style.display="none"; overlay.setAttribute("aria-hidden","true"); try{ applause.pause(); }catch(_){ } }, 6000);
   overlay.onclick = ()=>{ overlay.style.display="none"; overlay.setAttribute("aria-hidden","true"); try{ applause.pause(); }catch(_){ } };
 }
+
+/* --------- Mobile sentence positioning: halfway between buttons' bottom and image bottom --------- */
+function isMobile(){ return window.matchMedia("(max-width: 560px)").matches; }
+
+function positionSentenceMobile(){
+  if(!isMobile()){                  // desktop/tablet: use bottom anchoring
+    sentenceWrap.style.top = "";
+    sentenceWrap.style.bottom = "12px";
+    return;
+  }
+  const stageRect = stage.getBoundingClientRect();
+  const btnRect   = overBtns.getBoundingClientRect();
+
+  // Y coordinate halfway between buttons' bottom and image bottom
+  const halfY = btnRect.bottom + (stageRect.bottom - btnRect.bottom) / 2;
+
+  // Convert to stage-local top offset
+  const stageTop = stageRect.top + window.scrollY;
+  const offsetTop = halfY - stageTop;
+
+  // Apply
+  sentenceWrap.style.bottom = "auto";
+  sentenceWrap.style.top = Math.max( btnRect.bottom - stageTop + 8, offsetTop - 10 ) + "px";
+}
+
+/* Recompute layout on resize & orientation changes */
+window.addEventListener("resize", positionSentenceMobile, {passive:true});
+window.addEventListener("orientationchange", ()=> setTimeout(positionSentenceMobile, 200), {passive:true});
 
 restartBtn.addEventListener("click", init);
 init();
