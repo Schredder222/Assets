@@ -33,19 +33,26 @@
     justify-content:space-between;
     flex-wrap:wrap;
   }
+  .titleWrap{ text-align:left }
   h1{ font-weight:600; margin:0; color:#000; line-height:1.2 }
   .sub{ color:var(--ink-soft); margin:0; font-size:.95rem; line-height:1.25 }
+  .sub .sub-l1, .sub .sub-l2{ display:inline } /* desktop: one line */
   header h1, header .sub{ max-width:100% }
   .rightTools{ display:flex; align-items:center; gap:10px }
 
   @media (max-width:640px){
     header{
       flex-direction:column;
-      align-items:center;
-      text-align:center;
+      align-items:stretch;   /* let children control their own alignment */
       gap:6px;
+      text-align:initial;
     }
-    .rightTools{ justify-content:center }
+    .titleWrap{ text-align:center } /* center title/sub on mobile */
+    .sub .sub-l1, .sub .sub-l2{ display:block } /* split onto two lines on mobile */
+    .rightTools{
+      align-self:flex-end;   /* keep buttons to the right on mobile */
+      justify-content:flex-end;
+    }
   }
 
   /* ===== Sentence stage & animations ===== */
@@ -54,8 +61,7 @@
     min-height:90px;
     padding:2px 0;
     overflow:hidden;
-    /* bigger gap from header, but we keep small gaps to choices */
-    margin-top:50px;
+    margin-top:50px; /* larger gap from header */
   }
   .sentence{
     margin:0;
@@ -154,9 +160,12 @@
 <body>
   <main class="app">
     <header>
-      <div>
+      <div class="titleWrap">
         <h1>Present Perfect – Adverbs Practice</h1>
-        <p class="sub">Choose the correct adverb: <strong>ever</strong>, <strong>never</strong>, <strong>already</strong>, <strong>yet</strong>, <strong>still</strong>.</p>
+        <p class="sub">
+          <span class="sub-l1">Choose the correct adverb:</span>
+          <span class="sub-l2"><strong>ever</strong>, <strong>never</strong>, <strong>already</strong>, <strong>yet</strong>, <strong>still</strong>.</span>
+        </p>
       </div>
       <div class="rightTools">
         <!-- Mute on the left (becomes visible only after music starts the first time) -->
