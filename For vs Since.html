@@ -23,18 +23,20 @@
   }
   .app{
     width:min(900px,100%); display:flex; flex-direction:column; gap:14px;
-    position:relative; /* so the celebration PNG centres over this box */
+    position:relative; /* celebration PNG centres over this box */
   }
-  header{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px}
-  h1{font-size:1.2rem; margin:0}
-  .controls{display:flex; gap:8px}
+  header{
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px
+  }
+  h1{font-size:1.2rem; margin:0; display:flex; align-items:center; gap:8px}
+  .controls{display:flex; align-items:center; gap:8px}
   button{
     border:2px solid var(--edge); background:#fff; color:#000; padding:6px 10px; border-radius:999px;
     font-weight:600; cursor:pointer; transition:transform .06s ease, background .2s ease, color .2s ease, border-color .2s ease;
   }
-  /* Red buttons */
-  header .controls button{ background:var(--btn); border-color:var(--btn); color:#fff; }
-  header .controls button:hover{ transform:translateY(-1px); filter:brightness(1.05); }
+  /* Red buttons (exclude mute icon button) */
+  header .controls button:not(.muteBtn){ background:var(--btn); border-color:var(--btn); color:#fff; }
+  header .controls button:not(.muteBtn):hover{ transform:translateY(-1px); filter:brightness(1.05); }
 
   .meta{font-size:.9rem; color:#333}
   .muted{color:var(--muted)}
@@ -106,11 +108,11 @@
     padding:5px 10px; font-weight:700;
   }
 
-  /* PNG-only celebration overlay centred over .app (not the whole screen) */
+  /* PNG-only celebration overlay centred over .app */
   #congratsOverlay{
-    position:absolute; inset:0; display:none;       /* absolute to .app */
+    position:absolute; inset:0; display:none;
     align-items:center; justify-content:center;
-    z-index:1000; pointer-events:none;              /* don’t block taps */
+    z-index:1000; pointer-events:none;
   }
   #congratsOverlay img{
     width:clamp(160px,60%,420px); height:auto;
@@ -126,6 +128,16 @@
   .scoreBelow{
     text-align:center; font-weight:700; margin-top:6px; min-height:1.2em;
   }
+
+  /* —— Mute/unmute button (template) —— */
+  .muteBtn{
+    visibility:hidden;  /* becomes visible when bgm starts */
+    display:inline-flex;
+    background:transparent; border:none; padding:6px;
+    width:40px; height:40px; border-radius:999px; cursor:pointer; line-height:0;
+  }
+  .muteBtn:focus-visible{ outline:2px solid #000; outline-offset:2px; }
+  .muteBtn img{ width:24px; height:24px; display:block; }
 </style>
 </head>
 <body>
@@ -133,6 +145,10 @@
     <header>
       <h1>For vs Since — Card Match</h1>
       <div class="controls">
+        <!-- Mute/unmute button placed BEFORE Reset -->
+        <button class="muteBtn" id="muteBtn" aria-pressed="false" aria-label="Mute background music" title="Mute">
+          <img id="muteIcon" alt="" src="https://schredder222.github.io/Assets/Unmute.svg" />
+        </button>
         <button id="btnReset">Reset</button>
         <button id="btnCheck">Check answers</button>
       </div>
@@ -160,6 +176,9 @@
     </div>
   </div>
 
+  <!-- Background music (loops) -->
+  <audio id="bgm" preload="auto" loop src="https://cdn.pixabay.com/download/audio/2025/08/26/audio_a11c576d48.mp3"></audio>
+
 <script>
 /* Sentences */
 const SENTENCES = [
@@ -175,7 +194,7 @@ const SENTENCES = [
   { text: "I’ve had this phone ___ six months.", answer: "for" }
 ];
 
-/* Images & audio */
+/* Celebration images & applause */
 const URLS = {
   perfectImg: "https://schredder222.github.io/Assets/You%20Nailed%20It.png",
   goodImg:    "https://schredder222.github.io/Assets/Bad%20bad.png",
@@ -189,6 +208,47 @@ const SFX = {
 };
 function playSfx(url){ try{ const a=new Audio(url); a.play(); }catch(e){} }
 
+/* —— Music (template-style controls) —— */
+const bgm = document.getElementById('bgm');
+const muteBtn = document.getElementById('muteBtn');
+const muteIcon = document.getElementById('muteIcon');
+const MUTE_ICON_URL   = 'https://schredder222.github.io/Assets/Mute.svg';
+const UNMUTE_ICON_URL = 'https://schredder222.github.io/Assets/Unmute.svg';
+let hasBgmStarted = false;
+
+function syncMuteUI(){
+  const muted = bgm.muted;
+  muteBtn.setAttribute('aria-pressed', String(muted));
+  muteIcon.src = muted ? MUTE_ICON_URL : UNMUTE_ICON_URL;
+  muteBtn.title = muted ? 'Unmute' : 'Mute';
+  muteBtn.setAttribute('aria-label', muted ? 'Unmute background music' : 'Mute background music');
+}
+function startBgmOnce(){
+  if (hasBgmStarted) return;
+  try { if (bgm.currentTime !== 0) bgm.currentTime = 0; } catch {}
+  bgm.volume = 0.18; // gentle background level
+  const p = bgm.play();
+  if (p?.then){
+    p.then(()=>{ hasBgmStarted = true; muteBtn.style.visibility='visible'; syncMuteUI(); }).catch(()=>{ /* autoplay blocked until interaction */ });
+  } else {
+    hasBgmStarted = true; muteBtn.style.visibility='visible'; syncMuteUI();
+  }
+}
+bgm.addEventListener('playing', ()=>{
+  if (!hasBgmStarted){ hasBgmStarted = true; muteBtn.style.visibility = 'visible'; syncMuteUI(); }
+});
+muteBtn.addEventListener('click', ()=>{
+  if (!hasBgmStarted) return;
+  bgm.muted = !bgm.muted; syncMuteUI();
+});
+
+/* one-time audio unlock listeners */
+const unlockOpts = {once:true, passive:true};
+function unlockAudioOnce(){ ['pointerdown','pointerup','touchend','click','keydown'].forEach(t=>document.removeEventListener(t, unlockAudioOnce, unlockOpts)); }
+['pointerdown','pointerup','touchend','click'].forEach(t=>document.addEventListener(t, unlockAudioOnce, unlockOpts));
+document.addEventListener('keydown', unlockAudioOnce, {once:true});
+
+/* DOM references */
 const grid = document.getElementById('grid');
 const bankFor = document.getElementById('bankFor');
 const bankSince = document.getElementById('bankSince');
@@ -211,8 +271,8 @@ function build(){
   state.selected=null; state.checked=false;
   summaryEl.textContent = "Tap or drag words into the blanks. You can move or swap them. Then press “Check answers”.";
   btnCheck.disabled=false;
-  scoreBelowEl.textContent = "";            // clear score
-  hideCongrats();                           // ensure celebration is hidden
+  scoreBelowEl.textContent = "";
+  hideCongrats();
   try{ applauseAudio.pause(); applauseAudio.currentTime=0; }catch(e){}
 
   // sentences
@@ -255,6 +315,12 @@ function build(){
   // enable desktop dropping back onto banks
   enableBankDnD(bankFor);
   enableBankDnD(bankSince);
+
+  // Reset music state on rebuild
+  try { bgm.pause(); } catch(e){}
+  hasBgmStarted = false;  // will start again on first interaction
+  muteBtn.style.visibility = 'hidden';
+  syncMuteUI();
 }
 
 function makeBank(type,container,count){
@@ -268,8 +334,12 @@ function makeBank(type,container,count){
 
     // CLICK behaviour:
     chip.addEventListener('click',(e)=>{
-      e.stopPropagation(); // <<< prevent blank's click from firing too
+      e.stopPropagation(); // prevent blank click bubbling
       if(state.checked) return;
+
+      // 🔊 start bgm on first word click
+      startBgmOnce();
+
       const inBlank = chip.closest('.blank');
 
       if(inBlank){
@@ -294,6 +364,9 @@ function makeBank(type,container,count){
     // Desktop drag source
     chip.addEventListener('dragstart', e=>{
       if(state.checked){ e.preventDefault(); return; }
+      // 🔊 start bgm on first drag
+      startBgmOnce();
+
       chip.classList.add('selected');
       state.selected = chip;
       e.dataTransfer.setData('text/id', chip.id);
@@ -394,10 +467,14 @@ function placeChip(chip, blank){
   playSfx(SFX.drop);
 }
 
-/* Check answers — marks all cards, shows score below, and PNG-only celebration */
+/* Check answers — marks all cards, shows score, stops bgm, and shows PNG */
 btnCheck.addEventListener('click', ()=>{
   playSfx(SFX.button);
   if(state.checked) return;
+
+  // 🔇 Stop background music on check
+  try { bgm.pause(); } catch(e){}
+  hasBgmStarted = false;
 
   let correct = 0;
   const blanks = document.querySelectorAll('.blank');
@@ -419,13 +496,10 @@ btnCheck.addEventListener('click', ()=>{
     }
   });
 
-  // Score under the answer boxes
   scoreBelowEl.textContent = `Score: ${correct} / ${blanks.length}`;
-
   state.checked = true;
   btnCheck.disabled = true;
 
-  // PNG-only celebration (auto-hide after 6s) centred over .app
   showCelebration(correct, blanks.length);
 });
 
@@ -460,6 +534,7 @@ function hideCongrats(){
   overlay.style.display='none';
   overlay.setAttribute('aria-hidden','true');
   if (hideCongratsId){ clearTimeout(hideCongratsId); hideCongratsId=null; }
+  try { applauseAudio.pause(); applauseAudio.currentTime = 0; } catch(e){}
 }
 
 /* Reset */
@@ -474,6 +549,9 @@ function addTouchDrag(chip){
 
   const onStart = (e)=>{
     if(state.checked) return;
+    // 🔊 start bgm on first touch
+    startBgmOnce();
+
     const t = e.touches && e.touches[0];
     if(!t) return;
     startX = t.clientX; startY = t.clientY;
