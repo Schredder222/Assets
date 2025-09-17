@@ -415,7 +415,7 @@ const ITEMS_MASTER = [
     form:"neg", pre:"He", hint:"(get) (-)", post:" lost on the metro before.",
     correctTense:"pps",
     expected:{
-      pps:["has not got lost","hasn't got lost","has not gotten lost","hasn't gotten lost"],
+      pps:["has not got","hasn't got","has not gotten","hasn't gotten"],
       past:["did not get lost","didn't get lost","got lost"]
     }
   },
@@ -667,11 +667,14 @@ function load(){
   feedback.className = "feedback";
   chosenTense = null;
   resetBtnVisuals();
+
+  // Reset & hide IDK button for new question
   idkBtn.style.display = "none";
+  idkBtn.disabled = true;
 
   btnPast.onclick = ()=> { revealMuteIfNeeded(); tryStartBgm(); chooseTense("past"); };
   btnPPS.onclick  = ()=> { revealMuteIfNeeded(); tryStartBgm(); chooseTense("pps");  };
-  idkBtn.onclick  = ()=> { revealMuteIfNeeded(); tryStartBgm(); onIdk(); };
+  idkBtn.onclick  = ()=> { /* safety: ignore clicks when disabled */ if(!idkBtn.disabled) { revealMuteIfNeeded(); tryStartBgm(); onIdk(); } };
 
   removeAutoListeners();
   addAutoListeners();
@@ -727,7 +730,10 @@ function chooseTense(choice){
   btnPast.disabled = true; btnPPS.disabled = true;
   setInputsDisabled(false);
   (inputAux || inputMain).focus();
+
+  // Show & enable IDK button for this question
   idkBtn.style.display = "inline-block";
+  idkBtn.disabled = false;
 }
 
 /* Accept correct typed answers even if the wrong tense button was chosen */
@@ -749,6 +755,9 @@ function autoCheck(){
 
   const correctList = (it.expected[it.correctTense]||[]).map(norm);
   if (correctList.includes(userString)){
+    // Disable IDK immediately after success to prevent repeat click
+    idkBtn.disabled = true;
+
     markCorrect();
     try{ sfxCorrect.currentTime=0; sfxCorrect.play().catch(()=>{});}catch(_){}
     score++;
@@ -763,6 +772,9 @@ function markCorrect(){
 
 /* “I don’t know” behaves like choosing the correct tense, then reveals the answer */
 function onIdk(){
+  // Immediately disable to prevent repeat taps for current question
+  idkBtn.disabled = true;
+
   const it = ITEMS[order[index]];
   if (!it) return;
 
@@ -801,6 +813,7 @@ function next(){
     feedback.textContent = finalMsg;
     feedback.className = "feedback final";
     idkBtn.style.display = "none";
+    idkBtn.disabled = true;
     stopBgmAtEnd();
     showFinalCelebration(score, ITEMS.length);
   }
