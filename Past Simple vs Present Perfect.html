@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport"
+      content="width=device-width, initial-scale=1, user-scalable=yes, maximum-scale=5" />
 <title>PPS vs Past Simple – City Life (A2)</title>
 <style>
   :root{
@@ -16,7 +17,8 @@
   *{box-sizing:border-box}
   body{
     margin:0; font-family:"MS Reference Sans Serif", Arial, sans-serif;
-    background:#faf9f6; color:var(--ink); display:flex; min-height:100dvh; align-items:center; justify-content:center; padding:16px;
+    background:#faf9f6; color:var(--ink);
+    display:flex; min-height:100dvh; align-items:center; justify-content:center; padding:16px;
   }
   .app{width:min(980px,100%); display:flex; flex-direction:column; gap:14px}
 
@@ -26,7 +28,11 @@
   .pill{border:2px solid var(--accentBorder); color:var(--ink); padding:6px 10px; border-radius:999px; font-weight:800; background:#fff}
   .restartBtn{background:#fff; color:var(--ink); border:2px solid var(--accentBorder); border-radius:999px; padding:10px 14px; font-weight:800; cursor:pointer}
 
-  .stage{ position:relative; overflow:hidden; border-radius:14px; aspect-ratio:16/9; background:#ddd; }
+  /* Quiz image container */
+  .stage{
+    position:relative; overflow:hidden; border-radius:14px;
+    aspect-ratio:16/9; background:#ddd;
+  }
   .stage img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transform:translateZ(0); }
 
   .credit{
@@ -40,6 +46,7 @@
     background:var(--glass); color:#fff; font-weight:700;
     font-size:clamp(14px,1.8vw,18px); text-align:center;
     text-shadow:0 1px 2px rgba(0,0,0,.6);
+    max-width:min(92%, 760px);
   }
 
   .bottomFade{
@@ -48,7 +55,7 @@
     z-index:1; pointer-events:none;
   }
 
-  /* Bigger tense buttons, centered mid-image */
+  /* Tense buttons over the image */
   .overBtns{
     position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
     display:inline-flex; gap:12px; z-index:2;
@@ -66,7 +73,10 @@
   .tenseBtn .cross{ margin-left:8px; font-weight:900 }
 
   /* Sentence area near bottom */
-  .sentence{ position:absolute; left:0; right:0; bottom:12px; z-index:2; padding:0 14px; display:flex; justify-content:center; width:100%; }
+  .sentence{
+    position:absolute; left:0; right:0; bottom:12px; z-index:2;
+    padding:0 14px; display:flex; justify-content:center; width:100%;
+  }
   .line{
     font-size:clamp(18px,2.2vw,28px); font-weight:700; color:#fff;
     text-align:center; line-height:1.4;
@@ -91,9 +101,9 @@
   .feedback{min-height:22px; text-align:center; font-weight:800; color:#000}
   .ok{color:var(--ok)}
 
-  /* Celebration overlay INSIDE the image (centered on photo) */
+  /* Celebration overlay — centered in the quiz container (the image area) */
   #congratsOverlay{
-    position:absolute; inset:0; display:none; /* inside .stage */
+    position:absolute; inset:0; display:none;
     align-items:center; justify-content:center;
     z-index:999; background:rgba(0,0,0,.55);
   }
@@ -106,6 +116,58 @@
     8%{ opacity:1; }
     100%{ transform:scale(1.0); opacity:1; }
   }
+
+  /* ---------------- Mobile optimizations ---------------- */
+  @media (max-width: 560px){
+    .stage{ aspect-ratio: 10/13; }                 /* a bit taller to fit content */
+    .instructionsOverlay{
+      top:10px; font-size:14px; padding:6px 10px; max-width:94%;
+    }
+    .credit{ font-size:11px; padding:2px 6px; }
+
+    .overBtns{
+      top:56%; transform:translate(-50%,-50%);
+      gap:8px; flex-direction:column;               /* stack buttons */
+      width:min(88%, 420px);
+      align-items:center;
+    }
+    .overBtns .tenseBtn{
+      width:100%;
+      padding:10px 12px;
+      font-size:15px;
+    }
+
+    .sentence{
+      bottom:8px; padding:0 10px;
+    }
+    .line{
+      font-size:clamp(16px, 4.4vw, 20px);
+    }
+    .blank{ padding:2px 6px; }
+    .blank input{
+      width:min(26ch, 280px);
+      font-size:1em;
+    }
+    .blank.small input{
+      width:min(14ch, 160px);
+    }
+
+    /* Keep celebration perfectly centered on small screens too */
+    #congratsOverlay img{ width:70%; max-width:360px; }
+  }
+
+  @media (max-width: 380px){
+    .overBtns{ top:58%; width:92%; }
+    .line{ font-size:clamp(15px, 4.6vw, 18px); }
+    .blank input{ width:min(22ch, 230px); }
+    .blank.small input{ width:min(12ch, 140px); }
+  }
+
+  /* Short devices (e.g., landscape phones) */
+  @media (max-height: 540px){
+    .stage{ aspect-ratio: 16/10; }
+    .overBtns{ top:52%; }
+  }
 </style>
 </head>
 <body>
@@ -113,7 +175,7 @@
     <header>
       <h1>Present Perfect or Past Simple?</h1>
       <div class="meta">
-        <span id="score" class="pill">0 / 10</span>
+        <span id="score" class="pill">1 / 10</span>
         <button id="restartBtn" class="restartBtn">Restart</button>
       </div>
     </header>
@@ -137,7 +199,7 @@
         <div class="line" id="line"><!-- dynamic --></div>
       </div>
 
-      <!-- Celebration now inside the image -->
+      <!-- Celebration inside the quiz container & centered -->
       <div id="congratsOverlay" aria-hidden="true">
         <img id="congratsImg" src="" alt="Result">
       </div>
@@ -169,16 +231,9 @@ function setImageWithFallback(imgEl, sources){
 const PD_FALLBACK = "https://upload.wikimedia.org/wikipedia/commons/a/a9/Example.jpg?width=1600";
 
 /* ---------- Item bank (20 total) ----------
-   - All sentences use generic urban contexts (no specific city names)
-   - PPS items are PPS1 (indefinite experience, no finished time)
-   - Questions: two blanks (AUX + MAIN), subject between, hint shows “(verb)” (no “(?)”)
-   - Negatives show “(verb) (-)” in brackets; learner types full negative
-   - Avoid: yet / still / already / ever / never
-   - Each item includes: [direct upload URL], [Special:FilePath fallback], [PD fallback]
+   (unchanged content from your last version)
 */
 const ITEMS_MASTER = [
-  /* ===== PRESENT PERFECT (experience) – 12 items (we’ll sample 6) ===== */
-  // 1
   {srcs:[
       "https://upload.wikimedia.org/wikipedia/commons/1/15/Community_Bulletin_Board_Avalon_NJ.jpg?width=1600",
       "https://commons.wikimedia.org/wiki/Special:FilePath/Community_Bulletin_Board_Avalon_NJ.jpg?width=1600",
@@ -189,7 +244,6 @@ const ITEMS_MASTER = [
     correctTense:"pps",
     expected:{ pps:["have seen"], past:["saw","did see"] }
   },
-  // 2
   {srcs:[
       "https://upload.wikimedia.org/wikipedia/commons/d/d2/Buffered_bicycle_lane_in_Burlington_VT.jpg?width=1600",
       "https://commons.wikimedia.org/wiki/Special:FilePath/Bicycle_lane_icon.jpg?width=1600",
@@ -200,7 +254,6 @@ const ITEMS_MASTER = [
     correctTense:"pps",
     expected:{ pps:["have ridden"], past:["rode","did ride"] }
   },
-  // 3
   {srcs:[
       "https://upload.wikimedia.org/wikipedia/commons/3/34/2022.10.05_Pedestrian_access_through_%C5%9Awi%C4%99tego_Antoniego_Street_near_the_intersection_with_Tadeusza_Kawki_Street._Pedestrian_crossing_opened_in_October_2022.jpg?width=1600",
       "https://commons.wikimedia.org/wiki/Special:FilePath/Pedestrian_crossing_sign.jpg?width=1600",
@@ -211,7 +264,6 @@ const ITEMS_MASTER = [
     correctTense:"pps",
     expected:{ pps:["have taken"], past:["took","did take"] }
   },
-  // 4
   {srcs:[
       "https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/2023_Amsterdam_-_a_fruit_market_stall_at_the_Albert_Cuyp_market_in_the_sunlight_with_a_lot_of_city_people_walking_and_shopping_-_free_download_photo_in_Dutch_street_photography_by_Fons_Heijnsbroek%2C_Netherlands.tif/lossy-page1-3307px-thumbnail.tif.jpg?width=1600",
       "https://commons.wikimedia.org/wiki/Special:FilePath/Market_stalls.jpg?width=1600",
@@ -222,7 +274,6 @@ const ITEMS_MASTER = [
     correctTense:"pps",
     expected:{ pps:["has bought"], past:["bought","did buy"] }
   },
-  // 5
   {srcs:[
       "https://upload.wikimedia.org/wikipedia/commons/a/ac/Library_shelves_iitd.jpg?width=1600",
       "https://commons.wikimedia.org/wiki/Special:FilePath/Public_library_shelves.jpg?width=1600",
@@ -233,18 +284,16 @@ const ITEMS_MASTER = [
     correctTense:"pps",
     expected:{ pps:["has found"], past:["found","did find"] }
   },
-  // 6
   {srcs:[
       "https://upload.wikimedia.org/wikipedia/commons/7/78/Town_Hall%2C_Whitchurch%2C_Hampshire.jpg?width=1600",
       "https://commons.wikimedia.org/wiki/Special:FilePath/Town_hall_civic_building.jpg?width=1600",
       PD_FALLBACK
     ],
     credit:"Wikimedia – Town hall",
-    form:"question", qSubj:"you", hint:"(go)", qTail:" to the town hall for information?",
+    form:"question", qSubj:"you", hint:"(go)", qTail:" to the town hall for information? Maybe they can help",
     correctTense:"pps",
     expected:{ pps:["have gone","have been"], past:["did go","were"] }
   },
-  // 7
   {srcs:[
       "https://upload.wikimedia.org/wikipedia/commons/0/02/Arubus%2C_Bus_Stop_Bushiri_Beach%2C_Oranjestad_Aruba_01.jpg?width=1600",
       "https://commons.wikimedia.org/wiki/Special:FilePath/Bus_stop_shelter.jpg?width=1600",
@@ -255,7 +304,6 @@ const ITEMS_MASTER = [
     correctTense:"pps",
     expected:{ pps:["have come"], past:["did come","came"] }
   },
-  // 8
   {srcs:[
       "https://upload.wikimedia.org/wikipedia/commons/a/a1/Footbridge_over_River_Wey_%28North_Branch%29%2C_Gostrey_Meadow%2C_Farnham%2C_Surrey.jpg?width=1600",
       "https://commons.wikimedia.org/wiki/Special:FilePath/Footbridge_over_road.jpg?width=1600",
@@ -266,7 +314,6 @@ const ITEMS_MASTER = [
     correctTense:"pps",
     expected:{ pps:["have met"], past:["met","did meet"] }
   },
-  // 9
   {srcs:[
       "https://upload.wikimedia.org/wikipedia/commons/9/9d/ZAW_Recycling_Container_%28Frauenstra%C3%9Fe%29.jpg?width=1600",
       "https://commons.wikimedia.org/wiki/Special:FilePath/Recycling_bins_street.jpg?width=1600",
@@ -277,7 +324,6 @@ const ITEMS_MASTER = [
     correctTense:"pps",
     expected:{ pps:["have not thrown","haven't thrown"], past:["did not throw","didn't throw"] }
   },
-  //10
   {srcs:[
       "https://upload.wikimedia.org/wikipedia/commons/d/da/Kelvinhall_subway_station%2C_Glasgow_Subway%2C_Scotland.jpg?width=1600",
       "https://commons.wikimedia.org/wiki/Special:FilePath/Metro_station_platform.jpg?width=1600",
@@ -286,9 +332,11 @@ const ITEMS_MASTER = [
     credit:"Wikimedia – Metro platform",
     form:"neg", pre:"He", hint:"(get) (-)", post:" lost on the metro before.",
     correctTense:"pps",
-    expected:{ pps:["has not got","hasn't got","has not gotten","hasn't gotten"], past:["did not get","didn't get"] }
+    expected:{
+      pps:["has not got lost","hasn't got lost","has not gotten lost","hasn't gotten lost"],
+      past:["did not get lost","didn't get lost","got lost"]
+    }
   },
-  //11
   {srcs:[
       "https://upload.wikimedia.org/wikipedia/commons/4/41/SZ_%E6%B7%B1%E5%9C%B3_Shenzhen_%E9%BE%8D%E5%B4%97_Longgang_The_RestFul_Food_Court_restaurant_furniture_March_2025_R12S_12.jpg?width=1600",
       "https://commons.wikimedia.org/wiki/Special:FilePath/Food_court_tables.jpg?width=1600",
@@ -299,7 +347,6 @@ const ITEMS_MASTER = [
     correctTense:"pps",
     expected:{ pps:["has eaten"], past:["ate","did eat"] }
   },
-  //12
   {srcs:[
       "https://upload.wikimedia.org/wikipedia/commons/c/ce/2022_03_Larnaka_District_Archeological_Museum_1.jpg?width=1600",
       "https://commons.wikimedia.org/wiki/Special:FilePath/City_museum_gallery.jpg?width=1600",
@@ -311,8 +358,7 @@ const ITEMS_MASTER = [
     expected:{ pps:["have gone","have been"], past:["went","did go","was","were"] }
   },
 
-  /* ===== PAST SIMPLE (finished time) – 8 items (we’ll sample 4) ===== */
-  //13
+  /* Past simple (4 drawn) */
   {srcs:[
       "https://upload.wikimedia.org/wikipedia/commons/2/26/Led_traffic_lights.jpg?width=1600",
       "https://commons.wikimedia.org/wiki/Special:FilePath/Traffic_lights_junction.jpg?width=1600",
@@ -323,7 +369,6 @@ const ITEMS_MASTER = [
     correctTense:"past",
     expected:{ pps:["have put"], past:["put","did put"] }
   },
-  //14
   {srcs:[
       "https://upload.wikimedia.org/wikipedia/commons/a/a2/Roadworks_in_Tower_Street_York_Mar25.jpg?width=1600",
       "https://commons.wikimedia.org/wiki/Special:FilePath/Roadworks_sign_street.jpg?width=1600",
@@ -334,7 +379,6 @@ const ITEMS_MASTER = [
     correctTense:"past",
     expected:{ pps:["have made"], past:["made","did make"] }
   },
-  //15
   {srcs:[
       "https://upload.wikimedia.org/wikipedia/commons/0/03/Fountain_fish_rhodes.jpg?width=1600",
       "https://commons.wikimedia.org/wiki/Special:FilePath/Public_fountain_square.jpg?width=1600",
@@ -345,7 +389,6 @@ const ITEMS_MASTER = [
     correctTense:"past",
     expected:{ pps:["have not drunk","haven't drunk"], past:["did not drink","didn't drink"] }
   },
-  //16
   {srcs:[
       "https://upload.wikimedia.org/wikipedia/commons/9/93/Elisabeth_Park_%283%29.jpg?width=1600",
       "https://commons.wikimedia.org/wiki/Special:FilePath/City_park_cleanup.jpg?width=1600",
@@ -356,7 +399,6 @@ const ITEMS_MASTER = [
     correctTense:"past",
     expected:{ pps:["have not left","haven't left"], past:["did not leave","didn't leave"] }
   },
-  //17
   {srcs:[
       "https://upload.wikimedia.org/wikipedia/commons/c/c2/Library_bookshelf.jpg?width=1600",
       "https://commons.wikimedia.org/wiki/Special:FilePath/City_library_entrance.jpg?width=1600",
@@ -367,7 +409,6 @@ const ITEMS_MASTER = [
     correctTense:"past",
     expected:{ pps:["have returned"], past:["returned","did return"] }
   },
-  //18
   {srcs:[
       "https://upload.wikimedia.org/wikipedia/commons/f/f6/Playground_at_Graustein_Park%2C_Fryeburg.jpg?width=1600",
       "https://commons.wikimedia.org/wiki/Special:FilePath/Playground_swing_set.jpg?width=1600",
@@ -378,7 +419,6 @@ const ITEMS_MASTER = [
     correctTense:"past",
     expected:{ pps:["have visited"], past:["did visit"] }
   },
-  //19
   {srcs:[
       "https://upload.wikimedia.org/wikipedia/commons/f/fe/Metro_Ticket_machines_in_Bavaria%2C_from_Munich.jpg?width=1600",
       "https://commons.wikimedia.org/wiki/Special:FilePath/Bus_ticket_machine.jpg?width=1600",
@@ -389,7 +429,6 @@ const ITEMS_MASTER = [
     correctTense:"past",
     expected:{ pps:["has got","has gotten"], past:["did get","got"] }
   },
-  //20
   {srcs:[
       "https://upload.wikimedia.org/wikipedia/commons/9/99/Busker_Trafalgar_Square.jpg?width=1600",
       "https://commons.wikimedia.org/wiki/Special:FilePath/Street_musician_busker.jpg?width=1600",
@@ -416,7 +455,13 @@ const sfxCorrect=$("sfx-correct"), sfxWrong=$("sfx-wrong"), sfxIdk=$("sfx-idk"),
 const congratsOverlay=$("congratsOverlay"), congratsImg=$("congratsImg");
 
 function shuffle(a){const arr=a.slice();for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
-function norm(s){return s.toLowerCase().trim().replace(/\s+/g," ");}
+function norm(s){
+  return s
+    .toLowerCase()
+    .replace(/[\u2019\u2018']/g, "")   // accept answers without apostrophes (hasnt/didnt)
+    .trim()
+    .replace(/\s+/g," ");
+}
 
 /* --- Draw 6 PPS + 4 Past Simple each round --- */
 function sampleBiased(){
@@ -450,12 +495,12 @@ function renderQuestion(it){
   lineEl.innerHTML = "";
   // [ AUX ] SUBJECT [ MAIN ] + tail
   const blankAux = document.createElement('span'); blankAux.className="blank small";
-  const inpA = document.createElement('input'); inpA.type="text"; inpA.id="answerAux"; blankAux.appendChild(inpA);
+  const inpA = document.createElement('input'); inpA.type="text"; inpA.id = "answerAux"; blankAux.appendChild(inpA);
 
   const subj = document.createElement('span'); subj.textContent = " " + it.qSubj + " ";
 
   const blankMain = document.createElement('span'); blankMain.className="blank small";
-  const inpM = document.createElement('input'); inpM.type="text"; inpM.id="answerMain"; blankMain.appendChild(inpM);
+  const inpM = document.createElement('input'); inpM.type="text"; inpM.id = "answerMain"; blankMain.appendChild(inpM);
 
   const hint = document.createElement('span'); hint.className="hint"; hint.textContent = " " + it.hint + " ";
   const tail = document.createElement('span'); tail.textContent = it.qTail;
@@ -473,12 +518,13 @@ function init(){
   ITEMS = sampleBiased();               // <<— biased draw
   order = shuffle([...Array(ITEMS.length).keys()]);
   index = 0; score = 0; chosenTense = null;
-  scoreEl.textContent = `0 / ${ITEMS.length}`;
+  scoreEl.textContent = `1 / ${ITEMS.length}`;   // current question number
   load();
 }
 
 function load(){
   const it = ITEMS[order[index]];
+  scoreEl.textContent = `${index + 1} / ${ITEMS.length}`;
   setImageWithFallback(photo, it.srcs || [PD_FALLBACK]);
   credit.textContent = it.credit || "";
 
@@ -486,6 +532,7 @@ function load(){
   else renderAffNeg(it);
 
   feedback.textContent = "";
+  feedback.className = "feedback";
   chosenTense = null;
   resetBtnVisuals();
   idkBtn.style.display = "none";
@@ -570,9 +617,10 @@ function autoCheck(){
   if (correctList.includes(userString)){
     markCorrect();
     try{ sfxCorrect.currentTime=0; sfxCorrect.play().catch(()=>{});}catch(_){}
-    feedback.textContent = "Correct!";
-    feedback.className = "feedback ok";
-    score++; scoreEl.textContent = `${score} / ${ITEMS.length}`;
+    // no message shown under the "I don't know" button
+    feedback.textContent = "";
+    feedback.className = "feedback";
+    score++;
     setTimeout(next, 1500);
   } else {
     feedback.textContent = "";
