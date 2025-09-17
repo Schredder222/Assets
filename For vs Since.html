@@ -8,13 +8,16 @@
   :root{
     --bg:#FDFBED; --ink:#222;
     --edge:#B5B5B5;
-    --edge-strong:#5f5f5f;  /* darker border when a placed word is selected */
+    --edge-strong:#5f5f5f;
     --ok:#1E8E3E; --bad:#B00020; --muted:#9aa1a8; --card:#fff;
 
     /* Fills */
     --for-fill:#FFF59D;     /* soft yellow */
     --since-fill:#BBDEFB;   /* soft blue */
     --btn:#961917;          /* red buttons */
+
+    /* Selection ring used in banks and blanks */
+    --sel-ring: 0 0 0 3px rgba(0,0,0,.12);
   }
   *{box-sizing:border-box}
   body{
@@ -58,11 +61,12 @@
     border:2px solid var(--edge); background:#fff; font-weight:700; cursor:pointer;
     transition:box-shadow .15s ease, background .15s ease, border-color .15s ease; user-select:none;
     touch-action: none; -webkit-tap-highlight-color: transparent;
+    box-shadow:none;
   }
   .pill[data-value="for"]{ background:var(--for-fill); }
   .pill[data-value="since"]{ background:var(--since-fill); }
-  .pill.selected{box-shadow:0 0 0 3px rgba(0,0,0,.12)}
-  /* 🔕 No inner ring when a placed word is selected; we’ll highlight the blank instead */
+  .pill.selected{ box-shadow: var(--sel-ring); }
+  /* No inner ring when selected inside a blank; we highlight the blank instead */
   .blank .pill.selected{ box-shadow:none; }
 
   /* Sentences grid (compact) */
@@ -81,15 +85,16 @@
     width:64px; min-height:34px; padding:3px 10px; margin:0 4px;
     border:2px dashed var(--edge); border-radius:999px;
     background:#fff; vertical-align:middle;
-    transition:background .15s ease, border-color .15s ease, outline-color .15s ease;
+    transition:background .15s ease, border-color .15s ease, outline-color .15s ease, box-shadow .15s ease;
     touch-action: none; -webkit-tap-highlight-color: transparent;
+    box-shadow:none;
   }
   .blank.ready{outline:3px solid rgba(0,0,0,.10)}
   .blank.filled{border-style:solid;}
   .blank[data-filled="for"]{ background:var(--for-fill); }
   .blank[data-filled="since"]{ background:var(--since-fill); }
-  /* ✅ Darker border when the placed word in this blank is selected */
-  .blank.selected{ border-color: var(--edge-strong); }
+  /* Selected placed-word look = same ring as bank selection */
+  .blank.selected{ border-color: var(--edge); box-shadow: var(--sel-ring); }
   .blank.correct{border-color:var(--ok); background:#ecf6ef}
   .blank.incorrect{border-color:var(--bad); background:#faecef}
 
@@ -143,6 +148,14 @@
   }
   .muteBtn:focus-visible{ outline:2px solid #000; outline-offset:2px; }
   .muteBtn img{ width:24px; height:24px; display:block; }
+
+  /* 📱 Mobile: reverse button order to Check → Reset → Mute */
+  @media (max-width:520px){
+    .controls{ gap:6px; }
+    #btnCheck{ order:1; }
+    #btnReset{ order:2; }
+    #muteBtn{ order:3; }
+  }
 </style>
 </head>
 <body>
@@ -150,7 +163,7 @@
     <header>
       <h1>For vs Since — Card Match</h1>
       <div class="controls">
-        <!-- Mute/unmute button BEFORE Reset -->
+        <!-- Desktop order (Mute → Reset → Check). Mobile CSS reverses it. -->
         <button class="muteBtn" id="muteBtn" aria-pressed="false" aria-label="Mute background music" title="Mute">
           <img id="muteIcon" alt="" src="https://schredder222.github.io/Assets/Unmute.svg" />
         </button>
@@ -302,7 +315,7 @@ function build(){
     const span=document.createElement('span');
     span.className='blank'; span.dataset.answer=s.answer;
 
-    // Tap-to-place / swap
+    // Tap-to-select/Place/Swap on the whole coloured container
     span.addEventListener('click',()=>tryPlace(span));
 
     // Desktop drag target
@@ -363,14 +376,12 @@ function makeBank(type,container,count){
       if(inBlank){
         // If another chip is selected, place/swap it into this same blank
         if(state.selected && state.selected!==chip){
-          // remove highlight from any previously highlighted blank
           const oldB = state.selected.closest && state.selected.closest('.blank');
           if (oldB) oldB.classList.remove('selected');
-
           placeChip(state.selected, inBlank);
           return;
         }
-        // toggle selection of this placed chip
+        // toggle selection of this placed chip (ring on the blank)
         if(state.selected && state.selected!==chip){
           state.selected.classList.remove('selected');
           const oldB = state.selected.closest && state.selected.closest('.blank');
@@ -378,7 +389,7 @@ function makeBank(type,container,count){
         }
         chip.classList.toggle('selected');
         if (chip.classList.contains('selected')) {
-          inBlank.classList.add('selected');   // 🔷 darken blank border
+          inBlank.classList.add('selected');   // ring on container
           state.selected = chip;
           playSfx(SFX.select);
         } else {
@@ -390,7 +401,6 @@ function makeBank(type,container,count){
 
       // Chip in a bank
       if(state.selected && state.selected!==chip){
-        // clear previous blank highlight if any
         const oldB = state.selected.closest && state.selected.closest('.blank');
         if (oldB) oldB.classList.remove('selected');
         state.selected.classList.remove('selected');
@@ -406,7 +416,6 @@ function makeBank(type,container,count){
       startBgmOnce(); // start/reveal on first drag (desktop)
 
       chip.classList.add('selected');
-      // clear any highlighted blank selection
       const oldB = state.selected?.closest && state.selected.closest('.blank');
       if (oldB) oldB.classList.remove('selected');
 
@@ -434,19 +443,42 @@ function enableBankDnD(container){
   });
 }
 
-/* Tap-to-place helper */
+/* Tap-to-place / select-on-container helper */
 function tryPlace(blank){
   if(state.checked) return;
-  const chip=state.selected;
-  if(!chip) return;
-  placeChip(chip, blank);
+
+  const hasChip = blank.querySelector('.pill');
+
+  // If nothing is selected yet and this blank has a chip → select it by clicking container
+  if(!state.selected && hasChip){
+    // clear any other selected blank
+    document.querySelectorAll('.blank.selected').forEach(b=>b.classList.remove('selected'));
+    hasChip.classList.add('selected');
+    blank.classList.add('selected');          // ring same as bank
+    state.selected = hasChip;
+    playSfx(SFX.select);
+    return;
+  }
+
+  // If clicking the same blank that holds the selected chip → deselect
+  if(state.selected && hasChip === state.selected){
+    state.selected.classList.remove('selected');
+    blank.classList.remove('selected');
+    state.selected = null;
+    return;
+  }
+
+  // Otherwise, if a chip is selected, try to place/swap it into this blank
+  if(state.selected){
+    placeChip(state.selected, blank);
+  }
+  // If no selection and empty blank, do nothing
 }
 
 /* Move a chip back to a bank */
 function sendToBank(chip, container){
   const oldParent = chip.parentElement;
   container.appendChild(chip);
-  // clear selection and any blank highlight
   if(state.selected===chip) state.selected=null;
   chip.classList.remove('selected');
   if(oldParent && oldParent.classList && oldParent.classList.contains('blank')){
@@ -471,7 +503,6 @@ function placeChip(chip, blank){
   const src = chip.parentElement;
 
   if(src === blank) return;
-
   if(existing && existing.dataset.value === chip.dataset.value) return;
 
   // SWAP if destination has a chip and source is another blank
@@ -564,7 +595,6 @@ function showCelebration(correct, total){
 
   congratsImg.src = src;
   congratsImg.alt = "Result";
-  // restart animation
   congratsImg.style.animation='none'; void congratsImg.offsetWidth;
   congratsImg.style.animation='congratsZoom 6s ease-out forwards';
 
@@ -615,7 +645,6 @@ function addTouchDrag(chip){
       startBgmOnce(); // retry on first movement (iOS)
 
       chip.classList.add('selected');
-      // if some blank was highlighted, clear it (dragging from bank)
       document.querySelectorAll('.blank.selected').forEach(b=>b.classList.remove('selected'));
       state.selected = chip;
 
