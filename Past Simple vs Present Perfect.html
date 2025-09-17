@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PPS vs Past Simple – City Life (A2)</title>
+<style>
+  :root{
+    --ink:#000;
+    --accentBorder:#193873;
+    --ok:#2e7d32;
+    --muted:#9aa1a8;
+    --danger:#b00020;
+    --glass:rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family:"MS Reference Sans Serif", Arial, sans-serif;
+    background:#faf9f6; color:var(--ink); display:flex; min-height:100dvh; align-items:center; justify-content:center; padding:16px;
+  }
+  .app{width:min(980px,100%); display:flex; flex-direction:column; gap:14px}
+
+  header{display:flex; align-items:center; justify-content:space-between; gap:10px}
+  h1{margin:0; font-size:clamp(18px,2.6vw,28px); color:var(--ink); font-weight:800}
+  .meta{display:flex; gap:8px; align-items:center}
+  .pill{border:2px solid var(--accentBorder); color:var(--ink); padding:6px 10px; border-radius:999px; font-weight:800; background:#fff}
+  .restartBtn{background:#fff; color:var(--ink); border:2px solid var(--accentBorder); border-radius:999px; padding:10px 14px; font-weight:800; cursor:pointer}
+
+  .stage{ position:relative; overflow:hidden; border-radius:14px; aspect-ratio:16/9; background:#ddd; }
+  .stage img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transform:translateZ(0); }
+
+  .credit{
+    position:absolute; left:10px; top:10px; z-index:3;
+    font-size:12px; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.9);
+    background:rgba(0,0,0,.25); padding:2px 6px; border-radius:8px;
+  }
+  .instructionsOverlay{
+    position:absolute; left:50%; top:52px; transform:translateX(-50%);
+    z-index:3; padding:8px 12px; border-radius:10px;
+    background:var(--glass); color:#fff; font-weight:700;
+    font-size:clamp(14px,1.8vw,18px); text-align:center;
+    text-shadow:0 1px 2px rgba(0,0,0,.6);
+  }
+
+  .bottomFade{
+    position:absolute; left:0; right:0; bottom:0; height:38%;
+    background:linear-gradient(to top, rgba(0,0,0,.55), rgba(0,0,0,0) 60%);
+    z-index:1; pointer-events:none;
+  }
+
+  /* Bigger tense buttons, centered mid-image */
+  .overBtns{
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    display:inline-flex; gap:12px; z-index:2;
+  }
+  button{
+    appearance:none; border:none; border-radius:999px; padding:14px 20px;
+    font-weight:800; cursor:pointer; background:#fff; color:var(--ink);
+    border:2px solid var(--accentBorder); font-size:clamp(15px,1.9vw,18px);
+    transition:border-color .15s ease, color .15s ease, background-color .15s ease, box-shadow .15s ease;
+  }
+  .tenseBtn.correct{ border-color:var(--ok); color:var(--ok); }
+  .tenseBtn.inactive{ color:#fff; background:var(--muted); border-color:var(--muted); cursor:not-allowed; }
+  .tenseBtn.wrong{ border-color:var(--danger); color:var(--danger); box-shadow:0 0 0 2px rgba(176,0,32,.15); background:#fff; }
+  .tenseBtn .tick{ margin-left:8px; font-weight:900 }
+  .tenseBtn .cross{ margin-left:8px; font-weight:900 }
+
+  /* Sentence area near bottom */
+  .sentence{ position:absolute; left:0; right:0; bottom:12px; z-index:2; padding:0 14px; display:flex; justify-content:center; width:100%; }
+  .line{
+    font-size:clamp(18px,2.2vw,28px); font-weight:700; color:#fff;
+    text-align:center; line-height:1.4;
+    text-shadow:0 2px 10px rgba(0,0,0,.55), 0 1px 2px rgba(0,0,0,.6);
+  }
+  .blank{
+    display:inline-flex; align-items:center; justify-content:center;
+    padding:2px 8px; margin:0 2px; border-radius:10px;
+    background:var(--glass); border-bottom:3px solid rgba(255,255,255,.95);
+  }
+  .blank input{
+    width:min(40ch, 430px); background:transparent; border:none; outline:none;
+    color:#fff; font:inherit; text-align:center; caret-color:#fff;
+  }
+  .blank.small input{ width:min(16ch, 200px); }
+  .blank input.correctInput{ color:var(--ok); }
+  .hint{opacity:.95; font-weight:700; color:#fff; text-shadow:0 2px 10px rgba(0,0,0,.55) }
+
+  .idkWrap{display:flex; justify-content:center; margin-top:8px}
+  #idkBtn{display:none; min-width:180px; border-radius:999px; padding:10px 14px; font-weight:800; cursor:pointer}
+
+  .feedback{min-height:22px; text-align:center; font-weight:800; color:#000}
+  .ok{color:var(--ok)}
+
+  /* Celebration overlay INSIDE the image (centered on photo) */
+  #congratsOverlay{
+    position:absolute; inset:0; display:none; /* inside .stage */
+    align-items:center; justify-content:center;
+    z-index:999; background:rgba(0,0,0,.55);
+  }
+  #congratsOverlay img{
+    width:clamp(200px,60%,460px); height:auto;
+    animation:none; will-change: transform, opacity;
+  }
+  @keyframes congratsZoom{
+    0%{ transform:scale(0.70); opacity:0; }
+    8%{ opacity:1; }
+    100%{ transform:scale(1.0); opacity:1; }
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Present Perfect or Past Simple?</h1>
+      <div class="meta">
+        <span id="score" class="pill">0 / 10</span>
+        <button id="restartBtn" class="restartBtn">Restart</button>
+      </div>
+    </header>
+
+    <section class="stage" id="stage" aria-live="polite">
+      <img id="photo" alt="Prompt image" />
+      <div class="bottomFade" aria-hidden="true"></div>
+
+      <div id="credit" class="credit"></div>
+
+      <div class="instructionsOverlay" id="instructions">
+        Choose the correct verb form and then type it out in the blank to complete the sentence.
+      </div>
+
+      <div id="overBtns" class="overBtns">
+        <button id="btnPast" class="tenseBtn">Past simple</button>
+        <button id="btnPPS" class="tenseBtn">Present perfect</button>
+      </div>
+
+      <div class="sentence">
+        <div class="line" id="line"><!-- dynamic --></div>
+      </div>
+
+      <!-- Celebration now inside the image -->
+      <div id="congratsOverlay" aria-hidden="true">
+        <img id="congratsImg" src="" alt="Result">
+      </div>
+    </section>
+
+    <div class="idkWrap"><button id="idkBtn">I don’t know</button></div>
+
+    <div id="feedback" class="feedback"></div>
+  </div>
+
+  <!-- SFX -->
+  <audio id="sfx-correct" src="https://cdn.pixabay.com/download/audio/2022/03/24/audio_dcde83efa6.mp3?filename=ui_correct_button2-103167.mp3" preload="auto"></audio>
+  <audio id="sfx-wrong"   src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_b0669294aa.mp3?filename=training-program-incorrect1-88736.mp3" preload="auto"></audio>
+  <audio id="sfx-idk"     src="https://cdn.pixabay.com/download/audio/2024/04/21/audio_1b8d3bcd3d.mp3?filename=click-buttons-ui-menu-sounds-effects-button-7-203601.mp3" preload="auto"></audio>
+  <audio id="applause"    src="https://schredder222.github.io/Assets/Applause.mp3" preload="auto"></audio>
+
+<script>
+/* ---------- Image helper with fallbacks ---------- */
+function setImageWithFallback(imgEl, sources){
+  let i = 0;
+  function tryNext(){
+    if (i >= sources.length) return;
+    const src = sources[i++];
+    imgEl.onerror = tryNext;
+    imgEl.src = src;
+  }
+  tryNext();
+}
+const PD_FALLBACK = "https://upload.wikimedia.org/wikipedia/commons/a/a9/Example.jpg?width=1600";
+
+/* ---------- Item bank (20 total) ----------
+   - All sentences use generic urban contexts (no specific city names)
+   - PPS items are PPS1 (indefinite experience, no finished time)
+   - Questions: two blanks (AUX + MAIN), subject between, hint shows “(verb)” (no “(?)”)
+   - Negatives show “(verb) (-)” in brackets; learner types full negative
+   - Avoid: yet / still / already / ever / never
+   - Each item includes: [direct upload URL], [Special:FilePath fallback], [PD fallback]
+*/
+const ITEMS_MASTER = [
+  /* ===== PRESENT PERFECT (experience) – 12 items (we’ll sample 6) ===== */
+  // 1
+  {srcs:[
+      "https://upload.wikimedia.org/wikipedia/commons/1/15/Community_Bulletin_Board_Avalon_NJ.jpg?width=1600",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Community_Bulletin_Board_Avalon_NJ.jpg?width=1600",
+      PD_FALLBACK
+    ],
+    credit:"Wikimedia – Community board",
+    form:"aff", pre:"We", hint:"(see)", post:" many notices on the community board recently.",
+    correctTense:"pps",
+    expected:{ pps:["have seen"], past:["saw","did see"] }
+  },
+  // 2
+  {srcs:[
+      "https://upload.wikimedia.org/wikipedia/commons/d/d2/Buffered_bicycle_lane_in_Burlington_VT.jpg?width=1600",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Bicycle_lane_icon.jpg?width=1600",
+      PD_FALLBACK
+    ],
+    credit:"Wikimedia – Bike lane",
+    form:"aff", pre:"I", hint:"(ride)", post:" along the new bike lane several times.",
+    correctTense:"pps",
+    expected:{ pps:["have ridden"], past:["rode","did ride"] }
+  },
+  // 3
+  {srcs:[
+      "https://upload.wikimedia.org/wikipedia/commons/3/34/2022.10.05_Pedestrian_access_through_%C5%9Awi%C4%99tego_Antoniego_Street_near_the_intersection_with_Tadeusza_Kawki_Street._Pedestrian_crossing_opened_in_October_2022.jpg?width=1600",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Pedestrian_crossing_sign.jpg?width=1600",
+      PD_FALLBACK
+    ],
+    credit:"Wikimedia – Crosswalk sign",
+    form:"aff", pre:"They", hint:"(take)", post:" the pedestrian crossing near the library many times.",
+    correctTense:"pps",
+    expected:{ pps:["have taken"], past:["took","did take"] }
+  },
+  // 4
+  {srcs:[
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/2023_Amsterdam_-_a_fruit_market_stall_at_the_Albert_Cuyp_market_in_the_sunlight_with_a_lot_of_city_people_walking_and_shopping_-_free_download_photo_in_Dutch_street_photography_by_Fons_Heijnsbroek%2C_Netherlands.tif/lossy-page1-3307px-thumbnail.tif.jpg?width=1600",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Market_stalls.jpg?width=1600",
+      PD_FALLBACK
+    ],
+    credit:"Wikimedia – Market stalls",
+    form:"aff", pre:"She", hint:"(buy)", post:" fresh fruit at the market previously.",
+    correctTense:"pps",
+    expected:{ pps:["has bought"], past:["bought","did buy"] }
+  },
+  // 5
+  {srcs:[
+      "https://upload.wikimedia.org/wikipedia/commons/a/ac/Library_shelves_iitd.jpg?width=1600",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Public_library_shelves.jpg?width=1600",
+      PD_FALLBACK
+    ],
+    credit:"Wikimedia – Library shelves",
+    form:"aff", pre:"He", hint:"(find)", post:" several quiet places to study at the library.",
+    correctTense:"pps",
+    expected:{ pps:["has found"], past:["found","did find"] }
+  },
+  // 6
+  {srcs:[
+      "https://upload.wikimedia.org/wikipedia/commons/7/78/Town_Hall%2C_Whitchurch%2C_Hampshire.jpg?width=1600",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Town_hall_civic_building.jpg?width=1600",
+      PD_FALLBACK
+    ],
+    credit:"Wikimedia – Town hall",
+    form:"question", qSubj:"you", hint:"(go)", qTail:" to the town hall for information?",
+    correctTense:"pps",
+    expected:{ pps:["have gone","have been"], past:["did go","were"] }
+  },
+  // 7
+  {srcs:[
+      "https://upload.wikimedia.org/wikipedia/commons/0/02/Arubus%2C_Bus_Stop_Bushiri_Beach%2C_Oranjestad_Aruba_01.jpg?width=1600",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Bus_stop_shelter.jpg?width=1600",
+      PD_FALLBACK
+    ],
+    credit:"Wikimedia – Bus stop",
+    form:"question", qSubj:"they", hint:"(come)", qTail:" early to the bus stop?",
+    correctTense:"pps",
+    expected:{ pps:["have come"], past:["did come","came"] }
+  },
+  // 8
+  {srcs:[
+      "https://upload.wikimedia.org/wikipedia/commons/a/a1/Footbridge_over_River_Wey_%28North_Branch%29%2C_Gostrey_Meadow%2C_Farnham%2C_Surrey.jpg?width=1600",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Footbridge_over_road.jpg?width=1600",
+      PD_FALLBACK
+    ],
+    credit:"Wikimedia – Footbridge",
+    form:"aff", pre:"I", hint:"(meet)", post:" friends on the footbridge near the park lots of times.",
+    correctTense:"pps",
+    expected:{ pps:["have met"], past:["met","did meet"] }
+  },
+  // 9
+  {srcs:[
+      "https://upload.wikimedia.org/wikipedia/commons/9/9d/ZAW_Recycling_Container_%28Frauenstra%C3%9Fe%29.jpg?width=1600",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Recycling_bins_street.jpg?width=1600",
+      PD_FALLBACK
+    ],
+    credit:"Wikimedia – Recycling bins",
+    form:"neg", pre:"We", hint:"(throw) (-)", post:" garbage on the street even once.",
+    correctTense:"pps",
+    expected:{ pps:["have not thrown","haven't thrown"], past:["did not throw","didn't throw"] }
+  },
+  //10
+  {srcs:[
+      "https://upload.wikimedia.org/wikipedia/commons/d/da/Kelvinhall_subway_station%2C_Glasgow_Subway%2C_Scotland.jpg?width=1600",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Metro_station_platform.jpg?width=1600",
+      PD_FALLBACK
+    ],
+    credit:"Wikimedia – Metro platform",
+    form:"neg", pre:"He", hint:"(get) (-)", post:" lost on the metro before.",
+    correctTense:"pps",
+    expected:{ pps:["has not got","hasn't got","has not gotten","hasn't gotten"], past:["did not get","didn't get"] }
+  },
+  //11
+  {srcs:[
+      "https://upload.wikimedia.org/wikipedia/commons/4/41/SZ_%E6%B7%B1%E5%9C%B3_Shenzhen_%E9%BE%8D%E5%B4%97_Longgang_The_RestFul_Food_Court_restaurant_furniture_March_2025_R12S_12.jpg?width=1600",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Food_court_tables.jpg?width=1600",
+      PD_FALLBACK
+    ],
+    credit:"Wikimedia – Food court",
+    form:"aff", pre:"She", hint:"(eat)", post:" lunch at the food court lots of times.",
+    correctTense:"pps",
+    expected:{ pps:["has eaten"], past:["ate","did eat"] }
+  },
+  //12
+  {srcs:[
+      "https://upload.wikimedia.org/wikipedia/commons/c/ce/2022_03_Larnaka_District_Archeological_Museum_1.jpg?width=1600",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/City_museum_gallery.jpg?width=1600",
+      PD_FALLBACK
+    ],
+    credit:"Wikimedia – Museum gallery",
+    form:"aff", pre:"I", hint:"(go)", post:" to the city museum twice.",
+    correctTense:"pps",
+    expected:{ pps:["have gone","have been"], past:["went","did go","was","were"] }
+  },
+
+  /* ===== PAST SIMPLE (finished time) – 8 items (we’ll sample 4) ===== */
+  //13
+  {srcs:[
+      "https://upload.wikimedia.org/wikipedia/commons/2/26/Led_traffic_lights.jpg?width=1600",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Traffic_lights_junction.jpg?width=1600",
+      PD_FALLBACK
+    ],
+    credit:"Wikimedia – Traffic lights",
+    form:"aff", pre:"They", hint:"(put)", post:" new traffic lights at the corner last week.",
+    correctTense:"past",
+    expected:{ pps:["have put"], past:["put","did put"] }
+  },
+  //14
+  {srcs:[
+      "https://upload.wikimedia.org/wikipedia/commons/a/a2/Roadworks_in_Tower_Street_York_Mar25.jpg?width=1600",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Roadworks_sign_street.jpg?width=1600",
+      PD_FALLBACK
+    ],
+    credit:"Wikimedia – Roadworks",
+    form:"aff", pre:"The workers", hint:"(make)", post:" a new bike path last week.",
+    correctTense:"past",
+    expected:{ pps:["have made"], past:["made","did make"] }
+  },
+  //15
+  {srcs:[
+      "https://upload.wikimedia.org/wikipedia/commons/0/03/Fountain_fish_rhodes.jpg?width=1600",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Public_fountain_square.jpg?width=1600",
+      PD_FALLBACK
+    ],
+    credit:"Wikimedia – Fountain",
+    form:"neg", pre:"They", hint:"(drink) (-)", post:" the water from the fountain on Saturday.",
+    correctTense:"past",
+    expected:{ pps:["have not drunk","haven't drunk"], past:["did not drink","didn't drink"] }
+  },
+  //16
+  {srcs:[
+      "https://upload.wikimedia.org/wikipedia/commons/9/93/Elisabeth_Park_%283%29.jpg?width=1600",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/City_park_cleanup.jpg?width=1600",
+      PD_FALLBACK
+    ],
+    credit:"Wikimedia – Park cleanup",
+    form:"neg", pre:"We", hint:"(leave) (-)", post:" any rubbish in the park on the weekend.",
+    correctTense:"past",
+    expected:{ pps:["have not left","haven't left"], past:["did not leave","didn't leave"] }
+  },
+  //17
+  {srcs:[
+      "https://upload.wikimedia.org/wikipedia/commons/c/c2/Library_bookshelf.jpg?width=1600",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/City_library_entrance.jpg?width=1600",
+      PD_FALLBACK
+    ],
+    credit:"Wikimedia – Library entrance",
+    form:"aff", pre:"I", hint:"(return)", post:" my library books on Monday.",
+    correctTense:"past",
+    expected:{ pps:["have returned"], past:["returned","did return"] }
+  },
+  //18
+  {srcs:[
+      "https://upload.wikimedia.org/wikipedia/commons/f/f6/Playground_at_Graustein_Park%2C_Fryeburg.jpg?width=1600",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Playground_swing_set.jpg?width=1600",
+      PD_FALLBACK
+    ],
+    credit:"Wikimedia – Playground",
+    form:"question", qSubj:"you", hint:"(visit)", qTail:" the playground last weekend?",
+    correctTense:"past",
+    expected:{ pps:["have visited"], past:["did visit"] }
+  },
+  //19
+  {srcs:[
+      "https://upload.wikimedia.org/wikipedia/commons/f/fe/Metro_Ticket_machines_in_Bavaria%2C_from_Munich.jpg?width=1600",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Bus_ticket_machine.jpg?width=1600",
+      PD_FALLBACK
+    ],
+    credit:"Wikimedia – Ticket machine",
+    form:"question", qSubj:"she", hint:"(get)", qTail:" a ticket from the machine this morning?",
+    correctTense:"past",
+    expected:{ pps:["has got","has gotten"], past:["did get","got"] }
+  },
+  //20
+  {srcs:[
+      "https://upload.wikimedia.org/wikipedia/commons/9/99/Busker_Trafalgar_Square.jpg?width=1600",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Street_musician_busker.jpg?width=1600",
+      PD_FALLBACK
+    ],
+    credit:"Wikimedia – Street musician",
+    form:"aff", pre:"We", hint:"(give)", post:" some coins to a busker yesterday evening.",
+    correctTense:"past",
+    expected:{ pps:["have given"], past:["gave","did give"] }
+  }
+];
+
+let ITEMS = [];
+let order=[], index=0, score=0, chosenTense=null;
+
+const $ = id => document.getElementById(id);
+const stage=$("stage");
+const photo=$("photo"), credit=$("credit");
+const lineEl=$("line");
+const scoreEl=$("score"), feedback=$("feedback");
+const btnPast=$("btnPast"), btnPPS=$("btnPPS");
+const idkBtn=$("idkBtn"), restartBtn=$("restartBtn");
+const sfxCorrect=$("sfx-correct"), sfxWrong=$("sfx-wrong"), sfxIdk=$("sfx-idk"), applause=$("applause");
+const congratsOverlay=$("congratsOverlay"), congratsImg=$("congratsImg");
+
+function shuffle(a){const arr=a.slice();for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
+function norm(s){return s.toLowerCase().trim().replace(/\s+/g," ");}
+
+/* --- Draw 6 PPS + 4 Past Simple each round --- */
+function sampleBiased(){
+  const pps = ITEMS_MASTER.filter(x=>x.correctTense==="pps");
+  const pst = ITEMS_MASTER.filter(x=>x.correctTense==="past");
+  const six = shuffle(pps).slice(0,6);
+  const four = shuffle(pst).slice(0,4);
+  return shuffle([...six, ...four]);
+}
+
+let inputMain=null, inputAux=null; // current inputs
+
+function renderAffNeg(it){
+  lineEl.innerHTML = "";
+  const preSpan = document.createElement('span'); preSpan.textContent = it.pre + " ";
+  const blank = document.createElement('span'); blank.className = "blank";
+  const inp = document.createElement('input'); inp.type = "text"; inp.id = "answer";
+  blank.appendChild(inp);
+  const hint = document.createElement('span'); hint.className="hint"; hint.textContent = " " + it.hint + " ";
+  const post = document.createElement('span'); post.textContent = it.post;
+
+  lineEl.appendChild(preSpan);
+  lineEl.appendChild(blank);
+  lineEl.appendChild(hint);
+  lineEl.appendChild(post);
+
+  inputMain = inp; inputAux = null;
+}
+
+function renderQuestion(it){
+  lineEl.innerHTML = "";
+  // [ AUX ] SUBJECT [ MAIN ] + tail
+  const blankAux = document.createElement('span'); blankAux.className="blank small";
+  const inpA = document.createElement('input'); inpA.type="text"; inpA.id="answerAux"; blankAux.appendChild(inpA);
+
+  const subj = document.createElement('span'); subj.textContent = " " + it.qSubj + " ";
+
+  const blankMain = document.createElement('span'); blankMain.className="blank small";
+  const inpM = document.createElement('input'); inpM.type="text"; inpM.id="answerMain"; blankMain.appendChild(inpM);
+
+  const hint = document.createElement('span'); hint.className="hint"; hint.textContent = " " + it.hint + " ";
+  const tail = document.createElement('span'); tail.textContent = it.qTail;
+
+  lineEl.appendChild(blankAux);
+  lineEl.appendChild(subj);
+  lineEl.appendChild(blankMain);
+  lineEl.appendChild(hint);
+  lineEl.appendChild(tail);
+
+  inputAux = inpA; inputMain = inpM;
+}
+
+function init(){
+  ITEMS = sampleBiased();               // <<— biased draw
+  order = shuffle([...Array(ITEMS.length).keys()]);
+  index = 0; score = 0; chosenTense = null;
+  scoreEl.textContent = `0 / ${ITEMS.length}`;
+  load();
+}
+
+function load(){
+  const it = ITEMS[order[index]];
+  setImageWithFallback(photo, it.srcs || [PD_FALLBACK]);
+  credit.textContent = it.credit || "";
+
+  if (it.form === "question") renderQuestion(it);
+  else renderAffNeg(it);
+
+  feedback.textContent = "";
+  chosenTense = null;
+  resetBtnVisuals();
+  idkBtn.style.display = "none";
+
+  btnPast.onclick = ()=> chooseTense("past");
+  btnPPS.onclick  = ()=> chooseTense("pps");
+  idkBtn.onclick  = onIdk;
+
+  removeAutoListeners();
+  addAutoListeners();
+
+  setInputsDisabled(true);
+}
+
+function setInputsDisabled(dis){
+  if (inputAux) inputAux.disabled = dis;
+  if (inputMain) inputMain.disabled = dis;
+}
+
+function removeAutoListeners(){
+  if (inputAux) inputAux.removeEventListener("input", autoCheck);
+  if (inputMain) inputMain.removeEventListener("input", autoCheck);
+}
+function addAutoListeners(){
+  if (inputAux) inputAux.addEventListener("input", autoCheck);
+  if (inputMain) inputMain.addEventListener("input", autoCheck);
+}
+
+function resetBtnVisuals(){
+  btnPast.disabled = false; btnPPS.disabled = false;
+  btnPast.className = "tenseBtn"; btnPPS.className = "tenseBtn";
+  removeIcon(btnPast); removeIcon(btnPPS);
+}
+function addIcon(btn, symbolClass){
+  const span = document.createElement('span');
+  span.textContent = symbolClass === 'tick' ? '✔' : '✖';
+  span.className = symbolClass;
+  btn.appendChild(span);
+}
+function removeIcon(btn){ btn.querySelectorAll('.tick,.cross').forEach(n=>n.remove()); }
+
+function chooseTense(choice){
+  if(chosenTense) return;
+  const it = ITEMS[order[index]];
+  const correct = it.correctTense;
+  chosenTense = choice;
+
+  try{ (choice===correct? sfxCorrect : sfxWrong).currentTime=0; (choice===correct? sfxCorrect : sfxWrong).play().catch(()=>{});}catch(_){}
+
+  if (correct === "past"){
+    btnPast.classList.add("correct"); addIcon(btnPast,'tick');
+    if (choice !== "past"){ btnPPS.classList.add("wrong"); addIcon(btnPPS,'cross'); } else { btnPPS.classList.add("inactive"); }
+  } else {
+    btnPPS.classList.add("correct"); addIcon(btnPPS,'tick');
+    if (choice !== "pps"){ btnPast.classList.add("wrong"); addIcon(btnPast,'cross'); } else { btnPast.classList.add("inactive"); }
+  }
+
+  btnPast.disabled = true; btnPPS.disabled = true;
+  setInputsDisabled(false);
+  (inputAux || inputMain).focus();
+  idkBtn.style.display = "inline-block";
+}
+
+/* Accept correct typed answers even if the wrong tense button was chosen */
+function autoCheck(){
+  const it = ITEMS[order[index]];
+  if (!it) return;
+
+  let userString = "";
+  if (it.form === "question"){
+    const aux = norm(inputAux?.value || "");
+    const main = norm(inputMain?.value || "");
+    if (!aux || !main) return;
+    userString = aux + " " + main;
+  } else {
+    const one = norm(inputMain?.value || "");
+    if (!one) return;
+    userString = one;
+  }
+
+  const correctList = (it.expected[it.correctTense]||[]).map(norm);
+  if (correctList.includes(userString)){
+    markCorrect();
+    try{ sfxCorrect.currentTime=0; sfxCorrect.play().catch(()=>{});}catch(_){}
+    feedback.textContent = "Correct!";
+    feedback.className = "feedback ok";
+    score++; scoreEl.textContent = `${score} / ${ITEMS.length}`;
+    setTimeout(next, 1500);
+  } else {
+    feedback.textContent = "";
+    feedback.className = "feedback";
+  }
+}
+
+function markCorrect(){
+  if (inputAux){ inputAux.classList.add("correctInput"); inputAux.disabled = true; }
+  if (inputMain){ inputMain.classList.add("correctInput"); inputMain.disabled = true; }
+}
+
+/* “I don’t know” behaves like choosing the correct tense, then reveals the answer */
+function onIdk(){
+  const it = ITEMS[order[index]];
+  if (!it) return;
+
+  if (!chosenTense){
+    if (it.correctTense === "past"){
+      btnPast.classList.add("correct"); addIcon(btnPast,'tick'); btnPPS.classList.add("inactive");
+    } else {
+      btnPPS.classList.add("correct"); addIcon(btnPPS,'tick'); btnPast.classList.add("inactive");
+    }
+    btnPast.disabled = true; btnPPS.disabled = true;
+    chosenTense = it.correctTense;
+  }
+
+  try{ sfxIdk.currentTime=0; sfxIdk.play().catch(()=>{});}catch(_){}
+
+  const first = it.expected[it.correctTense][0] || "";
+  if (it.form === "question"){
+    const parts = first.split(" ");
+    const aux = parts.shift() || "";
+    const main = parts.join(" ");
+    if (inputAux) { inputAux.value = aux; inputAux.disabled = true; }
+    if (inputMain){ inputMain.value = main; inputMain.disabled = true; }
+  } else {
+    if (inputMain) { inputMain.value = first; inputMain.disabled = true; }
+  }
+
+  feedback.textContent = "";
+  feedback.className = "feedback";
+  setTimeout(next, 2500);
+}
+
+function next(){
+  if(index < ITEMS.length-1){
+    index++;
+    load();
+  }else{
+    const finalMsg = `Final score: ${score} / ${ITEMS.length}`;
+    feedback.textContent = finalMsg;
+    feedback.className = "feedback ok";
+    idkBtn.style.display = "none";
+    showFinalCelebration(score, ITEMS.length);
+  }
+}
+
+/* Celebration: centered over IMAGE, 6s, then auto-hide */
+function showFinalCelebration(points, total){
+  let imgUrl = "https://schredder222.github.io/Assets/Keep%20Practising.png";
+  if(points <= 5){
+    imgUrl = "https://schredder222.github.io/Assets/Keep%20Practising.png";
+  }else if(points <= 8){
+    imgUrl = "https://schredder222.github.io/Assets/Not%20Bad.png";
+  }else{
+    imgUrl = "https://schredder222.github.io/Assets/Fantastic.png";
+    try{ applause.currentTime=0; applause.play().catch(()=>{});}catch(_){}
+  }
+  const overlay = document.getElementById("congratsOverlay");
+  const img = document.getElementById("congratsImg");
+  img.src = imgUrl;
+  img.style.animation = "none"; void img.offsetWidth;
+  img.style.animation = "congratsZoom 6s ease-out forwards";
+  overlay.style.display = "flex";
+  overlay.setAttribute("aria-hidden","false");
+  setTimeout(()=>{ overlay.style.display="none"; overlay.setAttribute("aria-hidden","true"); try{ applause.pause(); }catch(_){ } }, 6000);
+  overlay.onclick = ()=>{ overlay.style.display="none"; overlay.setAttribute("aria-hidden","true"); try{ applause.pause(); }catch(_){ } };
+}
+
+restartBtn.addEventListener("click", init);
+init();
+</script>
+</body>
+</html>
