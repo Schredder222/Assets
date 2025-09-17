@@ -33,22 +33,22 @@
     justify-content:space-between;
     flex-wrap:wrap;
   }
-  .titleWrap{ text-align:left } /* ensure left-align by default */
+  .titleWrap{ text-align:left }
   h1{ font-weight:600; margin:0; color:#000; line-height:1.2 }
   .sub{ color:var(--ink-soft); margin:0; font-size:.95rem; line-height:1.25 }
-  .sub .sub-l1, .sub .sub-l2{ display:inline } /* desktop: one line */
+  .sub .sub-l1, .sub .sub-l2{ display:inline }
   header h1, header .sub{ max-width:100% }
   .rightTools{ display:flex; align-items:center; gap:10px }
 
   @media (max-width:640px){
     header{
       flex-direction:column;
-      align-items:stretch;   /* let each child align itself */
+      align-items:stretch;
       gap:6px;
       text-align:initial;
     }
-    .titleWrap{ text-align:left } /* mobile: keep heading/sub left-aligned */
-    .sub .sub-l1, .sub .sub-l2{ display:block } /* split onto two lines on mobile */
+    .titleWrap{ text-align:left }
+    .sub .sub-l1, .sub .sub-l2{ display:block } /* split into two lines on mobile */
     .rightTools{
       align-self:flex-end;   /* keep mute/restart to the right on mobile */
       justify-content:flex-end;
@@ -58,7 +58,7 @@
   /* ===== Sentence stage & animations ===== */
   .stage{
     position:relative;
-    min-height:140px; /* gives room for centered end panel later */
+    min-height:140px;
     padding:2px 0;
     overflow:hidden;
     margin-top:80px; /* larger gap from header */
@@ -95,24 +95,21 @@
     to{   transform:translateX(120%); opacity:0 }
   }
 
-  /* ===== End panel (appears in the sentence area after animation) ===== */
+  /* ===== End panel (shows after overlay disappears) ===== */
   .endPanel{
     position:absolute; inset:0;
-    display:none;             /* shown at end */
+    display:none;
     align-items:center; justify-content:center;
     flex-direction:column; gap:10px;
     text-align:center;
   }
   .endPanel.show{ display:flex; }
-  .finalScore{
-    font-weight:700; color:#000; margin-top:4px;
-  }
 
-  /* ===== Choices ===== */
+  /* ===== Choices & frame ===== */
+  .choicesFrame{ position:relative; margin:10px 0; }
   .choices{
     display:flex; gap:10px; flex-wrap:wrap; justify-content:center;
     opacity:0;
-    margin:10px 0; /* reduced gaps above/below */
   }
   .choices.fadeIn{ animation:fadeInUp .35s ease-out .2s forwards }
   @keyframes fadeInUp{
@@ -131,33 +128,14 @@
   .choices button[disabled]{ filter:grayscale(.9); cursor:not-allowed; outline-color:#bbb; color:#777 }
   .choices .correctChoice{ outline-color:var(--green) } /* correct -> green border */
 
-  /* ===== HUD ===== */
-  .hud{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:8px }
-  .dots{ display:flex; gap:6px }
-  .dot{ width:12px; height:12px; border-radius:999px; background:#e3e3e3; border:2px solid #c9c9c9 }
-  .dot.done,.dot.current{ background:#000; border-color:#000 }
-  .score{ font-weight:700; color:#000 }
-
-  /* ===== Buttons ===== */
-  .btn{
-    padding:10px 14px; border-radius:999px; border:2px solid var(--accent);
-    background:var(--accent); color:#fff; font-weight:700; cursor:pointer
-  }
-  .playAgain{ margin:0 auto }
-
-  /* Mute button: hidden until music starts after first click, then stays visible */
-  .muteBtn{
-    visibility:hidden;
-    display:inline-flex; background:transparent; border:none; padding:6px;
-    width:40px; height:40px; border-radius:999px; cursor:pointer; line-height:0;
-  }
-  .muteBtn img{ width:24px; height:24px; display:block; }
-
-  /* ===== Congrats overlay (full viewport so not clipped) ===== */
+  /* ===== Celebratory overlay (fixed; we place it just under the sentence) ===== */
   #congratsOverlay{
-    position:fixed; inset:0; display:none;
+    position:fixed;
+    display:none;
+    left:50%;
+    transform:translate(-50%,-50%); /* center on provided top value */
     align-items:center; justify-content:center;
-    z-index:9999; background:transparent; pointer-events:none;
+    z-index:9999; pointer-events:none; background:transparent;
   }
   #congratsOverlay img{
     width:clamp(180px,60%,420px); height:auto;
@@ -168,6 +146,31 @@
     8%{ opacity:1; }
     100%{ transform:scale(1.0); opacity:1; }
   }
+
+  /* ===== HUD ===== */
+  .hud{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:8px }
+  .dots{ display:flex; gap:6px }
+  .dot{ width:12px; height:12px; border-radius:999px; background:#e3e3e3; border:2px solid #c9c9c9 }
+  .dot.done,.dot.current{ background:#000; border-color:#000 }
+  .score{ font-weight:700; color:#000 }
+
+  /* ===== Buttons (pill shape to match adverbs) ===== */
+  .btn{
+    padding:10px 16px; border-radius:999px; border:2px solid var(--accent);
+    background:var(--accent); color:#fff; font-weight:700; cursor:pointer;
+    transition:transform .08s ease;
+  }
+  .btn:hover{ transform:translateY(-1px) }
+  .btn:active{ transform:scale(.98) }
+  .playAgain{ margin:0 auto }
+
+  /* Mute button: hidden until music starts after first click, then stays visible */
+  .muteBtn{
+    visibility:hidden;
+    display:inline-flex; background:transparent; border:none; padding:6px;
+    width:40px; height:40px; border-radius:999px; cursor:pointer; line-height:0;
+  }
+  .muteBtn img{ width:24px; height:24px; display:block; }
 </style>
 </head>
 <body>
@@ -181,42 +184,42 @@
         </p>
       </div>
       <div class="rightTools">
-        <!-- Mute on the left (becomes visible only after music starts the first time) -->
         <button class="muteBtn" id="muteBtn" aria-pressed="false" aria-label="Mute background music" title="Mute">
           <img id="muteIcon" alt="" src="https://schredder222.github.io/Assets/Unmute.svg" />
         </button>
-        <!-- Restart on the right -->
         <button class="btn" id="restartBtn">Restart</button>
       </div>
     </header>
 
-    <section class="stage">
+    <section class="stage" id="stage">
       <p id="sentence" class="sentence"></p>
 
       <!-- End-of-quiz panel that shows after the celebratory image disappears -->
       <div id="endPanel" class="endPanel" aria-hidden="true">
         <button class="btn playAgain" id="playAgainBtn">Play Again</button>
-        <div id="finalScore" class="finalScore"></div>
       </div>
     </section>
 
-    <div class="choices" id="choices">
-      <button type="button" data-word="ever">ever</button>
-      <button type="button" data-word="never">never</button>
-      <button type="button" data-word="already">already</button>
-      <button type="button" data-word="yet">yet</button>
-      <button type="button" data-word="still">still</button>
+    <!-- Choices frame -->
+    <div class="choicesFrame" id="choicesFrame">
+      <div class="choices" id="choices">
+        <button type="button" data-word="ever">ever</button>
+        <button type="button" data-word="never">never</button>
+        <button type="button" data-word="already">already</button>
+        <button type="button" data-word="yet">yet</button>
+        <button type="button" data-word="still">still</button>
+      </div>
+    </div>
+
+    <!-- Celebratory overlay (we position it just below the sentence’s bottom) -->
+    <div id="congratsOverlay" aria-hidden="true">
+      <img id="congratsImg" src="" alt="Result">
     </div>
 
     <footer class="hud" id="hud">
       <div class="dots" id="dots"></div>
       <div class="score" id="score">Score: 0 / 10</div>
     </footer>
-
-    <!-- Overlay -->
-    <div id="congratsOverlay" aria-hidden="true">
-      <img src="" alt="Result">
-    </div>
 
     <!-- SFX -->
     <audio id="sfx-correct" preload="auto" src="https://cdn.pixabay.com/download/audio/2022/03/24/audio_dcde83efa6.mp3?filename=ui_correct_button2-103167.mp3"></audio>
@@ -242,6 +245,9 @@
     { s:"Have you [blank] ridden a horse?", a:"ever" }
   ];
 
+  const stage = document.getElementById("stage");
+  const choicesFrame = document.getElementById("choicesFrame");
+
   const sentenceEl = document.getElementById("sentence");
   const choicesWrap = document.getElementById("choices");
   const choiceBtns = Array.from(choicesWrap.querySelectorAll("button"));
@@ -251,14 +257,13 @@
   const restartBtn = document.getElementById("restartBtn");
   const playAgainBtn = document.getElementById("playAgainBtn");
   const endPanel = document.getElementById("endPanel");
-  const finalScore = document.getElementById("finalScore");
   const sfxCorrect = document.getElementById("sfx-correct");
   const sfxWrong = document.getElementById("sfx-wrong");
   const clickSound = document.getElementById("clickSound");
   const bgm = document.getElementById("bgm");
   const applause = document.getElementById("applause");
   const overlay = document.getElementById("congratsOverlay");
-  const overlayImg = overlay.querySelector("img");
+  const overlayImg = document.getElementById("congratsImg");
   const muteBtn = document.getElementById("muteBtn");
   const muteIcon = document.getElementById("muteIcon");
   const MUTE_ICON_URL = "https://schredder222.github.io/Assets/Mute.svg";
@@ -358,6 +363,18 @@
     renderDots();
   }
 
+  /* Position overlay: center just under the sentence’s bottom edge */
+  function positionOverlayBelowSentence(){
+    const sRect = sentenceEl.getBoundingClientRect();
+    const offset = 8; // small breathing room
+    const topY = sRect.bottom + offset;         // this is the center Y of the image
+    overlay.style.top = `${topY}px`;
+    overlay.style.left = '50%';
+    overlay.style.transform = 'translate(-50%,-50%)'; /* center on that point */
+  }
+
+  let overlayHideTimer = null;
+
   function init(){
     order=shuffle([...Array(ITEMS.length).keys()]);
     idx=0; score=0;
@@ -365,12 +382,13 @@
     choicesWrap.style.opacity=1;
     choicesWrap.style.display="flex";
     overlay.style.display="none";
+    overlayImg.src = "";          // clear previous image to avoid flashes
     endPanel.classList.remove("show");
     endPanel.setAttribute("aria-hidden","true");
-    finalScore.textContent="";
     playAgainBtn.blur();
-    hud.style.display="flex";
     restartBtn.style.display="inline-block";
+
+    if (overlayHideTimer){ clearTimeout(overlayHideTimer); overlayHideTimer=null; }
 
     stopMusic();  // ensure music is stopped
     armMusic();   // will start after first answer click
@@ -384,31 +402,51 @@
     // stop the music on quiz finish
     stopMusic();
 
-    // Hide choices & HUD while animation plays
-    choicesWrap.style.display="none";
-    hud.style.display="none";
+    // Decide image FIRST to prevent any flicker
+    let imgSrc="";
+    if(score===10){
+      imgSrc="https://schredder222.github.io/Assets/Superb.png";
+      try{ applause.currentTime=0; applause.play(); }catch(e){}
+    } else if(score>=7){
+      imgSrc="https://schredder222.github.io/Assets/Not%20Bad.png";
+    } else {
+      imgSrc="https://schredder222.github.io/Assets/Keep%20practising.png";
+    }
+    overlayImg.src = imgSrc;
 
-    sentenceEl.innerHTML="";
+    // Keep the final sentence and adverb buttons visible during the animation.
+    // Place the celebratory PNG just under the sentence.
+    positionOverlayBelowSentence();
     overlay.style.display="flex";
+
+    // Restart animation cleanly
     overlayImg.style.animation="none";
-    void overlayImg.offsetWidth; /* reflow to restart animation */
+    void overlayImg.offsetWidth;
     overlayImg.style.animation="congratsZoom 6s ease-out forwards";
 
-    let imgSrc="";
-    if(score===10){ imgSrc="https://schredder222.github.io/Assets/Superb.png"; applause.currentTime=0; applause.play(); }
-    else if(score>=7){ imgSrc="https://schredder222.github.io/Assets/Not%20Bad.png"; }
-    else { imgSrc="https://schredder222.github.io/Assets/Keep%20practising.png"; }
-    overlayImg.src=imgSrc;
+    const onResize = ()=>{ if(overlay.style.display==='flex') positionOverlayBelowSentence(); };
+    window.addEventListener('resize', onResize, { passive:true });
 
-    // After 6s: hide overlay, show Play Again centered in sentence area + centered score below
-    setTimeout(()=>{
+    // After 6s: hide overlay, clear the sentence, then show Play Again centered.
+    overlayHideTimer = setTimeout(()=>{
       overlay.style.display="none";
-      finalScore.textContent = `Score: ${score} / ${ITEMS.length}`;
+      restartBtn.style.display="none";
+
+      // ✨ Now remove the sentence (per your request)
+      sentenceEl.innerHTML="";
+
+      // Hide choices after animation; score/HUD stays as-is
+      choicesWrap.style.display="none";
+
+      // Show end panel (Play Again in the sentence space)
       endPanel.classList.add("show");
       endPanel.setAttribute("aria-hidden","false");
-      restartBtn.style.display="none";
-      // re-arm music for next run; mute button stays as-is (visible if previously shown)
+
+      // Re-arm music for the next run
       armMusic();
+
+      window.removeEventListener('resize', onResize);
+      overlayHideTimer = null;
     },6000);
   }
 
@@ -434,15 +472,29 @@
 
         locked=true;
         choiceBtns.forEach(b=>{ if(b!==btn) b.disabled=true; });
-        setTimeout(()=>{
-          sentenceEl.classList.remove("enterSentence");
-          sentenceEl.classList.add("exitSentenceRight");
+
+        const isLast = (idx === ITEMS.length - 1);
+
+        if (isLast){
+          // Keep the final sentence visible during the celebration.
           setTimeout(()=>{
-            idx++;
             locked=false;
-            next();
-          },460);
-        },1500);
+            idx++;      // advance index to trigger finish
+            finishQuiz();
+          },1500);
+        } else {
+          // Normal flow: animate out then show next
+          setTimeout(()=>{
+            sentenceEl.classList.remove("enterSentence");
+            sentenceEl.classList.add("exitSentenceRight");
+            setTimeout(()=>{
+              idx++;
+              locked=false;
+              next();
+            },460);
+          },1500);
+        }
+
       } else {
         btn.disabled=true;
         firstAttempt = false;
@@ -453,12 +505,9 @@
 
   restartBtn.addEventListener("click", ()=>{
     clickSound.currentTime=0; clickSound.play();
-
-    // Stop music immediately on restart and only resume after next answer click
     stopMusic();
     armMusic();
     muteBtn.style.visibility = muteShown ? 'visible' : 'hidden';
-
     locked=false; sentenceEl.className="sentence";
     choicesWrap.style.opacity=1;
     init();
