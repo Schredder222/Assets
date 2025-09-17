@@ -7,8 +7,13 @@
 <style>
   :root{
     --bg:#FDFBED; --ink:#222;
-    --edge:#B5B5B5;              /* neutral grey borders */
+    --edge:#B5B5B5;
     --ok:#1E8E3E; --bad:#B00020; --muted:#9aa1a8; --card:#fff;
+
+    /* Fills */
+    --for-fill:#FFF59D;     /* soft yellow */
+    --since-fill:#BBDEFB;   /* soft blue */
+    --btn:#961917;          /* red buttons */
   }
   *{box-sizing:border-box}
   body{
@@ -22,9 +27,12 @@
   .controls{display:flex; gap:8px}
   button{
     border:2px solid var(--edge); background:#fff; color:#000; padding:6px 10px; border-radius:999px;
-    font-weight:600; cursor:pointer; transition:transform .06s ease, background .2s ease;
+    font-weight:600; cursor:pointer; transition:transform .06s ease, background .2s ease, color .2s ease, border-color .2s ease;
   }
-  button:hover{transform:translateY(-1px)}
+  /* Red buttons */
+  header .controls button{ background:var(--btn); border-color:var(--btn); color:#fff; }
+  header .controls button:hover{ transform:translateY(-1px); filter:brightness(1.05); }
+
   .meta{font-size:.9rem; color:#333}
   .muted{color:var(--muted)}
 
@@ -43,10 +51,11 @@
     min-width:56px; padding:5px 10px; border-radius:999px;
     border:2px solid var(--edge); background:#fff; font-weight:700; cursor:pointer;
     transition:box-shadow .15s ease, background .15s ease; user-select:none;
-    touch-action: none;                      /* enable custom touch-drag */
-    -webkit-tap-highlight-color: transparent;
+    touch-action: none; -webkit-tap-highlight-color: transparent;
   }
-  .pill.selected{box-shadow:0 0 0 3px rgba(0,0,0,.12)} /* subtle grey focus */
+  .pill[data-value="for"]{ background:var(--for-fill); }
+  .pill[data-value="since"]{ background:var(--since-fill); }
+  .pill.selected{box-shadow:0 0 0 3px rgba(0,0,0,.12)}
 
   /* Sentences grid (compact) */
   .grid{display:grid; grid-template-columns:1fr; gap:8px}
@@ -58,18 +67,19 @@
   }
   .sentence{margin:0}
 
-  /* Blank styled to MATCH pill shape, fixed width to prevent layout shift */
+  /* Blank styled to match pills; fixed width prevents layout shift */
   .blank{
     display:inline-flex; align-items:center; justify-content:center;
     width:64px; min-height:34px; padding:3px 10px; margin:0 4px;
     border:2px dashed var(--edge); border-radius:999px;
     background:#fff; vertical-align:middle;
     transition:background .15s ease, border-color .15s ease, outline-color .15s ease;
-    touch-action: none;
-    -webkit-tap-highlight-color: transparent;
+    touch-action: none; -webkit-tap-highlight-color: transparent;
   }
   .blank.ready{outline:3px solid rgba(0,0,0,.10)}
   .blank.filled{border-style:solid;}
+  .blank[data-filled="for"]{ background:var(--for-fill); }
+  .blank[data-filled="since"]{ background:var(--since-fill); }
   .blank.correct{border-color:var(--ok); background:#ecf6ef}
   .blank.incorrect{border-color:var(--bad); background:#faecef}
 
@@ -83,8 +93,7 @@
     position:absolute; top:6px; right:8px; font-weight:800;
     font-size:.9rem; user-select:none;
   }
-  .tick{color:var(--ok)}
-  .cross{color:var(--bad)}
+  .tick{color:var(--ok)} .cross{color:var(--bad)}
 
   /* Floating ghost for touch-drag */
   .drag-ghost{
@@ -94,23 +103,25 @@
     padding:5px 10px; font-weight:700;
   }
 
-  /* Result overlay */
-  .overlay{
-    position:fixed; inset:0; display:none; align-items:center; justify-content:center;
-    background:rgba(0,0,0,.55); padding:16px; z-index:10000;
+  /* PNG-only celebration overlay (no window) */
+  #congratsOverlay{
+    position:fixed; inset:0; display:none;
+    align-items:center; justify-content:center;
+    z-index:10000; pointer-events:none;    /* don’t block taps */
   }
-  .overlay.show{ display:flex; }
-  .resultCard{
-    position:relative; background:#fff; border-radius:16px; padding:16px;
-    width:min(520px, 92vw); box-shadow:0 12px 36px rgba(0,0,0,.25); text-align:center;
+  #congratsOverlay img{
+    width:clamp(160px,60%,420px); height:auto;
+    animation:none; will-change: transform, opacity;
   }
-  .resultCard img{ max-width:100%; height:auto; border-radius:12px; display:block; margin:0 auto 10px; }
-  .resultCaption{ margin:0 0 10px 0; font-weight:600; }
-  .overlayButtons{ display:flex; gap:8px; justify-content:center; }
-  .closeBtn{
-    position:absolute; top:8px; right:8px; border:none; border-radius:999px;
-    width:32px; height:32px; font-size:20px; line-height:28px; cursor:pointer;
-    background:#fff; border:2px solid var(--edge);
+  @keyframes congratsZoom{
+    0%{ transform:scale(0.70); opacity:0; }
+    8%{ opacity:1; }
+    100%{ transform:scale(1.0); opacity:1; }
+  }
+
+  /* Score under grid */
+  .scoreBelow{
+    text-align:center; font-weight:700; margin-top:6px; min-height:1.2em;
   }
 </style>
 </head>
@@ -138,21 +149,16 @@
     </section>
 
     <section class="grid" id="grid"></section>
+    <div class="scoreBelow" id="scoreBelow"></div>
   </div>
 
-  <!-- Result overlay -->
-  <div class="overlay" id="resultOverlay" aria-hidden="true">
-    <div class="resultCard">
-      <button class="closeBtn" id="overlayClose" aria-label="Close">×</button>
-      <img id="resultImg" alt="Result" />
-      <p class="resultCaption" id="resultCaption"></p>
-      <div class="overlayButtons">
-        <button id="overlayRetry">Try again</button>
-      </div>
-    </div>
+  <!-- PNG-only celebration -->
+  <div id="congratsOverlay" aria-hidden="true">
+    <img id="congratsImg" alt="Well done!" />
   </div>
 
 <script>
+/* Sentences */
 const SENTENCES = [
   { text: "I’ve lived in Melbourne ___ 2020.", answer: "since" },
   { text: "She has studied English ___ three years.", answer: "for" },
@@ -166,12 +172,19 @@ const SENTENCES = [
   { text: "I’ve had this phone ___ six months.", answer: "for" }
 ];
 
+/* Images & audio */
 const URLS = {
   perfectImg: "https://schredder222.github.io/Assets/You%20Nailed%20It.png",
   goodImg:    "https://schredder222.github.io/Assets/Bad%20bad.png",
   tryImg:     "https://schredder222.github.io/Assets/Keep%20Practising.png",
   applause:   "https://schredder222.github.io/Assets/Applause.mp3"
 };
+const SFX = {
+  drop:  "https://cdn.pixabay.com/download/audio/2025/03/20/audio_99fc376452.mp3?filename=ui-pop-sound-316482.mp3",
+  button:"https://cdn.pixabay.com/download/audio/2024/04/21/audio_1b8d3bcd3d.mp3?filename=click-buttons-ui-menu-sounds-effects-button-7-203601.mp3",
+  select:"https://cdn.pixabay.com/download/audio/2025/05/23/audio_ec08d1525d.mp3?filename=click-345983.mp3"
+};
+function playSfx(url){ try{ const a=new Audio(url); a.play(); }catch(e){} }
 
 const grid = document.getElementById('grid');
 const bankFor = document.getElementById('bankFor');
@@ -179,15 +192,14 @@ const bankSince = document.getElementById('bankSince');
 const btnReset = document.getElementById('btnReset');
 const btnCheck = document.getElementById('btnCheck');
 const summaryEl = document.getElementById('summary');
+const scoreBelowEl = document.getElementById('scoreBelow');
 
-const overlay = document.getElementById('resultOverlay');
-const overlayClose = document.getElementById('overlayClose');
-const overlayRetry = document.getElementById('overlayRetry');
-const resultImg = document.getElementById('resultImg');
-const resultCaption = document.getElementById('resultCaption');
+const overlay = document.getElementById('congratsOverlay');
+const congratsImg = document.getElementById('congratsImg');
 
 let state = { selected:null, checked:false };
 let applauseAudio = new Audio(URLS.applause);
+let hideCongratsId = null;
 
 function shuffle(arr){return arr.map(v=>[Math.random(),v]).sort((a,b)=>a[0]-b[0]).map(x=>x[1]);}
 
@@ -196,8 +208,9 @@ function build(){
   state.selected=null; state.checked=false;
   summaryEl.textContent = "Tap or drag words into the blanks. You can move or swap them. Then press “Check answers”.";
   btnCheck.disabled=false;
-
-  hideOverlay(); stopApplause();
+  scoreBelowEl.textContent = "";            // clear score
+  hideCongrats();                           // ensure celebration is hidden
+  try{ applauseAudio.pause(); applauseAudio.currentTime=0; }catch(e){}
 
   // sentences
   shuffle([...SENTENCES]).forEach((s)=>{
@@ -211,7 +224,7 @@ function build(){
     // Tap-to-place / swap
     span.addEventListener('click',()=>tryPlace(span));
 
-    // Desktop drag target (native DnD)
+    // Desktop drag target
     span.addEventListener('dragover', e=>{ if(state.checked) return; e.preventDefault(); span.classList.add('ready'); e.dataTransfer.dropEffect='move'; });
     span.addEventListener('dragleave', ()=> span.classList.remove('ready'));
     span.addEventListener('drop', e=>{
@@ -246,7 +259,7 @@ function makeBank(type,container,count){
     const chip=document.createElement('div');
     chip.className='pill';
     chip.textContent=type;
-    chip.draggable=true;                       // desktop DnD
+    chip.draggable=true;
     chip.dataset.value=type;
     chip.id = `chip-${type}-${i}-${Math.random().toString(36).slice(2)}`;
 
@@ -256,25 +269,25 @@ function makeBank(type,container,count){
       const inBlank = chip.closest('.blank');
 
       if(inBlank){
-        // If another chip is selected, treat this tap as tapping the blank (to replace/swap)
         if(state.selected && state.selected!==chip){
           placeChip(state.selected, inBlank);
           return;
         }
-        // Otherwise, select THIS chip to move elsewhere
         if(state.selected && state.selected!==chip) state.selected.classList.remove('selected');
         chip.classList.toggle('selected');
         state.selected = chip.classList.contains('selected') ? chip : null;
+        if(state.selected===chip) playSfx(SFX.select);
         return;
       }
 
-      // Chip is in a bank: normal select/deselect
+      // Chip in a bank
       if(state.selected && state.selected!==chip) state.selected.classList.remove('selected');
       chip.classList.toggle('selected');
       state.selected = chip.classList.contains('selected') ? chip : null;
+      if(state.selected===chip) playSfx(SFX.select);
     });
 
-    // Desktop drag source (native DnD)
+    // Desktop drag source
     chip.addEventListener('dragstart', e=>{
       if(state.checked){ e.preventDefault(); return; }
       chip.classList.add('selected');
@@ -284,7 +297,7 @@ function makeBank(type,container,count){
     });
     chip.addEventListener('dragend', ()=> chip.classList.remove('selected'));
 
-    // Mobile touch-drag fallback (does NOT preselect on tap anymore)
+    // Mobile touch-drag
     addTouchDrag(chip);
 
     container.appendChild(chip);
@@ -310,7 +323,7 @@ function tryPlace(blank){
   placeChip(chip, blank);
 }
 
-/* Move a chip back to a bank (from blank or wherever) */
+/* Move a chip back to a bank */
 function sendToBank(chip, container){
   const oldParent = chip.parentElement;
   container.appendChild(chip);
@@ -318,11 +331,12 @@ function sendToBank(chip, container){
   if(state.selected===chip) state.selected=null;
   if(oldParent && oldParent.classList && oldParent.classList.contains('blank')){
     oldParent.classList.remove('filled','correct','incorrect');
+    oldParent.removeAttribute('data-filled');
     const mark = oldParent.closest('.card').querySelector('.resultMark'); if(mark) mark.textContent='';
   }
 }
 
-/* Core placement (tap + drag + swap logic) */
+/* Core placement (tap + drag + swap) */
 function placeChip(chip, blank){
   if(state.checked) return;
 
@@ -332,12 +346,10 @@ function placeChip(chip, blank){
   const existing = blank.querySelector('.pill');
   const src = chip.parentElement;
 
-  // no-op if trying to place into its own blank
   if(src === blank){
     chip.classList.remove('selected'); if(state.selected===chip) state.selected=null; return;
   }
 
-  // same word already there -> no change
   if(existing && existing.dataset.value === chip.dataset.value){
     chip.classList.remove('selected'); if(state.selected===chip) state.selected=null; return;
   }
@@ -350,13 +362,15 @@ function placeChip(chip, blank){
     });
     src.appendChild(existing);
     blank.appendChild(chip);
-    src.classList.add('filled');
-    blank.classList.add('filled');
+    src.classList.add('filled'); blank.classList.add('filled');
+    src.setAttribute('data-filled', existing.dataset.value);
+    blank.setAttribute('data-filled', chip.dataset.value);
     chip.classList.remove('selected'); if(state.selected===chip) state.selected=null;
+    playSfx(SFX.drop);
     return;
   }
 
-  // If destination has a chip and source is NOT a blank (i.e., from bank), send existing back to its bank
+  // If destination has a chip and source is NOT a blank (from bank), send existing back to its bank
   if(existing){
     (existing.dataset.value==='for'?bankFor:bankSince).appendChild(existing);
   }
@@ -364,16 +378,21 @@ function placeChip(chip, blank){
   // if moving from another blank (and not swapping), tidy the source blank
   if(src && src.classList && src.classList.contains('blank')){
     src.classList.remove('filled','correct','incorrect');
+    src.removeAttribute('data-filled');
     const mk2 = src.closest('.card').querySelector('.resultMark'); if(mk2) mk2.textContent='';
   }
 
   blank.appendChild(chip);
   blank.classList.add('filled');
+  blank.setAttribute('data-filled', chip.dataset.value);
   chip.classList.remove('selected'); if(state.selected===chip) state.selected=null;
+
+  playSfx(SFX.drop);
 }
 
-/* Check answers — marks all cards and shows end screen */
+/* Check answers — marks all cards, shows score below, and PNG-only celebration */
 btnCheck.addEventListener('click', ()=>{
+  playSfx(SFX.button);
   if(state.checked) return;
 
   let correct = 0;
@@ -396,57 +415,54 @@ btnCheck.addEventListener('click', ()=>{
     }
   });
 
-  summaryEl.textContent = `Score: ${correct}/${blanks.length}`;
+  // Show score *below* the answer boxes
+  scoreBelowEl.textContent = `Score: ${correct} / ${blanks.length}`;
+
   state.checked = true;
   btnCheck.disabled = true;
 
-  // Show result overlay with image/audio
-  showEndScreen(correct, blanks.length);
+  // PNG-only celebration (auto-hide after 6s)
+  showCelebration(correct, blanks.length);
 });
 
-/* End screen logic */
-function showEndScreen(correct, total){
+/* Celebration logic: PNG only with zoom animation and 6s timeout */
+function showCelebration(correct, total){
   let src = URLS.tryImg;
   if (correct === total){
     src = URLS.perfectImg;
-    stopApplause();
-    applauseAudio = new Audio(URLS.applause);
-    applauseAudio.play().catch(()=>{});
+    try{ applauseAudio = new Audio(URLS.applause); applauseAudio.play().catch(()=>{}); }catch(e){}
   } else if (correct >= 7){
     src = URLS.goodImg;
-    stopApplause();
+    try{ applauseAudio.pause(); applauseAudio.currentTime=0; }catch(e){}
   } else {
     src = URLS.tryImg;
-    stopApplause();
+    try{ applauseAudio.pause(); applauseAudio.currentTime=0; }catch(e){}
   }
 
-  resultImg.src = src;
-  resultImg.alt = `Result image for score ${correct}/${total}`;
-  resultCaption.textContent = `Score: ${correct} / ${total}`;
-  showOverlay();
-}
+  congratsImg.src = src;
+  congratsImg.alt = "Result";
+  // restart animation
+  congratsImg.style.animation='none'; void congratsImg.offsetWidth;
+  congratsImg.style.animation='congratsZoom 6s ease-out forwards';
 
-function showOverlay(){
-  overlay.classList.add('show');
+  overlay.style.display='flex';
   overlay.setAttribute('aria-hidden','false');
-}
-function hideOverlay(){
-  overlay.classList.remove('show');
-  overlay.setAttribute('aria-hidden','true');
-}
-function stopApplause(){
-  if(applauseAudio){
-    try{ applauseAudio.pause(); applauseAudio.currentTime = 0; }catch(e){}
-  }
+
+  if (hideCongratsId) { clearTimeout(hideCongratsId); }
+  hideCongratsId = setTimeout(hideCongrats, 6000);
 }
 
-/* Overlay controls */
-overlayClose.addEventListener('click', hideOverlay);
-overlayRetry.addEventListener('click', ()=>{ hideOverlay(); build(); });
-overlay.addEventListener('click', (e)=>{ if(e.target === overlay) hideOverlay(); });
+function hideCongrats(){
+  overlay.style.display='none';
+  overlay.setAttribute('aria-hidden','true');
+  if (hideCongratsId){ clearTimeout(hideCongratsId); hideCongratsId=null; }
+}
 
 /* Reset */
-btnReset.addEventListener('click', build);
+btnReset.addEventListener('click', ()=>{
+  playSfx(SFX.button);
+  build();
+});
 
 /* ---------- Touch-drag fallback (mobile) ---------- */
 function addTouchDrag(chip){
@@ -459,7 +475,6 @@ function addTouchDrag(chip){
     startX = t.clientX; startY = t.clientY;
     dragging=false; lastBlank=null; lastBank=null;
 
-    // Do NOT pre-select here; allow a simple tap to trigger the normal click handler.
     document.addEventListener('touchmove', onMove, {passive:false});
     document.addEventListener('touchend', onEnd, {passive:false});
   };
@@ -471,7 +486,6 @@ function addTouchDrag(chip){
 
     if(!dragging && (Math.abs(dx) > 6 || Math.abs(dy) > 6)){
       dragging = true;
-      // now mark selected visually
       chip.classList.add('selected');
       state.selected = chip;
 
@@ -514,8 +528,6 @@ function addTouchDrag(chip){
       chip.classList.remove('selected');
       if(state.selected===chip) state.selected=null;
     }
-    // If not dragging, the normal 'click' handler will run and handle selection.
-
     dragging=false; lastBlank=null; lastBank=null;
   };
 
