@@ -75,7 +75,6 @@
 
   /* Chip appearance when sitting inside a blank */
   .blank .pill{
-    /* keep it interactable so you can drag/tap to move/swap */
     border:0; background:transparent; padding:0; min-width:auto;
     cursor:grab;
   }
@@ -125,7 +124,7 @@
       </div>
     </header>
 
-    <div class="meta muted" id="summary">Tap or drag words into the blanks. You can move them later; dropping on another filled blank will swap them. Then press “Check answers”.</div>
+    <div class="meta muted" id="summary">Tap or drag words into the blanks. You can move or swap them. Then press “Check answers”.</div>
 
     <section class="banks">
       <div class="bankWrap">
@@ -209,7 +208,7 @@ function build(){
     const span=document.createElement('span');
     span.className='blank'; span.dataset.answer=s.answer;
 
-    // Click placement
+    // Tap-to-place / swap
     span.addEventListener('click',()=>tryPlace(span));
 
     // Desktop drag target (native DnD)
@@ -251,9 +250,25 @@ function makeBank(type,container,count){
     chip.dataset.value=type;
     chip.id = `chip-${type}-${i}-${Math.random().toString(36).slice(2)}`;
 
-    // Click-to-select (tap)
+    // CLICK behaviour:
     chip.addEventListener('click',()=>{
       if(state.checked) return;
+      const inBlank = chip.closest('.blank');
+
+      if(inBlank){
+        // If another chip is selected, treat this tap as tapping the blank (to replace/swap)
+        if(state.selected && state.selected!==chip){
+          placeChip(state.selected, inBlank);
+          return;
+        }
+        // Otherwise, select THIS chip to move elsewhere
+        if(state.selected && state.selected!==chip) state.selected.classList.remove('selected');
+        chip.classList.toggle('selected');
+        state.selected = chip.classList.contains('selected') ? chip : null;
+        return;
+      }
+
+      // Chip is in a bank: normal select/deselect
       if(state.selected && state.selected!==chip) state.selected.classList.remove('selected');
       chip.classList.toggle('selected');
       state.selected = chip.classList.contains('selected') ? chip : null;
@@ -269,7 +284,7 @@ function makeBank(type,container,count){
     });
     chip.addEventListener('dragend', ()=> chip.classList.remove('selected'));
 
-    // Mobile touch-drag fallback
+    // Mobile touch-drag fallback (does NOT preselect on tap anymore)
     addTouchDrag(chip);
 
     container.appendChild(chip);
@@ -287,7 +302,7 @@ function enableBankDnD(container){
   });
 }
 
-/* Click-to-place helper */
+/* Tap-to-place helper */
 function tryPlace(blank){
   if(state.checked) return;
   const chip=state.selected;
@@ -300,14 +315,14 @@ function sendToBank(chip, container){
   const oldParent = chip.parentElement;
   container.appendChild(chip);
   chip.classList.remove('selected');
-  state.selected=null;
+  if(state.selected===chip) state.selected=null;
   if(oldParent && oldParent.classList && oldParent.classList.contains('blank')){
     oldParent.classList.remove('filled','correct','incorrect');
     const mark = oldParent.closest('.card').querySelector('.resultMark'); if(mark) mark.textContent='';
   }
 }
 
-/* Core placement (click + drag + swap logic) */
+/* Core placement (tap + drag + swap logic) */
 function placeChip(chip, blank){
   if(state.checked) return;
 
@@ -319,27 +334,25 @@ function placeChip(chip, blank){
 
   // no-op if trying to place into its own blank
   if(src === blank){
-    chip.classList.remove('selected'); state.selected=null; return;
+    chip.classList.remove('selected'); if(state.selected===chip) state.selected=null; return;
   }
 
   // same word already there -> no change
   if(existing && existing.dataset.value === chip.dataset.value){
-    chip.classList.remove('selected'); state.selected=null; return;
+    chip.classList.remove('selected'); if(state.selected===chip) state.selected=null; return;
   }
 
   // SWAP if destination has a chip and source is another blank
   if(existing && src && src.classList && src.classList.contains('blank')){
-    // clear feedback on both cards
     [src, blank].forEach(b=>{
       b.classList.remove('correct','incorrect');
       const mk = b.closest('.card').querySelector('.resultMark'); if(mk) mk.textContent='';
     });
-    // perform swap
     src.appendChild(existing);
     blank.appendChild(chip);
     src.classList.add('filled');
     blank.classList.add('filled');
-    chip.classList.remove('selected'); state.selected=null;
+    chip.classList.remove('selected'); if(state.selected===chip) state.selected=null;
     return;
   }
 
@@ -356,8 +369,7 @@ function placeChip(chip, blank){
 
   blank.appendChild(chip);
   blank.classList.add('filled');
-  chip.classList.remove('selected');
-  state.selected=null;
+  chip.classList.remove('selected'); if(state.selected===chip) state.selected=null;
 }
 
 /* Check answers — marks all cards and shows end screen */
@@ -446,9 +458,8 @@ function addTouchDrag(chip){
     if(!t) return;
     startX = t.clientX; startY = t.clientY;
     dragging=false; lastBlank=null; lastBank=null;
-    chip.classList.add('selected');
-    state.selected = chip;
 
+    // Do NOT pre-select here; allow a simple tap to trigger the normal click handler.
     document.addEventListener('touchmove', onMove, {passive:false});
     document.addEventListener('touchend', onEnd, {passive:false});
   };
@@ -458,9 +469,12 @@ function addTouchDrag(chip){
     if(!t) return;
     const dx = t.clientX - startX, dy = t.clientY - startY;
 
-    // Start dragging after a small threshold so taps still work and page can scroll otherwise
     if(!dragging && (Math.abs(dx) > 6 || Math.abs(dy) > 6)){
       dragging = true;
+      // now mark selected visually
+      chip.classList.add('selected');
+      state.selected = chip;
+
       ghost = document.createElement('div');
       ghost.className = 'drag-ghost';
       ghost.textContent = chip.dataset.value;
@@ -473,14 +487,12 @@ function addTouchDrag(chip){
       ghost.style.top  = t.clientY + 'px';
 
       const el = document.elementFromPoint(t.clientX, t.clientY);
-      // manage hover state for blanks
       const b = el ? el.closest('.blank') : null;
       if(b !== lastBlank){
         if(lastBlank) lastBlank.classList.remove('ready');
         if(b) b.classList.add('ready');
         lastBlank = b;
       }
-      // also remember if we're over a bank
       lastBank = el ? el.closest('.bank') : null;
     }
   };
@@ -500,10 +512,9 @@ function addTouchDrag(chip){
         sendToBank(chip, lastBank);
       }
       chip.classList.remove('selected');
-      state.selected=null;
-    }else{
-      // It was just a tap; keep selection toggled by click handler.
+      if(state.selected===chip) state.selected=null;
     }
+    // If not dragging, the normal 'click' handler will run and handle selection.
 
     dragging=false; lastBlank=null; lastBank=null;
   };
