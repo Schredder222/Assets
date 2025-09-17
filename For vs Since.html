@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>For vs Since — Card Match (A2)</title>
+<style>
+  :root{
+    --bg:#FDFBED; --ink:#222; --accent:#8A0000;        /* theme accent not used for borders now */
+    --edge:#B5B5B5;                                     /* NEW: neutral grey for borders */
+    --ok:#1E8E3E; --bad:#B00020; --muted:#9aa1a8; --card:#fff;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"MS Reference Sans Serif", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    min-height:100dvh; display:flex; align-items:center; justify-content:center; padding:16px;
+  }
+  .app{width:min(900px,100%); display:flex; flex-direction:column; gap:14px}
+  header{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px}
+  h1{font-size:1.2rem; margin:0}
+  .controls{display:flex; gap:8px}
+  button{
+    border:2px solid var(--edge); background:#fff; color:#000; padding:6px 10px; border-radius:999px;
+    font-weight:600; cursor:pointer; transition:transform .06s ease, background .2s ease;
+  }
+  button:hover{transform:translateY(-1px)}
+  .meta{font-size:.9rem; color:#333}
+  .muted{color:var(--muted)}
+
+  /* Word banks (shared container) */
+  .banks{
+    display:flex; gap:16px; flex-wrap:wrap;
+    background:#fff; border:1px dashed var(--edge); border-radius:10px; padding:10px;
+  }
+  .bankWrap{flex:1; min-width:140px}
+  .bankTitle{font-weight:700; margin:0 0 4px 0; font-size:.9rem}
+  .bank{display:flex; flex-wrap:wrap; gap:6px; min-height:38px}
+
+  /* Word chips */
+  .pill{
+    display:inline-flex; align-items:center; justify-content:center;
+    min-width:56px; padding:5px 10px; border-radius:999px;
+    border:2px solid var(--edge); background:#fff; font-weight:700; cursor:pointer;
+    transition:box-shadow .15s ease, background .15s ease; user-select:none;
+  }
+  .pill.selected{box-shadow:0 0 0 3px rgba(0,0,0,.12)} /* subtle grey focus */
+
+  /* Sentences grid (compact) */
+  .grid{display:grid; grid-template-columns:1fr; gap:8px}
+  @media (min-width:650px){ .grid{grid-template-columns:1fr 1fr} }
+  .card{
+    background:var(--card); border:1px solid #ddd; border-radius:8px;
+    padding:8px 10px; font-size:1rem; line-height:1.45;
+    display:flex; align-items:center; position:relative;
+  }
+  .sentence{margin:0}
+
+  /* Blank styled to MATCH the pill shape; fixed width prevents layout shift */
+  .blank{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:64px;                                         /* fixed width so sentence box doesn't shift */
+    min-height:34px;
+    padding:3px 10px; margin:0 4px;
+    border:2px dashed var(--edge); border-radius:999px; /* grey dashed by default */
+    background:#fff; vertical-align:middle;             /* centred on the line */
+    transition:background .15s ease, border-color .15s ease, outline-color .15s ease;
+  }
+  .blank.ready{outline:3px solid rgba(0,0,0,.10)}
+  .blank.filled{border-style:solid;}                    /* becomes solid when filled */
+  .blank.correct{border-color:var(--ok); background:#ecf6ef}
+  .blank.incorrect{border-color:var(--bad); background:#faecef}
+
+  /* When a chip sits inside a blank:
+     - hide the chip border/background to avoid double outlines
+     - keep clicks going to the blank (for replacement by click) */
+  .blank .pill{
+    pointer-events:none;
+    border:0;
+    background:transparent;
+    padding:0;
+    min-width:auto;
+  }
+
+  .resultMark{
+    position:absolute; top:6px; right:8px; font-weight:800;
+    font-size:.9rem; user-select:none;
+  }
+  .tick{color:var(--ok)}
+  .cross{color:var(--bad)}
+</style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>For vs Since — Card Match</h1>
+      <div class="controls">
+        <button id="btnReset">Reset</button>
+        <button id="btnCheck">Check answers</button>
+      </div>
+    </header>
+
+    <div class="meta muted" id="summary">Place the cards (click or drag), then press “Check answers”.</div>
+
+    <section class="banks">
+      <div class="bankWrap">
+        <p class="bankTitle">Word bank — for</p>
+        <div class="bank" id="bankFor"></div>
+      </div>
+      <div class="bankWrap">
+        <p class="bankTitle">Word bank — since</p>
+        <div class="bank" id="bankSince"></div>
+      </div>
+    </section>
+
+    <section class="grid" id="grid"></section>
+  </div>
+
+<script>
+const SENTENCES = [
+  { text: "I’ve lived in Melbourne ___ 2020.", answer: "since" },
+  { text: "She has studied English ___ three years.", answer: "for" },
+  { text: "They’ve been friends ___ childhood.", answer: "since" },
+  { text: "We’ve waited here ___ half an hour.", answer: "for" },
+  { text: "He has worked at the café ___ Monday.", answer: "since" },
+  { text: "I’ve known her ___ a long time.", answer: "for" },
+  { text: "The shop has been open ___ two hours.", answer: "for" },
+  { text: "She has played the piano ___ she was a child.", answer: "since" },
+  { text: "We’ve stayed in this hotel ___ last Friday.", answer: "since" },
+  { text: "I’ve had this phone ___ six months.", answer: "for" }
+];
+
+const grid = document.getElementById('grid');
+const bankFor = document.getElementById('bankFor');
+const bankSince = document.getElementById('bankSince');
+const btnReset = document.getElementById('btnReset');
+const btnCheck = document.getElementById('btnCheck');
+const summaryEl = document.getElementById('summary');
+
+let state = { selected:null, checked:false };
+
+function shuffle(arr){return arr.map(v=>[Math.random(),v]).sort((a,b)=>a[0]-b[0]).map(x=>x[1]);}
+
+function build(){
+  grid.innerHTML = bankFor.innerHTML = bankSince.innerHTML = '';
+  state.selected=null; state.checked=false;
+  summaryEl.textContent = "Place the cards (click or drag), then press “Check answers”.";
+  btnCheck.disabled=false;
+
+  // sentences
+  shuffle([...SENTENCES]).forEach((s)=>{
+    const card=document.createElement('div');
+    card.className='card';
+    const [pre,post]=s.text.split('___');
+
+    const span=document.createElement('span');
+    span.className='blank'; span.dataset.answer=s.answer;
+
+    // Click placement
+    span.addEventListener('click',()=>tryPlace(span));
+
+    // Drag target
+    span.addEventListener('dragover', e=>{ if(state.checked) return; e.preventDefault(); span.classList.add('ready'); e.dataTransfer.dropEffect='move'; });
+    span.addEventListener('dragleave', ()=> span.classList.remove('ready'));
+    span.addEventListener('drop', e=>{
+      if(state.checked) return; e.preventDefault(); span.classList.remove('ready');
+      const id = e.dataTransfer.getData('text/id');
+      const chip = document.getElementById(id);
+      if(chip) placeChip(chip, span);
+    });
+
+    const p=document.createElement('p');
+    p.className='sentence';
+    p.append(pre, span, post||'');
+    card.appendChild(p);
+
+    const mark=document.createElement('div'); mark.className='resultMark';
+    card.appendChild(mark);
+
+    grid.appendChild(card);
+  });
+
+  // banks
+  makeBank('for', bankFor, SENTENCES.filter(s=>s.answer==='for').length);
+  makeBank('since', bankSince, SENTENCES.filter(s=>s.answer==='since').length);
+
+  // enable dropping back onto banks
+  enableBankDnD(bankFor);
+  enableBankDnD(bankSince);
+}
+
+function makeBank(type,container,count){
+  for(let i=0;i<count;i++){
+    const chip=document.createElement('div');
+    chip.className='pill';
+    chip.textContent=type;
+    chip.draggable=true;
+    chip.dataset.value=type;
+    chip.id = `chip-${type}-${i}-${Math.random().toString(36).slice(2)}`;
+
+    // Click-to-select
+    chip.addEventListener('click',()=>{
+      if(state.checked) return;
+      if(state.selected && state.selected!==chip) state.selected.classList.remove('selected');
+      chip.classList.toggle('selected');
+      state.selected = chip.classList.contains('selected') ? chip : null;
+    });
+
+    // Drag source
+    chip.addEventListener('dragstart', e=>{
+      if(state.checked){ e.preventDefault(); return; }
+      chip.classList.add('selected');
+      state.selected = chip;
+      e.dataTransfer.setData('text/id', chip.id);
+      e.dataTransfer.effectAllowed='move';
+    });
+    chip.addEventListener('dragend', ()=> chip.classList.remove('selected'));
+
+    container.appendChild(chip);
+  }
+}
+
+function enableBankDnD(container){
+  container.addEventListener('dragover', e=>{ if(state.checked) return; e.preventDefault(); e.dataTransfer.dropEffect='move'; });
+  container.addEventListener('drop', e=>{
+    if(state.checked) return; e.preventDefault();
+    const id = e.dataTransfer.getData('text/id');
+    const chip = document.getElementById(id);
+    if(!chip) return;
+    const oldParent = chip.parentElement;
+    container.appendChild(chip);
+    chip.classList.remove('selected');
+    state.selected=null;
+    // if moved out of a blank, tidy that blank
+    if(oldParent && oldParent.classList && oldParent.classList.contains('blank')){
+      oldParent.classList.remove('filled','correct','incorrect');
+      const mark = oldParent.closest('.card').querySelector('.resultMark'); if(mark) mark.textContent='';
+    }
+  });
+}
+
+/* Click-to-place helper */
+function tryPlace(blank){
+  if(state.checked) return;
+  const chip=state.selected;
+  if(!chip) return;
+  placeChip(chip, blank);
+}
+
+/* Core placement (click + drag) with replacement logic; fixed-size blanks prevent layout shift */
+function placeChip(chip, blank){
+  if(state.checked) return;
+
+  const destCard = blank.closest('.card');
+  if(destCard){ const mk = destCard.querySelector('.resultMark'); if(mk) mk.textContent=''; }
+
+  const existing=blank.querySelector('.pill');
+
+  // same word already there -> do nothing
+  if(existing && existing.dataset.value === chip.dataset.value){
+    chip.classList.remove('selected');
+    state.selected=null;
+    return;
+  }
+
+  // different word already there -> send back to bank
+  if(existing){
+    (existing.dataset.value==='for'?bankFor:bankSince).appendChild(existing);
+  }
+
+  // if moving from another blank, tidy that blank
+  const oldParent = chip.parentElement;
+  if(oldParent && oldParent.classList && oldParent.classList.contains('blank')){
+    oldParent.classList.remove('filled','correct','incorrect');
+    const mark = oldParent.closest('.card').querySelector('.resultMark'); if(mark) mark.textContent='';
+  }
+
+  blank.appendChild(chip);
+  blank.classList.add('filled');               /* becomes solid border, but same width */
+  chip.classList.remove('selected');
+  state.selected=null;
+}
+
+/* Check answers — marks all cards */
+btnCheck.addEventListener('click', ()=>{
+  if(state.checked) return;
+
+  let correct = 0;
+  const blanks = document.querySelectorAll('.blank');
+
+  blanks.forEach(b => {
+    const card = b.closest('.card');
+    const mark = card ? card.querySelector('.resultMark') : null;
+    b.classList.remove('correct','incorrect');
+    if (mark) mark.textContent = '';
+
+    const chip = b.querySelector('.pill');
+    if (chip && chip.dataset.value === b.dataset.answer) {
+      b.classList.add('correct');
+      if (mark) mark.innerHTML = '<span class="tick">✓</span>';
+      correct++;
+    } else {
+      b.classList.add('incorrect');
+      if (mark) mark.innerHTML = '<span class="cross">✗</span>';
+    }
+  });
+
+  summaryEl.textContent = `Score: ${correct}/${blanks.length}`;
+  state.checked = true;
+  btnCheck.disabled = true;
+});
+
+/* Reset */
+btnReset.addEventListener('click', build);
+
+/* Init */
+build();
+</script>
+</body>
+</html>
