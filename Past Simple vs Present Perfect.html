@@ -20,20 +20,40 @@
     background:#faf9f6; color:var(--ink);
     display:flex; min-height:100dvh; align-items:center; justify-content:center; padding:16px;
   }
-  .app{width:min(980px,100%); display:flex; flex-direction:column; gap:14px}
+  .app{width:min(980px,100%); display:flex; flex-direction:column; gap:10px}
 
-  header{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap}
-  h1{margin:0; font-size:clamp(18px,2.6vw,28px); color:var(--ink); font-weight:800}
-  .meta{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
-  .pill{
-    border:2px solid var(--accentBorder); color:var(--ink);
-    padding:6px 12px; border-radius:999px; font-weight:800; background:#fff;
-    font-size:clamp(14px,2.6vw,16px); line-height:1; white-space:nowrap;
+  /* Header: title left, controls right (Mute | Restart) */
+  header{
+    display:flex; align-items:center; gap:10px; flex-wrap:nowrap;
+  }
+  h1{
+    margin:0; font-size:clamp(18px,2.6vw,28px); color:var(--ink); font-weight:800;
+    flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .meta{
+    margin-left:auto; display:flex; align-items:center; gap:8px; flex:0 0 auto;
   }
   .restartBtn{
     background:#fff; color:var(--ink); border:2px solid var(--accentBorder);
     border-radius:999px; padding:10px 14px; font-weight:800; cursor:pointer;
     font-size:clamp(14px,2.6vw,16px);
+  }
+
+  /* Mute/unmute (centered icon in circle) — hidden until first tense click */
+  .muteBtn{
+    display:none; /* will switch to inline-flex after first tense click */
+    align-items:center; justify-content:center;
+    background:#fff; border:2px solid var(--accentBorder);
+    width:40px; height:40px; padding:0; border-radius:999px; cursor:pointer; line-height:0;
+  }
+  .muteBtn img{ width:22px; height:22px; display:block; margin:0; }
+  .muteBtn:focus-visible{ outline:2px solid #000; outline-offset:2px; }
+
+  /* Pill counter */
+  .pill{
+    border:2px solid var(--accentBorder); color:var(--ink);
+    padding:6px 12px; border-radius:999px; font-weight:800; background:#fff;
+    font-size:clamp(14px,2.6vw,16px); line-height:1; white-space:nowrap;
   }
 
   /* Quiz image container */
@@ -105,8 +125,23 @@
   .blank input.correctInput{ color:var(--ok); }
   .hint{opacity:.95; font-weight:700; color:#fff; text-shadow:0 2px 10px rgba(0,0,0,.55) }
 
-  .idkWrap{display:flex; justify-content:center; margin-top:8px}
-  #idkBtn{display:none; min-width:180px; border-radius:999px; padding:10px 14px; font-weight:800; cursor:pointer}
+  /* Single row below the image: counter (left) and IDK centered */
+  .belowBar{
+    display:grid; grid-template-columns:auto 1fr auto; align-items:center;
+    gap:8px; margin-top:4px;
+  }
+  .belowBar .spacer{
+    visibility:hidden; /* reserves equal space to keep true centering */
+  }
+  .belowBar #idkBtn{
+    justify-self:center;
+  }
+
+  #idkBtn{
+    display:none; /* shown after a tense is chosen */
+    min-width:180px; border-radius:999px; padding:10px 14px; font-weight:800; cursor:pointer;
+    border:2px solid var(--accentBorder); background:#fff; color:#000;
+  }
 
   .feedback{
     min-height:24px; text-align:center; font-weight:800; color:#000;
@@ -115,10 +150,10 @@
   .feedback.final{
     color:#000;
     font-size:clamp(18px, 2.4vw, 22px);
-    margin-top:6px;
+    margin-top:4px;
   }
 
-  /* Celebration overlay — centered in the quiz container (the image area) */
+  /* Celebration overlay — centered in the image area */
   #congratsOverlay{
     position:absolute; left:0; top:0; width:100%; height:100%;
     align-items:center; justify-content:center;
@@ -140,19 +175,19 @@
 
   /* ---------------- Mobile optimizations ---------------- */
   @media (max-width: 560px){
+    header{ gap:8px; }
+    h1{ font-size:18px; }
+    .restartBtn{ padding:8px 12px; font-size:15px; }
+    .muteBtn{ width:36px; height:36px; padding:0; }
+
     .stage{ aspect-ratio: 10/13; }
 
-    /* Make header controls roomier and readable */
-    header{gap:8px}
-    .meta{gap:6px}
-    .pill{ padding:6px 10px; font-size:15px; }
-
-    /* Title/credit top-left, instructions just below and wider */
+    /* Instructions below title/credit, left aligned & wider */
     .instructionsOverlay{
       left:10px; right:10px; transform:none;
-      top:46px;                  /* below credit/title line */
-      text-align:left;           /* better reading on phones */
-      max-width:none;            /* fill available width */
+      top:46px;
+      text-align:left;
+      max-width:none;
       font-size:14px;
       padding:8px 10px;
     }
@@ -171,7 +206,7 @@
     }
 
     .sentence{
-      bottom:auto;               /* JS will set top */
+      bottom:auto; /* JS will set top */
       padding:0 10px;
     }
     .line{
@@ -181,13 +216,16 @@
     /* Narrower blanks proportional to mobile screen & font */
     .blank{ padding:2px 6px; }
     .blank input{
-      width:min(18ch, 220px);    /* narrower than before */
+      width:min(18ch, 220px);
       font-size:1em;
     }
     .blank.small input{
-      width:min(12ch, 150px);    /* smaller for AUX/MAIN in questions */
+      width:min(12ch, 150px);
     }
 
+    .belowBar{ margin-top:2px; }
+    .pill{ font-size:15px; padding:6px 10px; }
+    #idkBtn{ min-width:auto; padding:8px 12px; font-size:15px; }
     #congratsOverlay img{ width:70%; max-width:360px; }
   }
 
@@ -209,7 +247,10 @@
     <header>
       <h1>Present Perfect or Past Simple?</h1>
       <div class="meta">
-        <span id="score" class="pill">1 / 10</span>
+        <!-- Mute button FIRST; starts hidden until first tense click -->
+        <button class="muteBtn" id="muteBtn" aria-pressed="false" aria-label="Mute background music" title="Mute">
+          <img id="muteIcon" alt="" src="https://schredder222.github.io/Assets/Unmute.svg" />
+        </button>
         <button id="restartBtn" class="restartBtn">Restart</button>
       </div>
     </header>
@@ -218,7 +259,7 @@
       <img id="photo" alt="Prompt image" />
       <div class="bottomFade" aria-hidden="true"></div>
 
-      <div id="credit" class="credit">Image credit</div>
+      <div id="credit" class="credit"></div>
 
       <div class="instructionsOverlay" id="instructions">
         Choose the correct verb form and then type it out in the blank to complete the sentence.
@@ -239,7 +280,12 @@
       </div>
     </section>
 
-    <div class="idkWrap"><button id="idkBtn">I don’t know</button></div>
+    <!-- Row below image: counter (left), IDK centered, spacer (right) -->
+    <div class="belowBar">
+      <span id="score" class="pill">1 / 10</span>
+      <button id="idkBtn">I don’t know</button>
+      <span id="scoreSpacer" aria-hidden="true" class="pill spacer">1 / 10</span>
+    </div>
 
     <div id="feedback" class="feedback"></div>
   </div>
@@ -248,9 +294,11 @@
   <audio id="sfx-correct" src="https://cdn.pixabay.com/download/audio/2022/03/24/audio_dcde83efa6.mp3?filename=ui_correct_button2-103167.mp3" preload="auto"></audio>
   <audio id="sfx-wrong"   src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_b0669294aa.mp3?filename=training-program-incorrect1-88736.mp3" preload="auto"></audio>
   <audio id="sfx-idk"     src="https://cdn.pixabay.com/download/audio/2024/04/21/audio_1b8d3bcd3d.mp3?filename=click-buttons-ui-menu-sounds-effects-button-7-203601.mp3" preload="auto"></audio>
-  <!-- Reuse the same click sound for Restart per your request -->
   <audio id="sfx-click"   src="https://cdn.pixabay.com/download/audio/2024/04/21/audio_1b8d3bcd3d.mp3?filename=click-buttons-ui-menu-sounds-effects-button-7-203601.mp3" preload="auto"></audio>
   <audio id="applause"    src="https://schredder222.github.io/Assets/Applause.mp3" preload="auto"></audio>
+  <!-- Background music (loop) -->
+  <audio id="bgm" preload="auto" loop
+         src="https://cdn.pixabay.com/download/audio/2022/12/23/audio_7a9fbaaf9a.mp3"></audio>
 
 <script>
 /* ---------- Image helper with fallbacks ---------- */
@@ -324,7 +372,7 @@ const ITEMS_MASTER = [
       PD_FALLBACK
     ],
     credit:"Wikimedia – Town hall",
-    form:"question", qSubj:"you", hint:"(go)", qTail:" to the town hall for information? Maybe they can help",
+    form:"question", qSubj:"you", hint:"(go)", qTail:" to the town hall for information?",
     correctTense:"pps",
     expected:{ pps:["have gone","have been"], past:["did go","were"] }
   },
@@ -483,6 +531,7 @@ const stage=$("stage");
 const photo=$("photo"), credit=$("credit");
 const lineEl=$("line");
 const scoreEl=$("score"), feedback=$("feedback");
+const scoreSpacer=$("scoreSpacer");
 const btnPast=$("btnPast"), btnPPS=$("btnPPS");
 const idkBtn=$("idkBtn"), restartBtn=$("restartBtn");
 const sfxCorrect=$("sfx-correct"), sfxWrong=$("sfx-wrong"), sfxIdk=$("sfx-idk");
@@ -492,11 +541,53 @@ const congratsOverlay=$("congratsOverlay"), congratsImg=$("congratsImg");
 const sentenceWrap = $("sentenceWrap");
 const overBtns = $("overBtns");
 
+/* Music controls */
+const muteBtn = $("muteBtn");
+const muteIcon = $("muteIcon");
+const bgm = $("bgm");
+const MUTE_ICON_URL = 'https://schredder222.github.io/Assets/Mute.svg';
+const UNMUTE_ICON_URL = 'https://schredder222.github.io/Assets/Unmute.svg';
+let hasBgmStarted = false;
+/* Track whether mute button has ever been revealed this session */
+let hasShownMute = false;
+
+function syncMuteUI(){
+  const muted = bgm.muted;
+  muteBtn.setAttribute('aria-pressed', String(muted));
+  muteIcon.src = muted ? MUTE_ICON_URL : UNMUTE_ICON_URL;
+  muteBtn.title = muted ? 'Unmute' : 'Mute';
+  muteBtn.setAttribute('aria-label', muted ? 'Unmute background music' : 'Mute background music');
+}
+function revealMuteIfNeeded(){
+  if (!hasShownMute){
+    hasShownMute = true;
+    muteBtn.style.display = "inline-flex";
+  }
+}
+function tryStartBgm(){
+  if (hasBgmStarted) return;
+  bgm.volume = 0.12;
+  const p = bgm.play();
+  if (p?.then) p.then(()=>{
+    hasBgmStarted = true;
+    syncMuteUI();
+  }).catch(()=>{});
+}
+function stopBgmAtEnd(){
+  try { bgm.pause(); bgm.currentTime = 0; } catch {}
+  hasBgmStarted = false;
+}
+muteBtn.addEventListener('click', ()=>{
+  bgm.muted = !bgm.muted;
+  syncMuteUI();
+});
+
+/* Utility */
 function shuffle(a){const arr=a.slice();for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
 function norm(s){
   return s
     .toLowerCase()
-    .replace(/[\u2019\u2018']/g, "")   // accept answers without apostrophes (hasnt/didnt)
+    .replace(/[\u2019\u2018']/g, "")
     .trim()
     .replace(/\s+/g," ");
 }
@@ -531,15 +622,11 @@ function renderAffNeg(it){
 
 function renderQuestion(it){
   lineEl.innerHTML = "";
-  // [ AUX ] SUBJECT [ MAIN ] + tail
   const blankAux = document.createElement('span'); blankAux.className="blank small";
   const inpA = document.createElement('input'); inpA.type="text"; inpA.id = "answerAux"; blankAux.appendChild(inpA);
-
   const subj = document.createElement('span'); subj.textContent = " " + it.qSubj + " ";
-
   const blankMain = document.createElement('span'); blankMain.className="blank small";
   const inpM = document.createElement('input'); inpM.type="text"; inpM.id = "answerMain"; blankMain.appendChild(inpM);
-
   const hint = document.createElement('span'); hint.className="hint"; hint.textContent = " " + it.hint + " ";
   const tail = document.createElement('span'); tail.textContent = it.qTail;
 
@@ -557,12 +644,19 @@ function init(){
   order = shuffle([...Array(ITEMS.length).keys()]);
   index = 0; score = 0; chosenTense = null;
   scoreEl.textContent = `1 / ${ITEMS.length}`;
+  scoreSpacer.textContent = scoreEl.textContent;
+
+  // If user hasn't triggered audio before, keep mute hidden; else keep showing it
+  muteBtn.style.display = hasShownMute ? "inline-flex" : "none";
+
   load();
 }
 
 function load(){
   const it = ITEMS[order[index]];
   scoreEl.textContent = `${index + 1} / ${ITEMS.length}`;
+  scoreSpacer.textContent = scoreEl.textContent;
+
   setImageWithFallback(photo, it.srcs || [PD_FALLBACK]);
   credit.textContent = it.credit || "";
 
@@ -575,16 +669,15 @@ function load(){
   resetBtnVisuals();
   idkBtn.style.display = "none";
 
-  btnPast.onclick = ()=> chooseTense("past");
-  btnPPS.onclick  = ()=> chooseTense("pps");
-  idkBtn.onclick  = onIdk;
+  btnPast.onclick = ()=> { revealMuteIfNeeded(); tryStartBgm(); chooseTense("past"); };
+  btnPPS.onclick  = ()=> { revealMuteIfNeeded(); tryStartBgm(); chooseTense("pps");  };
+  idkBtn.onclick  = ()=> { revealMuteIfNeeded(); tryStartBgm(); onIdk(); };
 
   removeAutoListeners();
   addAutoListeners();
 
   setInputsDisabled(true);
 
-  // Position sentence responsively (esp. mobile)
   requestAnimationFrame(positionSentenceMobile);
 }
 
@@ -708,11 +801,12 @@ function next(){
     feedback.textContent = finalMsg;
     feedback.className = "feedback final";
     idkBtn.style.display = "none";
+    stopBgmAtEnd();
     showFinalCelebration(score, ITEMS.length);
   }
 }
 
-/* Celebration: centered over IMAGE, 6s, then auto-hide */
+/* Celebration */
 function showFinalCelebration(points, total){
   let imgUrl = "https://schredder222.github.io/Assets/Keep%20Practising.png";
   if(points <= 5){
@@ -743,7 +837,7 @@ function showFinalCelebration(points, total){
   };
 }
 
-/* --------- Mobile sentence positioning: halfway between buttons' bottom and image bottom --------- */
+/* Mobile sentence positioning */
 function isMobile(){ return window.matchMedia("(max-width: 560px)").matches; }
 
 function positionSentenceMobile(){
@@ -763,18 +857,28 @@ function positionSentenceMobile(){
   sentenceWrap.style.top = Math.max(btnRect.bottom - stageTop + 8, offsetTop - 10) + "px";
 }
 
-/* Recompute layout on resize & orientation changes */
+/* Recompute on resize/orientation */
 window.addEventListener("resize", positionSentenceMobile, {passive:true});
 window.addEventListener("orientationchange", ()=> setTimeout(positionSentenceMobile, 200), {passive:true});
 
-/* Restart: play click SFX then reset */
+/* Restart: click SFX, reset quiz; keep mute visibility if it was already revealed; do NOT auto-play bgm */
 $("restartBtn").addEventListener("click", ()=>{
   try{ sfxClick.currentTime = 0; sfxClick.play().catch(()=>{});}catch(_){}
+  try { bgm.pause(); } catch {}
+  hasBgmStarted = false;   // music will start again only after a tense button click
+  muteBtn.style.display = hasShownMute ? "inline-flex" : "none"; // keep visible if revealed once
+  syncMuteUI();
   init();
 });
 
 /* Kick off */
+syncMuteUI();
 init();
+
+/* Unlock audio on first user gesture (no auto-start) */
+const unlockOnce = ()=>{ bgm.play().then(()=>{ bgm.pause(); syncMuteUI(); }).catch(()=>{}); cleanup(); };
+function cleanup(){ ['pointerdown','touchend','click','keydown'].forEach(t=>document.removeEventListener(t, unlockOnce, {once:true})); }
+['pointerdown','touchend','click','keydown'].forEach(t=>document.addEventListener(t, unlockOnce, {once:true}));
 </script>
 </body>
 </html>
