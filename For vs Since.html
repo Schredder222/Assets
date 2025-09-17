@@ -6,8 +6,8 @@
 <title>For vs Since — Card Match (A2)</title>
 <style>
   :root{
-    --bg:#FDFBED; --ink:#222; --accent:#8A0000;        /* theme accent not used for borders now */
-    --edge:#B5B5B5;                                     /* NEW: neutral grey for borders */
+    --bg:#FDFBED; --ink:#222;
+    --edge:#B5B5B5;              /* neutral grey borders */
     --ok:#1E8E3E; --bad:#B00020; --muted:#9aa1a8; --card:#fff;
   }
   *{box-sizing:border-box}
@@ -43,6 +43,8 @@
     min-width:56px; padding:5px 10px; border-radius:999px;
     border:2px solid var(--edge); background:#fff; font-weight:700; cursor:pointer;
     transition:box-shadow .15s ease, background .15s ease; user-select:none;
+    touch-action: none;                      /* enable custom touch-drag */
+    -webkit-tap-highlight-color: transparent;
   }
   .pill.selected{box-shadow:0 0 0 3px rgba(0,0,0,.12)} /* subtle grey focus */
 
@@ -56,30 +58,26 @@
   }
   .sentence{margin:0}
 
-  /* Blank styled to MATCH the pill shape; fixed width prevents layout shift */
+  /* Blank styled to MATCH pill shape, fixed width to prevent layout shift */
   .blank{
     display:inline-flex; align-items:center; justify-content:center;
-    width:64px;                                         /* fixed width so sentence box doesn't shift */
-    min-height:34px;
-    padding:3px 10px; margin:0 4px;
-    border:2px dashed var(--edge); border-radius:999px; /* grey dashed by default */
-    background:#fff; vertical-align:middle;             /* centred on the line */
+    width:64px; min-height:34px; padding:3px 10px; margin:0 4px;
+    border:2px dashed var(--edge); border-radius:999px;
+    background:#fff; vertical-align:middle;
     transition:background .15s ease, border-color .15s ease, outline-color .15s ease;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
   }
   .blank.ready{outline:3px solid rgba(0,0,0,.10)}
-  .blank.filled{border-style:solid;}                    /* becomes solid when filled */
+  .blank.filled{border-style:solid;}
   .blank.correct{border-color:var(--ok); background:#ecf6ef}
   .blank.incorrect{border-color:var(--bad); background:#faecef}
 
-  /* When a chip sits inside a blank:
-     - hide the chip border/background to avoid double outlines
-     - keep clicks going to the blank (for replacement by click) */
+  /* Chip appearance when sitting inside a blank */
   .blank .pill{
-    pointer-events:none;
-    border:0;
-    background:transparent;
-    padding:0;
-    min-width:auto;
+    /* keep it interactable so you can drag/tap to move/swap */
+    border:0; background:transparent; padding:0; min-width:auto;
+    cursor:grab;
   }
 
   .resultMark{
@@ -88,6 +86,33 @@
   }
   .tick{color:var(--ok)}
   .cross{color:var(--bad)}
+
+  /* Floating ghost for touch-drag */
+  .drag-ghost{
+    position:fixed; z-index:9999; transform:translate(-50%,-50%);
+    opacity:.95; pointer-events:none;
+    border-radius:999px; border:2px solid var(--edge); background:#fff;
+    padding:5px 10px; font-weight:700;
+  }
+
+  /* Result overlay */
+  .overlay{
+    position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+    background:rgba(0,0,0,.55); padding:16px; z-index:10000;
+  }
+  .overlay.show{ display:flex; }
+  .resultCard{
+    position:relative; background:#fff; border-radius:16px; padding:16px;
+    width:min(520px, 92vw); box-shadow:0 12px 36px rgba(0,0,0,.25); text-align:center;
+  }
+  .resultCard img{ max-width:100%; height:auto; border-radius:12px; display:block; margin:0 auto 10px; }
+  .resultCaption{ margin:0 0 10px 0; font-weight:600; }
+  .overlayButtons{ display:flex; gap:8px; justify-content:center; }
+  .closeBtn{
+    position:absolute; top:8px; right:8px; border:none; border-radius:999px;
+    width:32px; height:32px; font-size:20px; line-height:28px; cursor:pointer;
+    background:#fff; border:2px solid var(--edge);
+  }
 </style>
 </head>
 <body>
@@ -100,7 +125,7 @@
       </div>
     </header>
 
-    <div class="meta muted" id="summary">Place the cards (click or drag), then press “Check answers”.</div>
+    <div class="meta muted" id="summary">Tap or drag words into the blanks. You can move them later; dropping on another filled blank will swap them. Then press “Check answers”.</div>
 
     <section class="banks">
       <div class="bankWrap">
@@ -114,6 +139,18 @@
     </section>
 
     <section class="grid" id="grid"></section>
+  </div>
+
+  <!-- Result overlay -->
+  <div class="overlay" id="resultOverlay" aria-hidden="true">
+    <div class="resultCard">
+      <button class="closeBtn" id="overlayClose" aria-label="Close">×</button>
+      <img id="resultImg" alt="Result" />
+      <p class="resultCaption" id="resultCaption"></p>
+      <div class="overlayButtons">
+        <button id="overlayRetry">Try again</button>
+      </div>
+    </div>
   </div>
 
 <script>
@@ -130,6 +167,13 @@ const SENTENCES = [
   { text: "I’ve had this phone ___ six months.", answer: "for" }
 ];
 
+const URLS = {
+  perfectImg: "https://schredder222.github.io/Assets/You%20Nailed%20It.png",
+  goodImg:    "https://schredder222.github.io/Assets/Bad%20bad.png",
+  tryImg:     "https://schredder222.github.io/Assets/Keep%20Practising.png",
+  applause:   "https://schredder222.github.io/Assets/Applause.mp3"
+};
+
 const grid = document.getElementById('grid');
 const bankFor = document.getElementById('bankFor');
 const bankSince = document.getElementById('bankSince');
@@ -137,15 +181,24 @@ const btnReset = document.getElementById('btnReset');
 const btnCheck = document.getElementById('btnCheck');
 const summaryEl = document.getElementById('summary');
 
+const overlay = document.getElementById('resultOverlay');
+const overlayClose = document.getElementById('overlayClose');
+const overlayRetry = document.getElementById('overlayRetry');
+const resultImg = document.getElementById('resultImg');
+const resultCaption = document.getElementById('resultCaption');
+
 let state = { selected:null, checked:false };
+let applauseAudio = new Audio(URLS.applause);
 
 function shuffle(arr){return arr.map(v=>[Math.random(),v]).sort((a,b)=>a[0]-b[0]).map(x=>x[1]);}
 
 function build(){
   grid.innerHTML = bankFor.innerHTML = bankSince.innerHTML = '';
   state.selected=null; state.checked=false;
-  summaryEl.textContent = "Place the cards (click or drag), then press “Check answers”.";
+  summaryEl.textContent = "Tap or drag words into the blanks. You can move or swap them. Then press “Check answers”.";
   btnCheck.disabled=false;
+
+  hideOverlay(); stopApplause();
 
   // sentences
   shuffle([...SENTENCES]).forEach((s)=>{
@@ -159,7 +212,7 @@ function build(){
     // Click placement
     span.addEventListener('click',()=>tryPlace(span));
 
-    // Drag target
+    // Desktop drag target (native DnD)
     span.addEventListener('dragover', e=>{ if(state.checked) return; e.preventDefault(); span.classList.add('ready'); e.dataTransfer.dropEffect='move'; });
     span.addEventListener('dragleave', ()=> span.classList.remove('ready'));
     span.addEventListener('drop', e=>{
@@ -184,7 +237,7 @@ function build(){
   makeBank('for', bankFor, SENTENCES.filter(s=>s.answer==='for').length);
   makeBank('since', bankSince, SENTENCES.filter(s=>s.answer==='since').length);
 
-  // enable dropping back onto banks
+  // enable desktop dropping back onto banks
   enableBankDnD(bankFor);
   enableBankDnD(bankSince);
 }
@@ -194,11 +247,11 @@ function makeBank(type,container,count){
     const chip=document.createElement('div');
     chip.className='pill';
     chip.textContent=type;
-    chip.draggable=true;
+    chip.draggable=true;                       // desktop DnD
     chip.dataset.value=type;
     chip.id = `chip-${type}-${i}-${Math.random().toString(36).slice(2)}`;
 
-    // Click-to-select
+    // Click-to-select (tap)
     chip.addEventListener('click',()=>{
       if(state.checked) return;
       if(state.selected && state.selected!==chip) state.selected.classList.remove('selected');
@@ -206,7 +259,7 @@ function makeBank(type,container,count){
       state.selected = chip.classList.contains('selected') ? chip : null;
     });
 
-    // Drag source
+    // Desktop drag source (native DnD)
     chip.addEventListener('dragstart', e=>{
       if(state.checked){ e.preventDefault(); return; }
       chip.classList.add('selected');
@@ -215,6 +268,9 @@ function makeBank(type,container,count){
       e.dataTransfer.effectAllowed='move';
     });
     chip.addEventListener('dragend', ()=> chip.classList.remove('selected'));
+
+    // Mobile touch-drag fallback
+    addTouchDrag(chip);
 
     container.appendChild(chip);
   }
@@ -227,15 +283,7 @@ function enableBankDnD(container){
     const id = e.dataTransfer.getData('text/id');
     const chip = document.getElementById(id);
     if(!chip) return;
-    const oldParent = chip.parentElement;
-    container.appendChild(chip);
-    chip.classList.remove('selected');
-    state.selected=null;
-    // if moved out of a blank, tidy that blank
-    if(oldParent && oldParent.classList && oldParent.classList.contains('blank')){
-      oldParent.classList.remove('filled','correct','incorrect');
-      const mark = oldParent.closest('.card').querySelector('.resultMark'); if(mark) mark.textContent='';
-    }
+    sendToBank(chip, container);
   });
 }
 
@@ -247,41 +295,72 @@ function tryPlace(blank){
   placeChip(chip, blank);
 }
 
-/* Core placement (click + drag) with replacement logic; fixed-size blanks prevent layout shift */
+/* Move a chip back to a bank (from blank or wherever) */
+function sendToBank(chip, container){
+  const oldParent = chip.parentElement;
+  container.appendChild(chip);
+  chip.classList.remove('selected');
+  state.selected=null;
+  if(oldParent && oldParent.classList && oldParent.classList.contains('blank')){
+    oldParent.classList.remove('filled','correct','incorrect');
+    const mark = oldParent.closest('.card').querySelector('.resultMark'); if(mark) mark.textContent='';
+  }
+}
+
+/* Core placement (click + drag + swap logic) */
 function placeChip(chip, blank){
   if(state.checked) return;
 
   const destCard = blank.closest('.card');
   if(destCard){ const mk = destCard.querySelector('.resultMark'); if(mk) mk.textContent=''; }
 
-  const existing=blank.querySelector('.pill');
+  const existing = blank.querySelector('.pill');
+  const src = chip.parentElement;
 
-  // same word already there -> do nothing
+  // no-op if trying to place into its own blank
+  if(src === blank){
+    chip.classList.remove('selected'); state.selected=null; return;
+  }
+
+  // same word already there -> no change
   if(existing && existing.dataset.value === chip.dataset.value){
-    chip.classList.remove('selected');
-    state.selected=null;
+    chip.classList.remove('selected'); state.selected=null; return;
+  }
+
+  // SWAP if destination has a chip and source is another blank
+  if(existing && src && src.classList && src.classList.contains('blank')){
+    // clear feedback on both cards
+    [src, blank].forEach(b=>{
+      b.classList.remove('correct','incorrect');
+      const mk = b.closest('.card').querySelector('.resultMark'); if(mk) mk.textContent='';
+    });
+    // perform swap
+    src.appendChild(existing);
+    blank.appendChild(chip);
+    src.classList.add('filled');
+    blank.classList.add('filled');
+    chip.classList.remove('selected'); state.selected=null;
     return;
   }
 
-  // different word already there -> send back to bank
+  // If destination has a chip and source is NOT a blank (i.e., from bank), send existing back to its bank
   if(existing){
     (existing.dataset.value==='for'?bankFor:bankSince).appendChild(existing);
   }
 
-  // if moving from another blank, tidy that blank
-  const oldParent = chip.parentElement;
-  if(oldParent && oldParent.classList && oldParent.classList.contains('blank')){
-    oldParent.classList.remove('filled','correct','incorrect');
-    const mark = oldParent.closest('.card').querySelector('.resultMark'); if(mark) mark.textContent='';
+  // if moving from another blank (and not swapping), tidy the source blank
+  if(src && src.classList && src.classList.contains('blank')){
+    src.classList.remove('filled','correct','incorrect');
+    const mk2 = src.closest('.card').querySelector('.resultMark'); if(mk2) mk2.textContent='';
   }
 
   blank.appendChild(chip);
-  blank.classList.add('filled');               /* becomes solid border, but same width */
+  blank.classList.add('filled');
   chip.classList.remove('selected');
   state.selected=null;
 }
 
-/* Check answers — marks all cards */
+/* Check answers — marks all cards and shows end screen */
 btnCheck.addEventListener('click', ()=>{
   if(state.checked) return;
 
@@ -308,10 +387,129 @@ btnCheck.addEventListener('click', ()=>{
   summaryEl.textContent = `Score: ${correct}/${blanks.length}`;
   state.checked = true;
   btnCheck.disabled = true;
+
+  // Show result overlay with image/audio
+  showEndScreen(correct, blanks.length);
 });
+
+/* End screen logic */
+function showEndScreen(correct, total){
+  let src = URLS.tryImg;
+  if (correct === total){
+    src = URLS.perfectImg;
+    stopApplause();
+    applauseAudio = new Audio(URLS.applause);
+    applauseAudio.play().catch(()=>{});
+  } else if (correct >= 7){
+    src = URLS.goodImg;
+    stopApplause();
+  } else {
+    src = URLS.tryImg;
+    stopApplause();
+  }
+
+  resultImg.src = src;
+  resultImg.alt = `Result image for score ${correct}/${total}`;
+  resultCaption.textContent = `Score: ${correct} / ${total}`;
+  showOverlay();
+}
+
+function showOverlay(){
+  overlay.classList.add('show');
+  overlay.setAttribute('aria-hidden','false');
+}
+function hideOverlay(){
+  overlay.classList.remove('show');
+  overlay.setAttribute('aria-hidden','true');
+}
+function stopApplause(){
+  if(applauseAudio){
+    try{ applauseAudio.pause(); applauseAudio.currentTime = 0; }catch(e){}
+  }
+}
+
+/* Overlay controls */
+overlayClose.addEventListener('click', hideOverlay);
+overlayRetry.addEventListener('click', ()=>{ hideOverlay(); build(); });
+overlay.addEventListener('click', (e)=>{ if(e.target === overlay) hideOverlay(); });
 
 /* Reset */
 btnReset.addEventListener('click', build);
+
+/* ---------- Touch-drag fallback (mobile) ---------- */
+function addTouchDrag(chip){
+  let dragging=false, ghost=null, startX=0, startY=0, lastBlank=null, lastBank=null;
+
+  const onStart = (e)=>{
+    if(state.checked) return;
+    const t = e.touches && e.touches[0];
+    if(!t) return;
+    startX = t.clientX; startY = t.clientY;
+    dragging=false; lastBlank=null; lastBank=null;
+    chip.classList.add('selected');
+    state.selected = chip;
+
+    document.addEventListener('touchmove', onMove, {passive:false});
+    document.addEventListener('touchend', onEnd, {passive:false});
+  };
+
+  const onMove = (e)=>{
+    const t = e.touches && e.touches[0];
+    if(!t) return;
+    const dx = t.clientX - startX, dy = t.clientY - startY;
+
+    // Start dragging after a small threshold so taps still work and page can scroll otherwise
+    if(!dragging && (Math.abs(dx) > 6 || Math.abs(dy) > 6)){
+      dragging = true;
+      ghost = document.createElement('div');
+      ghost.className = 'drag-ghost';
+      ghost.textContent = chip.dataset.value;
+      document.body.appendChild(ghost);
+    }
+
+    if(dragging){
+      e.preventDefault(); // stop page scroll while dragging
+      ghost.style.left = t.clientX + 'px';
+      ghost.style.top  = t.clientY + 'px';
+
+      const el = document.elementFromPoint(t.clientX, t.clientY);
+      // manage hover state for blanks
+      const b = el ? el.closest('.blank') : null;
+      if(b !== lastBlank){
+        if(lastBlank) lastBlank.classList.remove('ready');
+        if(b) b.classList.add('ready');
+        lastBlank = b;
+      }
+      // also remember if we're over a bank
+      lastBank = el ? el.closest('.bank') : null;
+    }
+  };
+
+  const onEnd = (e)=>{
+    document.removeEventListener('touchmove', onMove, {passive:false});
+    document.removeEventListener('touchend', onEnd, {passive:false});
+
+    if(lastBlank) lastBlank.classList.remove('ready');
+    if(ghost && ghost.parentNode) ghost.parentNode.removeChild(ghost);
+    ghost=null;
+
+    if(dragging){
+      if(lastBlank){
+        placeChip(chip, lastBlank);
+      }else if(lastBank){
+        sendToBank(chip, lastBank);
+      }
+      chip.classList.remove('selected');
+      state.selected=null;
+    }else{
+      // It was just a tap; keep selection toggled by click handler.
+    }
+
+    dragging=false; lastBlank=null; lastBank=null;
+  };
+
+  chip.addEventListener('touchstart', onStart, {passive:true});
+}
 
 /* Init */
 build();
