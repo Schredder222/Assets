@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Listening Comprehension — True/False Quiz</title>
+<style>
+  :root{
+    --bg:#FDFBED;
+    --ink:#222;
+    --ink-soft:#4a4a4a;
+    --accent:#8A0000;   /* red */
+    --ok:#2F691C;       /* green */
+    --card:#fff;
+    --ring: rgba(138,0,0,.25);
+    --gold:#D8b217;     /* yellow */
+    --trueFill:#193873;
+    --falseFill:#961917;
+    --grey:#bdbdbd;
+    --red:#B00020;
+    --green:#2F691C;
+  }
+  *{box-sizing:border-box}
+
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"MS Reference Sans Serif", Arial, Helvetica, sans-serif;
+    display:flex; align-items:center; justify-content:center; padding:16px;
+    -webkit-tap-highlight-color: transparent; /* nicer on iOS */
+  }
+
+  .app{width:min(900px,100%); display:flex; flex-direction:column; gap:14px}
+
+  header{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:8px 4px}
+  h1{margin:0; font-weight:600; letter-spacing:.3px; line-height:1.2; color:#000; font-size:clamp(20px, 3.2vw, 28px)}
+  .sub{color:var(--ink-soft); font-size:clamp(12px, 2.2vw, 14px); margin-top:2px}
+
+  .topline{display:flex; justify-content:flex-end; padding:0 4px}
+  .pill{padding:6px 10px; border-radius:999px; border:1px solid #e3d9d6; background:#fff; color:#333; font-size:13px}
+
+  .card{background:var(--card); border:1px solid #e8e3df; border-radius:16px; box-shadow:0 6px 18px rgba(0,0,0,.06); padding:16px}
+  .row{display:flex; align-items:center; justify-content:space-between; gap:12px}
+
+  .progress{width:100%; height:10px; background:#eee; border-radius:999px; overflow:hidden; box-shadow:inset 0 0 0 1px #e5e5e5}
+  .bar{height:100%; width:0%; background:var(--gold); transition:width .35s ease}
+
+  .qwrap{display:grid; gap:12px; padding:10px 6px; text-align:center}
+  .qtext{font-size:clamp(18px, 2.6vw, 28px); line-height:1.45; margin:28px 0}
+
+  .btns{display:flex; justify-content:center; gap:12px; margin-top:4px; flex-wrap:wrap}
+
+  button{
+    appearance:none; border:2px solid transparent; color:#fff;
+    padding:14px 18px; /* >=44px touch height */
+    border-radius:20px; font-size:16px; cursor:pointer;
+    transition:transform .05s ease, background-color .2s ease, color .2s ease;
+    outline:none; min-width:148px; max-width:200px;
+    touch-action: manipulation; /* hint to browsers: simple taps */
+  }
+  button:active{transform:translateY(1px)}
+
+  .btnTrue{background:var(--trueFill)}
+  .btnFalse{background:var(--falseFill)}
+
+  /* Next / Restart buttons: grey border always, no glow */
+  .btnAction{
+    background:var(--gold); color:#000; border:2px solid var(--grey);
+    box-shadow:none !important;
+  }
+  .btnAction:focus,
+  .btnAction:active{border-color:var(--grey); box-shadow:none !important}
+
+  /* Visible, neutral focus for keyboard users only */
+  button:focus-visible{
+    outline:2px solid #666;
+    outline-offset:2px;
+  }
+
+  .btnRow{display:flex; gap:8px; flex-wrap:wrap}
+
+  /* Feedback plain text (live region for SR users) */
+  .feedback{
+    margin-top:14px; font-size:16px;
+    visibility:hidden; opacity:0; transition:opacity .3s ease; min-height:28px;
+  }
+  .feedback.show{visibility:visible; opacity:1}
+  .feedback .correctWord{color:var(--green); font-weight:600}
+  .feedback .incorrectWord{color:var(--red); font-weight:600}
+
+  .footer{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:8px; color:#333; font-size:14px}
+  .score{font-weight:600}
+
+  /* End screen */
+  .center{display:flex; align-items:center; justify-content:center; padding:16px}
+  .big{text-align:center; padding:18px}
+  .big h2{margin:.2rem 0 0; font-size:clamp(20px, 3vw, 26px)}
+  .big p{margin:.25rem 0; color:#666}
+  .scoreRing{width:110px; height:110px; border-radius:50%; display:grid; place-items:center; margin:6px auto 10px; border:6px solid var(--accent); color:#000; font-weight:700; font-size:20px; background:#fff}
+
+  @media (max-width:540px){
+    .footer{flex-direction:column; align-items:flex-start}
+  }
+
+  /* Ultra-narrow phones */
+  @media (max-width:360px){
+    button{min-width:120px}
+  }
+
+  /* Respect reduced motion users */
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.01ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important;}
+  }
+
+  /* ===== Celebratory overlay (perfect only) ===== */
+  #congratsOverlay{
+    position:fixed;
+    display:none;
+    left:50%;
+    top:50%;
+    transform:translate(-50%,-50%);
+    align-items:center; 
+    justify-content:center;
+    z-index:9999; 
+    pointer-events:none; 
+    background:transparent;
+  }
+  #congratsOverlay img{
+    width:clamp(180px,60%,420px);
+    height:auto;
+    animation:none; 
+    will-change: transform, opacity;
+  }
+  @keyframes congratsZoom{
+    0%{ transform:scale(0.70); opacity:0; }
+    8%{ opacity:1; }
+    100%{ transform:scale(1.0); opacity:1; }
+  }
+</style>
+</head>
+<body>
+<main class="app">
+  <header>
+    <div>
+      <h1>Listening Comprehension — True/False</h1>
+      <div class="sub">A Surprise Meeting</div>
+    </div>
+  </header>
+
+  <div class="topline">
+    <div class="pill"><span id="qNum">1</span>/<span id="qTotal">10</span></div>
+  </div>
+
+  <section class="card">
+    <div class="row"><div class="progress"><div class="bar" id="bar"></div></div></div>
+
+    <div class="qwrap" id="qwrap">
+      <div class="qtext" id="qtext">Loading…</div>
+
+      <div class="btns">
+        <button class="btnTrue" id="btnTrue">True</button>
+        <button class="btnFalse" id="btnFalse">False</button>
+      </div>
+
+      <div class="feedback" id="feedback" aria-live="polite" role="status"></div>
+
+      <div class="footer">
+        <div class="score">Score: <span id="score">0</span></div>
+        <div class="btnRow">
+          <button class="btnAction" id="btnNext">Next question</button>
+          <button class="btnAction" id="btnRestart">Restart</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="end" class="center" style="display:none">
+      <div class="big">
+        <div class="scoreRing" id="finalPct">0%</div>
+        <h2 id="finalTitle">Nice work!</h2>
+        <p id="finalMsg">You’ve completed the quiz.</p>
+        <div style="margin-top:8px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap">
+          <button class="btnAction" id="btnRetry" style="min-width:148px">Restart quiz</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- Celebratory overlay -->
+<div id="congratsOverlay" aria-hidden="true">
+  <img id="congratsImg" src="" alt="Result">
+</div>
+
+<!-- Applause (perfect only) -->
+<audio id="applause" preload="auto" src="https://schredder222.github.io/Assets/Applause.mp3"></audio>
+
+<script>
+(() => {
+  // Sounds
+  const sfxClick = new Audio('https://cdn.pixabay.com/download/audio/2024/04/21/audio_1b8d3bcd3d.mp3?filename=click-buttons-ui-menu-sounds-effects-button-7-203601.mp3');
+  const sfxCorrect = new Audio('https://cdn.pixabay.com/download/audio/2022/03/24/audio_dcde83efa6.mp3');
+  const sfxWrong = new Audio('https://cdn.pixabay.com/download/audio/2022/03/15/audio_b0669294aa.mp3');
+  function playSfx(a){ try { a.currentTime=0; a.play(); } catch(e){} }
+
+  // Celebration elements
+  const overlay = document.getElementById("congratsOverlay");
+  const overlayImg = document.getElementById("congratsImg");
+  const applause = document.getElementById("applause");
+  function showCelebration(src, withApplause=false){
+    overlayImg.src = src;
+    overlay.style.display="flex";
+    overlayImg.style.animation="none";
+    void overlayImg.offsetWidth; 
+    overlayImg.style.animation="congratsZoom 6s ease-out forwards";
+    if(withApplause){ try{ applause.currentTime=0; applause.play(); }catch(e){} }
+    setTimeout(()=>{
+      overlay.style.display="none";
+      overlayImg.src="";
+    },6000);
+  }
+
+  const ITEMS = [
+    {s:'Anna and Tom see each other regularly.',a:false,e:'Anna says “I haven’t seen you in ages.”'},
+    {s:'Both Anna and Tom are students at the university.',a:false,e:'Tom works at the university, Anna studies there.'},
+    {s:'Tom has worked at the university for 2 years (in 2025).',a:true,e:'He has worked there since 2023.'},
+    {s:'Both Anna and Tom think the city is very fast-paced.',a:true,e:'They both describe the city as busy/chaotic.'},
+    {s:'Anna is having trouble finding interesting things to do.',a:false,e:'She has found lots of cafés, museums and galleries.'},
+    {s:'Tom has had a busy life since he moved to the city.',a:true,e:'He says “It’s been very busy.”'},
+    {s:'Tom found some good friends in the past, but not anymore.',a:false,e:'He continues to make and keep friends.'},
+    {s:'Anna wants to meet at 12pm because she’s worried about traffic.',a:true,e:'She wants to avoid commuting during rush hour.'},
+    {s:'Anna and Tom organise a time to meet next week.',a:false,e:'Tom says he will text her next week to organise.'},
+    {s:'Only Anna wants to meet.',a:false,e:'Both say they would like to meet.'}
+  ];
+
+  let idx=0,score=0,answered=false;
+  const qNum=document.getElementById('qNum');
+  const qTotal=document.getElementById('qTotal');
+  const qtext=document.getElementById('qtext');
+  const bar=document.getElementById('bar');
+  const feedback=document.getElementById('feedback');
+  const btnTrue=document.getElementById('btnTrue');
+  const btnFalse=document.getElementById('btnFalse');
+  const btnNext=document.getElementById('btnNext');
+  const btnRestart=document.getElementById('btnRestart');
+  const end=document.getElementById('end');
+  const qwrap=document.getElementById('qwrap');
+  const scoreEl=document.getElementById('score');
+  const finalPct=document.getElementById('finalPct');
+  const finalTitle=document.getElementById('finalTitle');
+  const finalMsg=document.getElementById('finalMsg');
+  const btnRetry=document.getElementById('btnRetry');
+  const qTotalVal=ITEMS.length;
+  qTotal.textContent=qTotalVal;
+
+  function start(){
+    idx=0; score=0; answered=false;
+    scoreEl.textContent=score;
+    qwrap.style.display=''; end.style.display='none';
+    resetButtons();
+    setBar(); render();
+  }
+  function setBar(){bar.style.width=(idx/ITEMS.length*100)+'%';}
+  function render(){
+    const item=ITEMS[idx];
+    qNum.textContent=(idx+1);
+    qtext.textContent=item.s;
+    feedback.className='feedback'; feedback.innerHTML='';
+    btnTrue.disabled=false; btnFalse.disabled=false;
+    resetButtons();
+    answered=false;
+
+    // Update "next question" button text
+    btnNext.textContent = (idx === ITEMS.length-1) ? "Finish" : "Next question";
+  }
+  function resetButtons(){
+    btnTrue.style.borderColor='transparent';
+    btnFalse.style.borderColor='transparent';
+    btnTrue.style.borderWidth='2px';
+    btnFalse.style.borderWidth='2px';
+  }
+  function answer(val){
+    if(answered) return;
+    const item=ITEMS[idx];
+    const correct=(val===item.a);
+    answered=true;
+    if(correct) score++;
+    scoreEl.textContent=score;
+
+    feedback.className='feedback show';
+    feedback.innerHTML=`<span class="${correct?'correctWord':'incorrectWord'}">${correct?'Correct':'Incorrect'}</span> — ${item.e}`;
+
+    btnTrue.disabled=true; btnFalse.disabled=true;
+
+    const GREEN = getComputedStyle(document.documentElement).getPropertyValue('--ok').trim() || '#2F691C';
+    if(item.a === true){
+      btnTrue.style.borderColor = GREEN;
+      btnTrue.style.borderWidth = '3px';
+    }else{
+      btnFalse.style.borderColor = GREEN;
+      btnFalse.style.borderWidth = '3px';
+    }
+
+    playSfx(correct ? sfxCorrect : sfxWrong);
+  }
+  function next(){ if(idx<ITEMS.length-1){ idx++; setBar(); render(); } else finish(); }
+  function finish(){
+    qwrap.style.display='none'; end.style.display='';
+    const pct=Math.round(score/ITEMS.length*100);
+    finalPct.textContent=pct+'%';
+
+    // Ring colour mapping: <6 red, 6–8 yellow, 9–10 green
+    if(score <= 5){
+      finalPct.style.borderColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#8A0000';
+    }else if(score <= 8){
+      finalPct.style.borderColor = getComputedStyle(document.documentElement).getPropertyValue('--gold').trim() || '#D8b217';
+    }else{
+      finalPct.style.borderColor = getComputedStyle(document.documentElement).getPropertyValue('--ok').trim() || '#2F691C';
+    }
+
+    // Title/message mapping
+    finalTitle.textContent = (score === 10) ? 'Amazing!' : (score >= 7 ? 'Not bad!' : 'Keep practising!');
+    finalMsg.textContent = `You scored ${score} out of ${ITEMS.length}.`;
+    btnRetry.textContent = (score === 10) ? "Restart quiz" : "Try again!";
+
+    bar.style.width='100%';
+
+    // Celebration: perfect score only
+    if(score === 10){
+      showCelebration('https://schredder222.github.io/Assets/Amazing.png', true);
+    }
+  }
+
+  // Events
+  btnTrue.onclick=()=>answer(true);
+  btnFalse.onclick=()=>answer(false);
+  btnNext.onclick=()=>{ playSfx(sfxClick); next(); };
+  btnRestart.onclick=()=>{ playSfx(sfxClick); start(); };
+  btnRetry.onclick=()=>{ playSfx(sfxClick); start(); };
+
+  // Keyboard shortcuts (kept for desktop users)
+  window.addEventListener('keydown',e=>{
+    const k=e.key.toLowerCase();
+    if(end.style.display==='none'){
+      if(k==='t') answer(true);
+      else if(k==='f') answer(false);
+      else if(k==='enter'){ playSfx(sfxClick); next(); }
+    }else{
+      if(k==='enter'){ playSfx(sfxClick); start(); }
+    }
+  });
+
+  start();
+})();
+</script>
+</body>
+</html>
