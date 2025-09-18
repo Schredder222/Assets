@@ -79,11 +79,11 @@
 
   .btnRow{display:flex; gap:8px; flex-wrap:wrap}
 
-  /* Feedback plain text (live region for SR users) */
+  /* Feedback (live region) — height will be fixed per question to avoid layout shift */
   .feedback{
     margin-top:14px; font-size:16px;
     visibility:hidden; opacity:0; transition:opacity .3s ease;
-    /* height is set dynamically on mobile to avoid layout shift */
+    height:0; /* set dynamically before showing */
   }
   .feedback.show{visibility:visible; opacity:1}
   .feedback .correctWord{color:var(--green); font-weight:600}
@@ -113,34 +113,9 @@
     button{min-width:120px}
   }
 
-  /* Respect reduced motion users */
+  /* Reduced motion */
   @media (prefers-reduced-motion: reduce){
     *{animation-duration:0.01ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important;}
-  }
-
-  /* ===== Celebratory overlay (perfect only) ===== */
-  #congratsOverlay{
-    position:fixed;
-    display:none;
-    left:50%;
-    top:50%;
-    transform:translate(-50%,-50%);
-    align-items:center; 
-    justify-content:center;
-    z-index:9999; 
-    pointer-events:none; 
-    background:transparent;
-  }
-  #congratsOverlay img{
-    width:clamp(180px,60%,420px);
-    height:auto;
-    animation:none; 
-    will-change: transform, opacity;
-  }
-  @keyframes congratsZoom{
-    0%{ transform:scale(0.70); opacity:0; }
-    8%{ opacity:1; }
-    100%{ transform:scale(1.0); opacity:1; }
   }
 </style>
 </head>
@@ -192,38 +167,17 @@
   </section>
 </main>
 
-<!-- Celebratory overlay -->
-<div id="congratsOverlay" aria-hidden="true">
-  <img id="congratsImg" src="" alt="Result">
-</div>
-
 <!-- Applause (perfect only) -->
 <audio id="applause" preload="auto" src="https://schredder222.github.io/Assets/Applause.mp3"></audio>
 
 <script>
 (() => {
-  // Sounds
   const sfxClick = new Audio('https://cdn.pixabay.com/download/audio/2024/04/21/audio_1b8d3bcd3d.mp3?filename=click-buttons-ui-menu-sounds-effects-button-7-203601.mp3');
   const sfxCorrect = new Audio('https://cdn.pixabay.com/download/audio/2022/03/24/audio_dcde83efa6.mp3');
   const sfxWrong = new Audio('https://cdn.pixabay.com/download/audio/2022/03/15/audio_b0669294aa.mp3');
   function playSfx(a){ try { a.currentTime=0; a.play(); } catch(e){} }
 
-  // Celebration elements
-  const overlay = document.getElementById("congratsOverlay");
-  const overlayImg = document.getElementById("congratsImg");
   const applause = document.getElementById("applause");
-  function showCelebration(src, withApplause=false){
-    overlayImg.src = src;
-    overlay.style.display="flex";
-    overlayImg.style.animation="none";
-    void overlayImg.offsetWidth; 
-    overlayImg.style.animation="congratsZoom 6s ease-out forwards";
-    if(withApplause){ try{ applause.currentTime=0; applause.play(); }catch(e){} }
-    setTimeout(()=>{
-      overlay.style.display="none";
-      overlayImg.src="";
-    },6000);
-  }
 
   const ITEMS = [
     {s:'Anna and Tom see each other regularly.',a:false,e:'Anna says “I haven’t seen you in ages.”'},
@@ -258,8 +212,6 @@
   const qTotalVal=ITEMS.length;
   qTotal.textContent=qTotalVal;
 
-  const isMobile = () => window.matchMedia('(max-width:540px)').matches;
-
   function start(){
     idx=0; score=0; answered=false;
     scoreEl.textContent=score;
@@ -269,24 +221,19 @@
   }
   function setBar(){bar.style.width=(idx/ITEMS.length*100)+'%';}
 
-  // Reserve feedback height on mobile to avoid layout shift
+  /** Measure & reserve the exact feedback height BEFORE showing it (all screens). */
   function reserveFeedbackSpace(item){
-    if(!isMobile()){
-      feedback.style.height = ''; // let desktop auto-size
-      return;
-    }
-    // Create a hidden measuring node with same width as feedback
+    // Build a hidden probe matching feedback width for accurate wrapping.
     const probe = document.createElement('div');
     probe.className = 'feedback show';
     probe.style.position = 'absolute';
     probe.style.visibility = 'hidden';
     probe.style.pointerEvents = 'none';
-    probe.style.left = '-9999px';
-    // fix width to current feedback width to get accurate wrapping
+    // Constrain to current feedback width to mirror wrapping.
     const w = feedback.clientWidth || feedback.offsetWidth || 300;
     probe.style.width = w + 'px';
 
-    // Measure both "Correct" and "Incorrect" variants; keep the taller
+    // Measure both "Correct" and "Incorrect"; use the taller.
     probe.innerHTML = `<span class="correctWord">Correct</span> — ${item.e}`;
     document.body.appendChild(probe);
     const h1 = probe.scrollHeight;
@@ -297,7 +244,7 @@
     document.body.removeChild(probe);
     const h = Math.max(h1, h2);
 
-    // Apply a stable height before showing feedback
+    // Fix the height now so container won't expand later when feedback appears.
     feedback.style.height = h + 'px';
   }
 
@@ -306,7 +253,7 @@
     qNum.textContent=(idx+1);
     qtext.textContent=item.s;
 
-    // prepare feedback area (no content yet, reserve height on mobile)
+    // Reset feedback and reserve height for this question.
     feedback.className='feedback';
     feedback.innerHTML='';
     reserveFeedbackSpace(item);
@@ -332,7 +279,7 @@
     if(correct) score++;
     scoreEl.textContent=score;
 
-    // Now reveal feedback (height already reserved on mobile)
+    // Reveal feedback (height already reserved)
     feedback.className='feedback show';
     feedback.innerHTML=`<span class="${correct?'correctWord':'incorrectWord'}">${correct?'Correct':'Incorrect'}</span> — ${item.e}`;
 
@@ -371,9 +318,9 @@
 
     bar.style.width='100%';
 
-    // Celebration: perfect score only
+    // Perfect score: applause only (no PNG animation)
     if(score === 10){
-      showCelebration('https://schredder222.github.io/Assets/Amazing.png', true);
+      try{ applause.currentTime=0; applause.play(); }catch(e){}
     }
   }
 
@@ -384,7 +331,7 @@
   btnRestart.onclick=()=>{ playSfx(sfxClick); start(); };
   btnRetry.onclick=()=>{ playSfx(sfxClick); start(); };
 
-  // Keyboard shortcuts (kept for desktop users)
+  // Keyboard shortcuts (desktop convenience)
   window.addEventListener('keydown',e=>{
     const k=e.key.toLowerCase();
     if(end.style.display==='none'){
