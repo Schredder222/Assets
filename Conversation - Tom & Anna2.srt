@@ -19,153 +19,149 @@ How have you been?
 I've been good.
 
 6
-00:00:09,970 --> 00:00:12,130
-I've been at the university for six months
+00:00:09,970 --> 00:00:12,830
+I've been at the university for six months now
 
 7
-00:00:12,130 --> 00:00:12,830
-now.
-
-8
 00:00:12,830 --> 00:00:13,710
 What about you?
 
-9
+8
 00:00:13,710 --> 00:00:15,350
 Are you a student here?
 
-10
+9
 00:00:15,350 --> 00:00:18,430
 No, actually, I've worked here since 2023.
 
-11
+10
 00:00:18,430 --> 00:00:20,550
 I didn't know you were a student here.
 
-12
+11
 00:00:20,550 --> 00:00:22,970
 Yeah, I moved to the city last year.
 
-13
+12
 00:00:22,970 --> 00:00:24,690
 How long have you lived here?
 
-14
+13
 00:00:24,690 --> 00:00:26,510
 I've lived in the city for about five
 
-15
+14
 00:00:26,510 --> 00:00:27,330
 years now.
 
-16
+15
 00:00:27,330 --> 00:00:28,370
 I moved here in 2020.
 
-17
+16
 00:00:28,370 --> 00:00:32,890
 It's been very busy, but I've really enjoyed
 
-18
+17
 00:00:32,890 --> 00:00:33,970
 it so far.
 
-19
+18
 00:00:33,970 --> 00:00:36,610
 I agree.
 
-20
+19
 00:00:36,610 --> 00:00:40,330
 The city is very chaotic, but I've also
 
-21
+20
 00:00:40,330 --> 00:00:41,530
 found lots of great cafes, museums and art
 
-22
+21
 00:00:41,530 --> 00:00:41,790
 galleries.
 
-23
+22
 00:00:41,790 --> 00:00:43,530
 That's awesome.
 
-24
+23
 00:00:43,530 --> 00:00:45,550
 There are heaps of opportunities here, and I've
 
-25
+24
 00:00:45,550 --> 00:00:47,770
 met so many interesting people in the city.
 
-26
+25
 00:00:47,770 --> 00:00:49,530
 I've made some really good friends here, actually.
 
-27
+26
 00:00:49,530 --> 00:00:49,770
 I'm so happy for you.
 
-28
+27
 00:00:49,770 --> 00:00:51,390
 We should catch up sometime.
 
-29
+28
 00:00:51,390 --> 00:00:52,610
 I'd love that.
 
-30
+29
 00:00:52,610 --> 00:00:54,830
 What time suits you best?
 
-31
+30
 00:00:54,830 --> 00:00:56,730
 Midday is the best for me.
 
-32
+31
 00:00:56,730 --> 00:00:59,790
 That way I can avoid commuting during rush
 
-33
+32
 00:00:59,790 --> 00:01:00,450
 hour.
 
-34
+33
 00:01:00,450 --> 00:01:00,850
 Works for me.
 
-35
+34
 00:01:00,850 --> 00:01:02,270
 I'll text you next week and we can
 
-36
+35
 00:01:02,270 --> 00:01:04,030
 organise a coffee or something.
 
-37
+36
 00:01:04,030 --> 00:01:04,950
 Awesome.
 
-38
+37
 00:01:04,950 --> 00:01:07,850
 I'm happy we've met again after so long.
 
-39
+38
 00:01:07,850 --> 00:01:08,910
 Me too.
 
-40
+39
 00:01:08,910 --> 00:01:10,350
 Anyway, I have to run.
 
-41
+40
 00:01:10,350 --> 00:01:12,150
 Talk to you next week.
 
-42
+41
 00:01:12,150 --> 00:01:12,790
 OK.
 
-43
+42
 00:01:12,790 --> 00:01:13,330
 Bye, Tom.
