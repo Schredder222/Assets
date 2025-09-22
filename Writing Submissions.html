@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Submit Your Writing</title>
+<style>
+  :root{ --bg:#FDFBED; --ink:#222; --accent:#8A0000; --card:#fff; --muted:#ded8c3; }
+  *{box-sizing:border-box}
+  body{ margin:0; background:var(--bg); color:var(--ink);
+        font-family:"MS Reference Sans Serif","Segoe UI",system-ui,Arial,sans-serif; }
+  .wrap{ max-width:760px; margin:32px auto; padding:16px; }
+  .card{ background:var(--card); border:1px solid var(--muted); border-radius:14px; padding:20px;
+         box-shadow:0 10px 24px rgba(0,0,0,.06); }
+  h1{ margin:.2rem 0 1rem; font-weight:600 }
+  label{ display:block; margin:.6rem 0 .3rem; font-weight:600 }
+  input,textarea,button{ font:inherit; width:100% }
+  input,textarea{ border:1px solid #ddd; border-radius:10px; padding:10px; background:#fff }
+  textarea{ min-height:220px; resize:vertical }
+  button{ margin-top:12px; border:0; border-radius:999px; padding:12px 16px; background:var(--accent); color:#fff; cursor:pointer }
+  button[disabled]{ opacity:.7; cursor:not-allowed }
+  .note{ margin-top:.5rem; color:#444 }
+  .ok{ color:#2e7d32 } .err{ color:#B00020 }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Submit Your Writing</h1>
+      <form id="f" novalidate>
+        <label for="name">Your name (optional)</label>
+        <input id="name" type="text" placeholder="e.g. Anna" autocomplete="name" />
+
+        <label for="email">Your email</label>
+        <input id="email" type="email" placeholder="you@example.com" autocomplete="email" required />
+
+        <label for="content">Your answer</label>
+        <textarea id="content" placeholder="Type your answer here…" required></textarea>
+
+        <button id="submitBtn" type="submit">Send</button>
+        <div id="msg" class="note" role="status" aria-live="polite"></div>
+        <p class="note">We’ll email your teacher a PDF of your writing. They’ll reply with corrections to your email.</p>
+      </form>
+    </div>
+  </div>
+
+<script>
+/* ===== CONFIG: update these two lines ===== */
+const WEB_APP_URL   = 'https://script.google.com/macros/s/AKfycbwRjclMMAtjXThpWqzgCGfxPBOVQ5KXD1hG_894M8YfRHea9Tdct8n2rYzNp0qPODgx/exec';
+const SHARED_SECRET = 'change-me-optional';
+/* ======================================== */
+
+const $ = (id) => document.getElementById(id);
+const btn = $('submitBtn');
+const msg = $('msg');
+
+function validEmail(v){ return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v); }
+
+async function deliver(payload){
+  // 1) Normal fetch
+  try{
+    await fetch(WEB_APP_URL, {
+      method:'POST',
+      headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    });
+    return true;
+  }catch(err){
+    console.warn('Normal fetch failed, trying no-cors:', err);
+  }
+  // 2) no-cors fallback (opaque but usually allowed)
+  try{
+    await fetch(WEB_APP_URL, {
+      method:'POST',
+      mode:'no-cors',
+      keepalive:true,
+      headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    });
+    return true;
+  }catch(err2){
+    console.warn('no-cors failed, trying sendBeacon:', err2);
+  }
+  // 3) sendBeacon fallback
+  if (navigator.sendBeacon) {
+    try{
+      const blob = new Blob([JSON.stringify(payload)], {type:'text/plain'});
+      if (navigator.sendBeacon(WEB_APP_URL, blob)) return true;
+    }catch(e){ console.warn('sendBeacon failed:', e); }
+  }
+  return false;
+}
+
+$('f').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  msg.textContent = ''; msg.className = 'note';
+
+  const name    = $('name').value.trim();
+  const email   = $('email').value.trim();
+  const content = $('content').value.trim();
+
+  if (!validEmail(email)) { msg.textContent='Please enter a valid email address.'; msg.className='note err'; return; }
+  if (content.length < 10) { msg.textContent='Please write at least 10 characters.'; msg.className='note err'; return; }
+  if (!WEB_APP_URL.startsWith('https://script.google.com/macros/s/') || !WEB_APP_URL.endsWith('/exec')){
+    msg.textContent='Form not configured yet (invalid Apps Script URL).'; msg.className='note err'; return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Sending…';
+  const ok = await deliver({ name, email, content, secret: SHARED_SECRET });
+
+  if (ok){
+    e.target.reset();
+    msg.textContent = 'Thanks! Your writing was submitted. Your teacher will reply to your email with feedback.';
+    msg.className = 'note ok';
+  }else{
+    msg.textContent = 'Sorry—could not submit right now.';
+    msg.className = 'note err';
+  }
+  btn.disabled = false; btn.textContent = 'Send';
+});
+</script>
+</body>
+</html>
