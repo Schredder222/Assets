@@ -2,344 +2,801 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Past Participle Flashcards</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes, maximum-scale=5" />
+<title>Definition Matching – City Life (A2)</title>
 <style>
   :root{
     --bg:#FDFBED;
     --ink:#222;
     --accent:#8A0000;
+    --ok:#1E8E3E;
     --card:#fff;
-    --ink-soft:#444;
+    --gap:28px;       /* centre gap (desktop/tablet) */
+    --dot:10px;       /* dot size (desktop) */
+    --dotColor:#000;
+    --minCol:120px;   /* minimum per column */
+    --btnGap:0px;     /* extra space above buttons (default desktop = 0) */
+    --row-gap:10px;   /* UNIVERSAL vertical gap between boxes (desktop & mobile) */
 
-    /* Card sizing defaults (mobile & fallback) */
-    --card-min: 180px;           /* min width per card */
-    --card-ratio: 180/220;       /* width/height ratio ≈ 0.818 */
-    --card-radius: 16px;
-    --card-shadow: 0 3px 10px rgba(0,0,0,.06);
-
-    /* Typography defaults (mobile & fallback) */
-    --fs-v1: 28px;               /* big verb on front */
-    --fs-tag: 12px;
-    --fs-value: 18px;            /* V2 line */
-    --fs-v3: 24px;               /* V3 line */
-    --fs-index: 12px;
-    --fs-hint: 11px;
-    --fs-label: 12px;
+    /* Column fill colours */
+    --leftFill:  rgba(216,178,23,0.20);
+    --rightFill: rgba(47,105,28,0.20);
   }
+  *{box-sizing:border-box}
+  body{ margin:0; background:var(--bg); color:var(--ink); font-family:"MS Reference Sans Serif", Arial, sans-serif; }
+  .wrap{max-width:1000px;margin:24px auto;padding:16px}
+  h1{font-weight:600;font-size:1.3rem;margin:0 0 10px}
+  .note{font-size:.95rem;color:#444;margin:0 0 16px;line-height:1.45}
 
-  /* Desktop: make cards and text scale with viewport width, capping at original sizes */
-  @media (min-width: 768px){
-    :root{
-      /* Cards can shrink below 180px on narrower desktop/iframes */
-      --card-min: clamp(120px, 17vw, 180px);
-
-      /* Text scales down with viewport, capped at original sizes */
-      --fs-v1: clamp(18px, 1.8vw, 28px);
-      --fs-value: clamp(14px, 1.2vw, 18px);
-      --fs-v3: clamp(16px, 1.35vw, 24px);
-      --fs-index: clamp(10px, .9vw, 12px);
-      --fs-hint: clamp(9px, .8vw, 11px);
-      --fs-label: clamp(10px, .9vw, 12px);
-    }
-  }
-
-  *,*::before,*::after{box-sizing:border-box}
-  html,body{height:100%}
-  body{margin:0;background:var(--bg);color:var(--ink);font-family:"MS Reference Sans Serif", system-ui, sans-serif;}
-
-  header{max-width:1100px;margin:24px auto 0;padding:0 16px}
-  h1{font-family:"MS Reference Sans Serif", sans-serif;letter-spacing:.5px;font-weight: 400; font-size:30px; margin:0 0 4px;color:#000}
-  p.lead{margin:.25rem 0 1rem;color:var(--ink-soft)}
-
-  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0 18px}
-  .btn{appearance:none;border:1px solid var(--accent);background:transparent;color:var(--accent);padding:10px 14px;border-radius:999px;font-weight:600;cursor:pointer;transition:all .2s ease;}
-  .btn:hover{transform:scale(1.05);font-weight:600}
-  .btn.active{background:var(--accent);color:#fff}
-  .btn:focus{outline:none}
-  .search{flex:1;min-width:200px}
-  .search input{width:100%;padding:10px 12px;border:1px solid #c7b9b9;border-radius:12px}
-
-  /* Key change: use vw-based clamp for card width and rely on aspect-ratio for height */
-  .grid{
-    max-width:1100px;margin:0 auto;padding:0 16px 40px;
+  .board{
+    position:relative;
     display:grid;
-    grid-template-columns: repeat(auto-fill, minmax(var(--card-min), 1fr));
-    gap:16px;
+    grid-template-columns:max-content 1fr max-content; /* left | gap | right */
+    column-gap:var(--gap);
+    align-items:start;
+    background:var(--card);
+    border-radius:14px;
+    box-shadow:0 6px 24px rgba(0,0,0,.08);
+    padding:72px 18px 72px;  /* bottom overridden on mobile via --btnGap */
+    overflow:hidden;
+    touch-action: pan-y;
+    -webkit-user-select:none; user-select:none;
+    -webkit-touch-callout:none;
+  }
+  #leftCol { grid-column:1; }
+  #rightCol{ grid-column:3; }
+
+  .topbar{
+    position:absolute; top:12px; left:18px; right:18px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    z-index:300;
+  }
+  .timer{
+    background:#111; color:#fff; padding:6px 12px; border-radius:999px;
+    font-weight:600; letter-spacing:.3px; box-shadow:0 2px 10px rgba(0,0,0,.12);
   }
 
-  .card{perspective:1000px;cursor:pointer}
-  .inner{
-    position:relative;width:100%;
-    /* Was fixed height: 220px — now responsive by ratio */
-    aspect-ratio: var(--card-ratio);
-    transform-style:preserve-3d;transition:transform .5s;
+  /* Mute button: keep space reserved to avoid layout shift */
+  .muteBtn{
+    visibility:hidden;
+    display:inline-flex;
+    background:transparent; border:none; padding:6px;
+    width:40px; height:40px; border-radius:999px; cursor:pointer; line-height:0;
   }
-  .card.flipped .inner{transform:rotateY(180deg)}
+  .muteBtn:focus-visible{ outline:2px solid #000; outline-offset:2px; }
+  .muteBtn img{ width:24px; height:24px; display:block; }
 
-  .face{
-    position:absolute;inset:0;border:1px solid rgba(139,0,2,.3);
-    border-radius:var(--card-radius);background:var(--card);
-    box-shadow:var(--card-shadow);
-    display:flex;flex-direction:column;align-items:center;justify-content:center;
-    padding:14px;backface-visibility:hidden
+  .wires{ position:absolute; inset:0; z-index:100; pointer-events:none; }
+
+  .col{ display:flex; flex-direction:column; gap:var(--row-gap); }
+  .col > .item + .item{ margin-top: var(--row-gap); }
+  @supports (gap: 1rem){ .col > .item + .item{ margin-top:0; } }
+
+  .head{ font-weight:600;font-size:18px;letter-spacing:.3px;color:#111; margin-bottom:8px;text-align:center; }
+
+  .item{
+    position:relative;background:#fff;border:1px solid #eee;border-radius:12px;
+    min-height:42px;display:flex;align-items:center;line-height:1.25;
+    box-shadow:0 2px 10px rgba(0,0,0,.04);
+    width:var(--colWidth);max-width:100%;overflow:hidden;
+    transition: background-color .15s ease, outline-color .15s ease;
   }
-  .front .v1{font-size:var(--fs-v1);font-weight:600}
-  .front .tag{margin-top:8px;font-size:var(--fs-tag);color:var(--ink-soft)}
-  .back{transform:rotateY(180deg)}
-  .row{display:flex;gap:8px;align-items:baseline;margin:6px 0}
-  .label{font-size:var(--fs-label);color:var(--ink-soft);width:28px;text-align:right}
-  .value{font-size:var(--fs-value);font-weight:600}
-  .row.v3 .value{font-size:var(--fs-v3);color:var(--accent)}
+  .left.item  { padding:10px 34px 10px 14px; background:var(--leftFill); }
+  .right.item { padding:10px 14px 10px 34px; background:var(--rightFill); }
 
-  .index{position:absolute;top:8px;left:10px;font-size:var(--fs-index);color:var(--ink-soft)}
-  .hint{position:absolute;bottom:10px;right:12px;font-size:var(--fs-hint);color:var(--ink-soft)}
+  .item.pending{ outline:2px solid var(--accent); outline-offset:-2px; }
 
-  .sr{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  .item p{ margin:0; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
+  .item.wrap p{ white-space:normal; overflow:visible; text-overflow:clip; }
 
-  #muteBtn{width:38px;height:38px;margin-left:10px;border:1px solid var(--accent);background:transparent center/22px 22px no-repeat;border-radius:999px;font-weight:600;cursor:pointer;display:none}
-  #muteBtn:hover{transform:scale(1.1)}
-
-  .speakBtn{
-    position:absolute;top:8px;right:10px;width:34px;height:34px;
-    border:1px solid var(--accent);border-radius:999px;
-    background:#fff url('https://schredder222.github.io/Assets/Unmute.svg') center/18px 18px no-repeat;
-    cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.1)
+  .handle{
+    position:absolute; top:50%; transform:translateY(-50%);
+    width:var(--dot); height:var(--dot); border-radius:50%; background:var(--dotColor);
+    cursor:pointer; z-index:200; touch-action:none; -webkit-user-select:none; user-select:none;
   }
-  .speakBtn:hover{transform:scale(1.08)}
+  .left .handle{right:8px} .right .handle{left:8px}
+
+  .handle-hot{
+    position:absolute; top:50%; transform:translateY(-50%);
+    width:38px; height:38px; z-index:199; cursor:pointer; touch-action:none;
+    background:transparent; -webkit-tap-highlight-color: transparent;
+  }
+  .left .handle-hot{ right:0; } .right .handle-hot{ left:0; }
+
+  .controls{
+    position:absolute; left:18px; right:18px; bottom:16px;
+    display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;
+  }
+  .btn{
+    background:var(--accent); color:#fff; border:none; padding:10px 16px; border-radius:10px;
+    font-weight:600; letter-spacing:.2px; cursor:pointer; 
+  }
+  .btn[disabled]{opacity:.45; cursor:not-allowed; box-shadow:none}
+  .ghost{background:#eee; color:#111; box-shadow:none}
+
+  @media (max-width:640px){ :root{ --gap:24px; } }
+
+  @media (max-width:520px){
+    :root{ --gap:16px; --dot:14px; --minCol:100px; --btnGap:54px; }
+    .left.item, .right.item{ background:#fff; }
+    .left.item.pending, .left.item.connected{ background:var(--leftFill); }
+    .right.item.pending, .right.item.connected{ background:var(--rightFill); }
+    .board{ padding:62px 12px calc(40px + var(--btnGap)); }
+    .controls > div{ display:flex; flex-wrap:wrap; row-gap:2px; column-gap:2px; }
+    .item{ min-height:44px; border-radius:10px; }
+    .left.item{ padding:10px 30px 10px 12px; }
+    .right.item{ padding:10px 12px 10px 30px; }
+    .head{ font-size:16px; margin-bottom:6px; }
+    .timer{ padding:5px 10px; }
+    .muteBtn{ width:36px; height:36px; padding:6px; }
+    .muteBtn img{ width:22px; height:22px; }
+    #leftCol .item p, #rightCol .item p{ font-size:0.8em; font-weight:400; }
+  }
+
+  /* Congrats overlay inside the board */
+  #congratsOverlay{
+    position:absolute; inset:0; display:none;
+    align-items:center; justify-content:center;
+    z-index:99999; pointer-events:none;
+  }
+  #congratsOverlay img{
+    width:clamp(160px,60%,400px); height:auto;
+    animation:none; will-change: transform, opacity;
+  }
+  @keyframes congratsZoom{
+    0%{ transform:scale(0.70); opacity:0; }
+    8%{ opacity:1; }
+    100%{ transform:scale(1.0); opacity:1; }
+  }
 </style>
 </head>
 <body>
-  <header>
-    <h1>Past Participle Flashcards</h1>
-    <p class="lead">Tap/click a card to flip between the infinitive (front) and its past participle.</p>
-    <div class="toolbar">
-      <button class="btn" id="resetOrder">Alphabetical</button>
-      <button class="btn" id="shuffle">Shuffle</button>
-      <button class="btn" id="flipAll">Flip All</button>
-      <label class="search">
-        <span class="sr">Search verbs</span>
-        <input id="q" type="search" placeholder="Filter by verb… (e.g., take)" />
-      </label>
-      <button id="muteBtn" aria-label="Mute/Unmute" title="Mute/Unmute"></button>
-    </div>
-  </header>
+<div class="wrap">
+  <h1>Word-Definition Match</h1>
+  <p class="note">Match the keywords from the video with their definitions by dragging lines between the dots or by clicking to select pairs. Then click “Check answers”.</p>
 
-  <main class="grid" id="grid" aria-live="polite"></main>
+  <div class="board" id="board">
+    <div class="topbar">
+      <div class="timer" id="timer">00:00</div>
+      <button class="muteBtn" id="muteBtn" aria-pressed="false" aria-label="Mute background music" title="Mute">
+        <img id="muteIcon" alt="" src="https://schredder222.github.io/Assets/Unmute.svg" />
+      </button>
+    </div>
+
+    <svg class="wires" id="wires" aria-hidden="true"></svg>
+
+    <div class="col left" id="leftCol"><div class="head">Words</div></div>
+    <div class="col right" id="rightCol"><div class="head">Definitions</div></div>
+
+    <div class="controls">
+      <div>
+        <button class="btn ghost" id="shuffleBtn">Shuffle</button>
+        <button class="btn ghost" id="resetBtn">Reset</button>
+        <button class="btn" id="checkBtn" disabled>Check answers</button>
+        <button class="btn ghost" id="showBtn">Show answers</button>
+      </div>
+    </div>
+
+    <div id="congratsOverlay" aria-hidden="true" style="display:none">
+      <img src="https://schredder222.github.io/Assets/Great%20Job.png" alt="Great job!">
+    </div>
+  </div>
+</div>
+
+<audio id="correctSound" preload="metadata" src="https://cdn.pixabay.com/download/audio/2022/03/24/audio_dcde83efa6.mp3?filename=ui_correct_button2-103167.mp3"></audio>
+<audio id="incorrectSound" preload="metadata" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_b0669294aa.mp3?filename=training-program-incorrect1-88736.mp3"></audio>
+<audio id="clickSound" preload="metadata" src="https://cdn.pixabay.com/download/audio/2024/04/21/audio_1b8d3bcd3d.mp3?filename=click-buttons-ui-menu-sounds-effects-button-7-203601.mp3"></audio>
+<audio id="connectSound" preload="metadata" src="https://cdn.pixabay.com/download/audio/2025/05/23/audio_ec08d1525d.mp3?filename=click-345983.mp3"></audio>
+
+<audio id="bgm" preload="auto" loop src="https://cdn.pixabay.com/download/audio/2025/09/03/audio_a8c05eb5c8.mp3"></audio>
 
 <script>
-const VERBS = [
-  { v1:"be", v2:"was/were", v3:"been" },
-  { v1:"begin", v2:"began", v3:"begun" },
-  { v1:"break", v2:"broke", v3:"broken" },
-  { v1:"bring", v2:"brought", v3:"brought" },
-  { v1:"build", v2:"built", v3:"built" },
-  { v1:"buy", v2:"bought", v3:"bought" },
-  { v1:"catch", v2:"caught", v3:"caught" },
-  { v1:"choose", v2:"chose", v3:"chosen" },
-  { v1:"come", v2:"came", v3:"come" },
-  { v1:"do", v2:"did", v3:"done" },
-  { v1:"drink", v2:"drank", v3:"drunk" },
-  { v1:"drive", v2:"drove", v3:"driven" },
-  { v1:"eat", v2:"ate", v3:"eaten" },
-  { v1:"fall", v2:"fell", v3:"fallen" },
-  { v1:"feel", v2:"felt", v3:"felt" },
-  { v1:"find", v2:"found", v3:"found" },
-  { v1:"fly", v2:"flew", v3:"flown" },
-  { v1:"forget", v2:"forgot", v3:"forgotten" },
-  { v1:"get", v2:"got", v3:"got/gotten" },
-  { v1:"give", v2:"gave", v3:"given" },
-  { v1:"go", v2:"went", v3:"gone" },
-  { v1:"have", v2:"had", v3:"had" },
-  { v1:"hear", v2:"heard", v3:"heard" },
-  { v1:"hold", v2:"held", v3:"held" },
-  { v1:"keep", v2:"kept", v3:"kept" },
-  { v1:"know", v2:"knew", v3:"known" },
-  { v1:"leave", v2:"left", v3:"left" },
-  { v1:"make", v2:"made", v3:"made" },
-  { v1:"meet", v2:"met", v3:"met" },
-  { v1:"pay", v2:"paid", v3:"paid" },
-  { v1:"put", v2:"put", v3:"put" },
-  { v1:"read", v2:"read", v3:"read" },
-  { v1:"run", v2:"ran", v3:"run" },
-  { v1:"say", v2:"said", v3:"said" },
-  { v1:"see", v2:"saw", v3:"seen" },
-  { v1:"sell", v2:"sold", v3:"sold" },
-  { v1:"send", v2:"sent", v3:"sent" },
-  { v1:"set", v2:"set", v3:"set" },
-  { v1:"sit", v2:"sat", v3:"sat" },
-  { v1:"speak", v2:"spoke", v3:"spoken" },
-  { v1:"spend", v2:"spent", v3:"spent" },
-  { v1:"stand", v2:"stood", v3:"stood" },
-  { v1:"take", v2:"took", v3:"taken" },
-  { v1:"teach", v2:"taught", v3:"taught" },
-  { v1:"tell", v2:"told", v3:"told" },
-  { v1:"think", v2:"thought", v3:"thought" },
-  { v1:"understand", v2:"understood", v3:"understood" },
-  { v1:"wear", v2:"wore", v3:"worn" },
-  { v1:"win", v2:"won", v3:"won" },
-  { v1:"write", v2:"wrote", v3:"written" },
+const PAIRS = [
+  { id:"skyscraper", left:"skyscraper", right:"very tall city building with many floors" },
+  { id:"crowded", left:"crowded", right:"full of people so there isn’t much space" },
+  { id:"rushhour", left:"peak time / rush hour", right:"the busy time of day when many people travel" },
+  { id:"congested", left:"congested", right:"very full of cars so traffic moves slowly" },
+  { id:"trafficjam", left:"traffic jam", right:"long line of vehicles that are not moving" },
+  { id:"pollution", left:"pollution", right:"dirty air/water that harms people and nature" }
 ];
 
-const grid = document.getElementById('grid');
-const search = document.getElementById('q');
-const shuffleBtn = document.getElementById('shuffle');
-const resetBtn = document.getElementById('resetOrder');
-const flipAllBtn = document.getElementById('flipAll');
+const board   = document.getElementById('board');
+const leftCol = document.getElementById('leftCol');
+const rightCol= document.getElementById('rightCol');
+const wires   = document.getElementById('wires');
+const checkBtn= document.getElementById('checkBtn');
+const resetBtn= document.getElementById('resetBtn');
+const shuffleBtn= document.getElementById('shuffleBtn');
+const showBtn = document.getElementById('showBtn');
+
+const correctSound = document.getElementById('correctSound');
+const incorrectSound = document.getElementById('incorrectSound');
+const clickSound = document.getElementById('clickSound');
+const connectSound = document.getElementById('connectSound');
+
+const timerEl = document.getElementById('timer');
 const muteBtn = document.getElementById('muteBtn');
-let flippedAll = false;
+const muteIcon = document.getElementById('muteIcon');
+const bgm     = document.getElementById('bgm');
 
-const uiClick = new Audio("https://cdn.pixabay.com/download/audio/2024/04/21/audio_1b8d3bcd3d.mp3?filename=click-buttons-ui-menu-sounds-effects-button-7-203601.mp3");
-uiClick.volume = 0.4;
+const MUTE_ICON_URL   = 'https://schredder222.github.io/Assets/Mute.svg';
+const UNMUTE_ICON_URL = 'https://schredder222.github.io/Assets/Unmute.svg';
 
-// New sound just for Flip All / Unflip All
-const flipAllSound = new Audio("https://cdn.pixabay.com/download/audio/2025/07/30/audio_b3087a581e.mp3");
-flipAllSound.volume = 0.3;
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const isMobile = () => window.matchMedia('(max-width:520px)').matches;
 
-const bgMusic = new Audio("https://cdn.pixabay.com/download/audio/2025/06/13/audio_cd802a7e4b.mp3");
-bgMusic.loop = true;
-bgMusic.volume = 0.1;
-let musicStarted = false;
+let leftOrder=[], rightOrder=[];
+let connections=new Map();
+let drag=null;
 
-const ICON_MUTE = "https://schredder222.github.io/Assets/Mute.svg";
-const ICON_UNMUTE = "https://schredder222.github.io/Assets/Unmute.svg";
+let mode = 'active';              // 'active' | 'reveal' | 'complete'
+let deferStartAfterReset = false; // start timer/music on first box/dot only
 
-function setMuteIcon(){
-  muteBtn.style.backgroundImage = `url(${bgMusic.muted ? ICON_MUTE : ICON_UNMUTE})`;
+const getSnapRadius = () => isMobile() ? 26 : 14;
+
+/* Timer & music state */
+let timerStarted = false, timerFrozen = false, timerStartMs = 0, timerInterval = null;
+let hasAudioPlayed = false, timerHiddenForAnswers = false;
+
+/* Congrats */
+const congratsOverlay = document.getElementById('congratsOverlay');
+const congratsImg = congratsOverlay.querySelector('img');
+const bigCongratsAudio = new Audio("https://schredder222.github.io/Assets/Applause.mp3");
+bigCongratsAudio.preload = "auto";
+let isCongratsShowing = false, congratsHideId = null;
+
+function fmtTime(ms){ const t=Math.floor(ms/1000), m=Math.floor(t/60), s=t%60; return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
+
+/* Music */
+function syncMuteUI(){
+  const muted = bgm.muted;
+  muteBtn.setAttribute('aria-pressed', String(muted));
+  muteIcon.src = muted ? MUTE_ICON_URL : UNMUTE_ICON_URL;
+  muteBtn.title = muted ? 'Unmute' : 'Mute';
+  muteBtn.setAttribute('aria-label', muted ? 'Unmute background music' : 'Mute background music');
+}
+function maybeStartBgm(){
+  if (hasAudioPlayed) return;
+  try { if (bgm.currentTime !== 0) bgm.currentTime = 0; } catch {}
+  bgm.volume = 0.1;
+  const p = bgm.play();
+  if (p?.then) p.then(()=>{ hasAudioPlayed = true; muteBtn.style.visibility='visible'; syncMuteUI(); }).catch(()=>{});
+}
+function startOrRestartBgm(){
+  try { bgm.currentTime = 0; } catch {}
+  const p = bgm.play();
+  if (p?.then) p.then(()=>{ hasAudioPlayed = true; muteBtn.style.visibility='visible'; syncMuteUI(); }).catch(()=>{});
+  else { hasAudioPlayed = true; muteBtn.style.visibility='visible'; syncMuteUI(); }
 }
 
-// --- Pronunciation ---
-const OVERRIDE_PRONUNCIATION = { 'read': 'red' };
-function playPronunciation(v3){
-  if(!('speechSynthesis' in window)) return;
-  const phrase = (v3 || '').toString().replace(/\//g, ' or ').trim();
-  const override = OVERRIDE_PRONUNCIATION[phrase.toLowerCase()] || phrase;
-  const u = new SpeechSynthesisUtterance(override);
-  u.lang = 'en-AU'; u.rate = 0.95; u.pitch = 1.0; u.volume = 1.0;
-  speechSynthesis.cancel();
-  speechSynthesis.speak(u);
-}
-
-function createCard(v, i){
-  const card = document.createElement('article');
-  card.className = 'card';
-  card.tabIndex = 0;
-  card.setAttribute('role','button');
-  card.setAttribute('aria-label', `${v.v1}: show past forms`);
-
-  const inner = document.createElement('div');
-  inner.className = 'inner';
-
-  const front = document.createElement('div');
-  front.className = 'face front';
-  front.innerHTML = `
-    <span class="index">#${String(i+1).padStart(2,'0')}</span>
-    <div class="v1">${v.v1}</div>
-    <div class="tag">Infinitive (V1)</div>
-    <div class="hint">Click / tap to flip</div>
-  `;
-
-  const back = document.createElement('div');
-  back.className = 'face back';
-  back.innerHTML = `
-    <button class="speakBtn" aria-label="Play pronunciation" title="Play pronunciation"></button>
-    <span class="index">#${String(i+1).padStart(2,'0')}</span>
-    <div class="row"><span class="label">V2</span><span class="value">${v.v2}</span></div>
-    <div class="row v3"><span class="label">V3</span><span class="value">${v.v3}</span></div>
-    <div class="hint"></div>
-  `;
-
-  inner.appendChild(front);
-  inner.appendChild(back);
-  card.appendChild(inner);
-
-  function handleFlip(){
-    if(card.classList.contains('flipped')){
-      card.classList.remove('flipped');
-    } else {
-      document.querySelectorAll('.card').forEach(c => c.classList.remove('flipped'));
-      card.classList.add('flipped');
+/* Timer+music start logic */
+function startTimerAndMusic(activity=false){
+  if (deferStartAfterReset){
+    if (!activity) return;
+    if(!timerStarted){
+      timerStarted = true; timerFrozen = false; timerStartMs = Date.now();
+      timerEl.style.visibility = 'visible'; timerHiddenForAnswers = false;
+      timerEl.textContent = '00:00';
+      timerInterval = setInterval(()=>{ if(!timerFrozen){ timerEl.textContent = fmtTime(Date.now()-timerStartMs); } }, 250);
     }
-    if(!musicStarted){ 
-      bgMusic.play(); 
-      musicStarted = true; 
-      muteBtn.style.display = 'inline-block'; 
-      setMuteIcon(); 
+    startOrRestartBgm();
+    deferStartAfterReset = false;
+    return;
+  }
+  if(!timerStarted){
+    timerStarted = true; timerFrozen = false; timerStartMs = Date.now();
+    timerEl.style.visibility = 'visible'; timerHiddenForAnswers = false;
+    timerEl.textContent = '00:00';
+    timerInterval = setInterval(()=>{ if(!timerFrozen){ timerEl.textContent = fmtTime(Date.now()-timerStartMs); } }, 250);
+  }
+  maybeStartBgm();
+}
+
+function freezeTimerWithMessage(){
+  if(timerStarted && !timerFrozen){
+    timerFrozen = true;
+    const elapsed = Date.now() - timerStartMs;
+    if(timerInterval){ clearInterval(timerInterval); timerInterval = null; }
+    timerEl.textContent = `Completed in ${fmtTime(elapsed)}`;
+  }
+}
+function hideTimerKeepSpace(){ timerHiddenForAnswers = true; timerStarted=false; timerFrozen=true; if(timerInterval){clearInterval(timerInterval); timerInterval=null;} timerEl.style.visibility='hidden'; }
+function showTimerResetToZero(){ timerEl.style.visibility='visible'; timerEl.textContent='00:00'; timerStarted=false; timerFrozen=false; timerHiddenForAnswers=false; }
+function showTimerIfHidden(){ if (timerEl.style.visibility === 'hidden'){ timerEl.style.visibility='visible'; timerHiddenForAnswers=false; } }
+
+/* Buttons during congrats (Reset stays enabled) */
+function setButtonsDuringCongrats(disabled){
+  shuffleBtn.disabled = disabled;
+  showBtn.disabled = disabled;
+  checkBtn.disabled = disabled;
+  muteBtn.disabled = disabled;
+  resetBtn.disabled = false;
+}
+
+/* Congrats overlay */
+function showCongrats(){
+  if (isCongratsShowing) return;
+  isCongratsShowing = true; mode='complete';
+  setButtonsDuringCongrats(true);
+  congratsImg.style.animation='none'; void congratsImg.offsetWidth;
+  congratsImg.style.animation='congratsZoom 8s ease-out forwards';
+  congratsOverlay.style.display='flex'; congratsOverlay.setAttribute('aria-hidden','false');
+  try { bigCongratsAudio.currentTime=0; bigCongratsAudio.play(); } catch {}
+  congratsHideId = setTimeout(hideCongrats, 9000);
+}
+function hideCongrats(){
+  if (!isCongratsShowing) return;
+  if (congratsHideId){ clearTimeout(congratsHideId); congratsHideId=null; }
+  try { bigCongratsAudio.pause(); bigCongratsAudio.currentTime=0; } catch {}
+  congratsOverlay.style.display='none'; congratsOverlay.setAttribute('aria-hidden','true');
+  isCongratsShowing=false; setButtonsDuringCongrats(false); updateCheckState();
+}
+
+/* Utils */
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const rectOf = el => el.getBoundingClientRect();
+function boardPointFromClient(x,y){ const b = rectOf(board); return { x:x - b.left, y:y - b.top }; }
+
+/* DOM builders */
+function createItem(colEl, text, id, side){
+  const div = document.createElement('div');
+  div.className = 'item ' + side;
+  div.dataset.id = id;
+  const p = document.createElement('p'); p.textContent = text; div.appendChild(p);
+  const h = document.createElement('div'); h.className = 'handle'; div.appendChild(h);
+  const hot = document.createElement('div'); hot.className = 'handle-hot'; div.appendChild(hot);
+  colEl.appendChild(div);
+}
+
+/* Measuring */
+function measureTextWidth(text, classSelector){
+  let meas = document.getElementById('measSpan');
+  if(!meas){
+    meas = document.createElement('span');
+    meas.id = 'measSpan';
+    meas.style.position = 'absolute';
+    meas.style.left = '-99999px';
+    meas.style.top = '-99999px';
+    meas.style.whiteSpace = 'nowrap';
+    document.body.appendChild(meas);
+  }
+  const sample = document.querySelector(classSelector);
+  const cs = sample ? getComputedStyle(sample) : getComputedStyle(document.body);
+  meas.style.fontFamily = cs.fontFamily;
+  meas.style.fontSize   = cs.fontSize;
+  meas.style.fontWeight = cs.fontWeight;
+  meas.style.letterSpacing = cs.letterSpacing;
+  meas.textContent = text;
+  return meas.offsetWidth;
+}
+
+/* Wires */
+function makeStraightLine(colorVar='--accent', width=3){
+  const ln = document.createElementNS('http://www.w3.org/2000/svg','line');
+  const color = getComputedStyle(document.documentElement).getPropertyValue(colorVar).trim();
+  ln.setAttribute('stroke', color || 'red');
+  ln.setAttribute('stroke-width', width);
+  ln.setAttribute('stroke-linecap','round');
+  return ln;
+}
+function makeCurvyPath(colorVar='--accent', width=3){
+  const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  const color = getComputedStyle(document.documentElement).getPropertyValue(colorVar).trim();
+  p.setAttribute('fill','none');
+  p.setAttribute('stroke', color || 'red');
+  p.setAttribute('stroke-width', width);
+  p.setAttribute('stroke-linecap','round');
+  p.setAttribute('stroke-opacity','0.95');
+  return p;
+}
+function curveD(x1,y1,x2,y2){
+  const dx = Math.max(60, Math.abs(x2 - x1) * 0.5);
+  const c1x = x1 + dx, c1y = y1;
+  const c2x = x2 - dx, c2y = y2;
+  return `M ${x1} ${y1} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${x2} ${y2}`;
+}
+function makeWire(colorVar='--accent', width=3){
+  return isMobile() ? makeStraightLine(colorVar, width) : makeCurvyPath(colorVar, width);
+}
+function setWireGeometry(wireEl, a, b){
+  if (!wireEl) return;
+  const tag = wireEl.tagName.toLowerCase();
+  if (tag === 'line'){ wireEl.setAttribute('x1', a.x); wireEl.setAttribute('y1', a.y); wireEl.setAttribute('x2', b.x); wireEl.setAttribute('y2', b.y); }
+  else { wireEl.setAttribute('d', curveD(a.x,a.y,b.x,b.y)); }
+}
+
+/* Mobile equal heights */
+function uniformBoxHeightsMobile(){
+  if (!isMobile()) return;
+  const leftItems  = Array.from(document.querySelectorAll('#leftCol .item'));
+  const rightItems = Array.from(document.querySelectorAll('#rightCol .item'));
+  const all = [...leftItems, ...rightItems];
+  if (!all.length) return;
+  all.forEach(i => { i.style.height = 'auto'; });
+  let maxH = 0;
+  all.forEach(i => { maxH = Math.max(maxH, i.getBoundingClientRect().height); });
+  const H = Math.ceil(maxH);
+  all.forEach(i => { i.style.height = H + 'px'; });
+  const b = board.getBoundingClientRect();
+  wires.setAttribute('width', b.width);
+  wires.setAttribute('height', b.height);
+  rafRealign();
+}
+
+/* Column widths */
+function setColumnUniformWidths(){
+  const leftItems = Array.from(document.querySelectorAll('#leftCol .item'));
+  const rightItems= Array.from(document.querySelectorAll('#rightCol .item'));
+  if (leftItems.length === 0 || rightItems.length === 0) return;
+
+  const boardCS = getComputedStyle(board);
+  const padLeft  = parseFloat(boardCS.paddingLeft)||0;
+  const padRight = parseFloat(boardCS.paddingRight)||0;
+  const inner = board.clientWidth - padLeft - padRight;
+
+  const gapPx = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gap'))||0;
+  const totalGaps = gapPx * 2;
+  const minCol = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--minCol'))||120;
+
+  if (isMobile()) {
+    leftItems.forEach(i => i.classList.add('wrap'));
+    rightItems.forEach(i=> i.classList.add('wrap'));
+    const equalW = Math.max(minCol, Math.floor((inner - gapPx*2) / 2));
+    leftItems.forEach(i => i.style.setProperty('--colWidth', equalW + 'px'));
+    rightItems.forEach(i=> i.style.setProperty('--colWidth', equalW + 'px'));
+    const b = board.getBoundingClientRect();
+    wires.setAttribute('width', b.width);
+    wires.setAttribute('height', b.height);
+    uniformBoxHeightsMobile();
+    return;
+  }
+
+  let leftTextMax = 0, rightTextMax = 0;
+  leftItems.forEach(item=>{ leftTextMax  = Math.max(leftTextMax,  measureTextWidth(item.querySelector('p').textContent, '.item p')); });
+  rightItems.forEach(item=>{ rightTextMax = Math.max(rightTextMax, measureTextWidth(item.querySelector('p').textContent, '.item p')); });
+
+  const csLeft  = getComputedStyle(leftItems[0]);
+  const padLL = parseFloat(csLeft.paddingLeft)||0, padLR = parseFloat(csLeft.paddingRight)||0;
+  const csRight = getComputedStyle(rightItems[0]);
+  const padRL = parseFloat(csRight.paddingLeft)||0, padRR = parseFloat(csRight.paddingRight)||0;
+
+  const extra = 22;
+  let leftW  = Math.max(minCol, leftTextMax  + padLL + padLR + extra);
+  let rightW = Math.max(minCol, rightTextMax + padRL + padRR + extra);
+
+  if (leftW + rightW + gapPx*2 > inner) rightW = Math.max(minCol, inner - gapPx*2 - leftW);
+
+  leftItems.forEach(i => i.classList.remove('wrap'));
+  if (leftW + rightW + gapPx*2 > inner){ leftW = Math.max(minCol, inner - gapPx*2 - rightW); leftItems.forEach(i => i.classList.add('wrap')); }
+
+  leftItems.forEach(i => i.style.setProperty('--colWidth', leftW + 'px'));
+  rightItems.forEach(i=> i.style.setProperty('--colWidth', rightW + 'px'));
+
+  const b = board.getBoundingClientRect();
+  wires.setAttribute('width', b.width);
+  wires.setAttribute('height', b.height);
+}
+
+/* Geometry */
+function handleCenter(handleEl){
+  const b = rectOf(board), r = rectOf(handleEl);
+  return { x: r.left - b.left + r.width/2, y: r.top - b.top + r.height/2 };
+}
+
+/* Realign wires */
+let rafId = null;
+function rafRealign(){ if (rafId) return; rafId = requestAnimationFrame(()=>{ rafId=null; realignAllWires(); }); }
+function realignAllWires(){
+  for(const [leftId, conn] of connections){
+    const lH = leftCol.querySelector(`.item[data-id="${leftId}"] .handle`);
+    const rH = rightCol.querySelector(`.item[data-id="${conn.rightId}"] .handle`);
+    if(!lH || !rH || !conn.pathEl) continue;
+    setWireGeometry(conn.pathEl, handleCenter(lH), handleCenter(rH));
+  }
+}
+
+/* Pending/connected */
+function updateConnectedClasses(){
+  document.querySelectorAll('.item.connected').forEach(el=> el.classList.remove('connected'));
+  for (const [leftId, conn] of connections){
+    leftCol.querySelector(`.item[data-id="${leftId}"]`)?.classList.add('connected');
+    rightCol.querySelector(`.item[data-id="${conn.rightId}"]`)?.classList.add('connected');
+  }
+}
+
+function render(){
+  leftCol.querySelectorAll('.item').forEach(n=>n.remove());
+  rightCol.querySelectorAll('.item').forEach(n=>n.remove());
+  leftOrder.forEach(({id,left})  => createItem(leftCol, left,  id,'left'));
+  rightOrder.forEach(({id,right})=> createItem(rightCol,right, id,'right'));
+  setColumnUniformWidths();
+  attachEvents();
+  attachTapToMatch();
+  updateConnectedClasses();
+  updateCheckState();
+  realignAllWires();
+}
+
+/* Finding targets */
+function findHandleNear(ptBoard, side){
+  const list = Array.from(document.querySelectorAll(`.${side} .handle`));
+  let best=null, bestDist=Infinity;
+  for(const h of list){
+    const c = handleCenter(h);
+    const d = Math.hypot(c.x - ptBoard.x, c.y - ptBoard.y);
+    if(d < bestDist){ bestDist=d; best=h; }
+  }
+  return (bestDist <= getSnapRadius()) ? best : null;
+}
+function itemAtClient(clientX, clientY, side){
+  const items = Array.from(document.querySelectorAll(`.${side}.item`));
+  for (const el of items){
+    const r = el.getBoundingClientRect();
+    if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) return el;
+  }
+  return null;
+}
+
+/* Click suppression after dot interactions */
+let suppressNextClick = false;
+window.addEventListener('click', (e)=>{
+  if (suppressNextClick){ e.stopPropagation(); e.preventDefault(); suppressNextClick = false; }
+}, true);
+
+/* Pending selection */
+let pending = null;
+function clearPendingHighlight(){ document.querySelectorAll('.item.pending').forEach(el=> el.classList.remove('pending')); pending = null; }
+function setPending(next){ clearPendingHighlight(); pending = next; if (next?.el) next.el.classList.add('pending'); }
+
+/* Select helper */
+function handleSelect(side, itemEl){
+  showTimerIfHidden(); startTimerAndMusic(true);
+  const id = itemEl.dataset.id;
+  if (!pending){ setPending({side, id, el:itemEl}); return; }
+  if (pending.side !== side){
+    if (side === 'left') connectByIds(id, pending.id);
+    else connectByIds(pending.id, id);
+  } else {
+    setPending({side, id, el:itemEl});
+  }
+}
+
+/* Drag/tap from dot or hotspot */
+function addStartDragHandler(targetEl, fromSide){
+  targetEl.addEventListener('pointerdown', (e)=>{
+    e.preventDefault();
+    try{ targetEl.setPointerCapture(e.pointerId); }catch{}
+    showTimerIfHidden(); startTimerAndMusic(true);
+
+    const parentItem = targetEl.closest('.item');
+    const dotEl = parentItem.querySelector('.handle');
+    const fromId = parentItem.dataset.id;
+
+    const start = handleCenter(dotEl);
+    const startClient = { x:e.clientX, y:e.clientY };
+    let moved = false;
+
+    const line = makeStraightLine('--accent', 3);
+    line.setAttribute('x1', start.x); line.setAttribute('y1', start.y);
+    line.setAttribute('x2', start.x); line.setAttribute('y2', start.y);
+    wires.appendChild(line);
+
+    drag = { fromSide, fromId, startXY:start, lineEl: line, parentItem };
+
+    const onMove = ev=>{
+      if(!drag) return;
+      if (!moved && Math.hypot(ev.clientX - startClient.x, ev.clientY - startClient.y) > 6){ moved = true; suppressNextClick = true; }
+      const pt = boardPointFromClient(ev.clientX, ev.clientY);
+      drag.lineEl.setAttribute('x2', pt.x); drag.lineEl.setAttribute('y2', pt.y);
+    };
+
+    const endDrag = (clientX, clientY)=>{
+      if(!drag) return;
+
+      /* 🔒 Prevent the trailing native click from re-selecting a box */
+      suppressNextClick = true;
+
+      const pt = boardPointFromClient(clientX, clientY);
+      const overRightDot = (drag.fromSide === 'left') ? findHandleNear(pt,'right') : null;
+      const overLeftDot  = (drag.fromSide === 'right') ? findHandleNear(pt,'left')  : null;
+      const overRightBox = (drag.fromSide === 'left' ) ? itemAtClient(clientX, clientY, 'right') : null;
+      const overLeftBox  = (drag.fromSide === 'right') ? itemAtClient(clientX, clientY, 'left' ) : null;
+
+      let leftId=null, rightId=null, ok=false;
+
+      if(drag.fromSide === 'left'){
+        if (overRightDot){ leftId = drag.fromId; rightId = overRightDot.parentElement.dataset.id; ok = true; }
+        else if (overRightBox){ leftId = drag.fromId; rightId = overRightBox.dataset.id; ok = true; }
+      }else{
+        if (overLeftDot){ leftId = overLeftDot.parentElement.dataset.id; rightId = drag.fromId; ok = true; }
+        else if (overLeftBox){ leftId = overLeftBox.dataset.id; rightId = drag.fromId; ok = true; }
+      }
+
+      if(ok){
+        if(connections.has(leftId)){ connections.get(leftId).pathEl?.remove(); connections.delete(leftId); }
+        for(const [lId, conn] of [...connections]){ if(conn.rightId === rightId){ conn.pathEl?.remove(); connections.delete(lId); } }
+
+        const lH = leftCol.querySelector(`.item[data-id="${leftId}"] .handle`);
+        const rH = rightCol.querySelector(`.item[data-id="${rightId}"] .handle`);
+        const a = handleCenter(lH), b = handleCenter(rH);
+
+        const wire = makeWire('--accent', 3);
+        setWireGeometry(wire, a, b);
+        wires.appendChild(wire);
+        drag.lineEl.remove();
+
+        connections.set(leftId, { rightId, pathEl: wire });
+        connectSound.currentTime = 0; connectSound.play();
+        if (!reduceMotion && navigator.vibrate) navigator.vibrate(10);
+
+        updateConnectedClasses();
+        clearPendingHighlight();   // ✅ nothing remains selected
+      }else{
+        drag.lineEl.remove();
+        handleSelect(fromSide, drag.parentItem); // treat as tap-to-select
+      }
+
+      drag = null;
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('pointercancel', onCancel);
+      updateCheckState();
+    };
+
+    const onUp = ev=> endDrag(ev.clientX, ev.clientY);
+    const onCancel = ev=> endDrag(ev.clientX, ev.clientY);
+
+    document.addEventListener('pointermove', onMove, {passive:false});
+    document.addEventListener('pointerup', onUp, {passive:false});
+    document.addEventListener('pointercancel', onCancel, {passive:false});
+  });
+}
+
+/* Click-to-match on boxes */
+function attachTapToMatch(){
+  [...leftCol.querySelectorAll('.item')].forEach(el=>{
+    el.addEventListener('click', ()=>{ if (suppressNextClick) return; handleSelect('left', el); });
+  });
+  [...rightCol.querySelectorAll('.item')].forEach(el=>{
+    el.addEventListener('click', ()=>{ if (suppressNextClick) return; handleSelect('right', el); });
+  });
+}
+
+function connectByIds(leftId, rightId){
+  if(connections.has(leftId)){ connections.get(leftId).pathEl?.remove(); connections.delete(leftId); }
+  for(const [lId, conn] of [...connections]){ if(conn.rightId === rightId){ conn.pathEl?.remove(); connections.delete(lId); } }
+
+  const lH = leftCol.querySelector(`.item[data-id="${leftId}"] .handle`);
+  const rH = rightCol.querySelector(`.item[data-id="${rightId}"] .handle`);
+  if(!lH || !rH) return;
+  const a = handleCenter(lH), b = handleCenter(rH);
+
+  const wire = makeWire('--accent', 3);
+  setWireGeometry(wire, a, b);
+  wires.appendChild(wire);
+
+  connections.set(leftId, { rightId, pathEl: wire });
+  connectSound.currentTime = 0; connectSound.play();
+  if (!reduceMotion && navigator.vibrate) navigator.vibrate(10);
+
+  updateConnectedClasses();
+  updateCheckState();
+  clearPendingHighlight();   // ✅ ensure nothing selected after programmatic connect
+}
+
+/* Events */
+let ro=null, globalListenersAttached=false;
+function attachEvents(){
+  leftCol.querySelectorAll('.item .handle, .item .handle-hot').forEach(el=> addStartDragHandler(el,'left'));
+  rightCol.querySelectorAll('.item .handle, .item .handle-hot').forEach(el=> addStartDragHandler(el,'right'));
+  if (!ro){ ro = new ResizeObserver(()=>{ setColumnUniformWidths(); rafRealign(); }); ro.observe(board); }
+  if (!globalListenersAttached){
+    globalListenersAttached = true;
+    window.addEventListener('scroll', rafRealign, {passive:true});
+    window.addEventListener('resize', ()=>{ setColumnUniformWidths(); rafRealign(); }, {passive:true});
+  }
+}
+
+function updateCheckState(){ checkBtn.disabled = connections.size !== PAIRS.length || isCongratsShowing; }
+
+/* Buttons */
+checkBtn.addEventListener('click', ()=>{
+  if (isCongratsShowing) return;
+  showTimerIfHidden(); startTimerAndMusic(false);
+  let countCorrect = 0;
+  for(const [leftId, conn] of [...connections]){
+    const correct = leftId === conn.rightId;
+    if(correct){
+      const okColor = getComputedStyle(document.documentElement).getPropertyValue('--ok').trim() || '#1E8E3E';
+      conn.pathEl.setAttribute('stroke', okColor);
+      conn.pathEl.setAttribute('stroke-width', 4);
+      conn.pathEl.setAttribute('stroke-opacity', '1');
+      countCorrect++;
+    }else{
+      conn.pathEl.remove(); connections.delete(leftId);
     }
   }
-  card.addEventListener('click', handleFlip);
-  card.addEventListener('keydown', (e)=>{ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); handleFlip(); } });
-
-  const speakBtn = back.querySelector('.speakBtn');
-  speakBtn.addEventListener('click', (e)=>{ e.stopPropagation(); playPronunciation(v.v3); });
-  speakBtn.addEventListener('keydown', (e)=>{ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); e.stopPropagation(); playPronunciation(v.v3); }});
-
-  return card;
-}
-
-function render(list){
-  grid.innerHTML = '';
-  list.forEach((v,i)=> grid.appendChild(createCard(v,i)));
-}
-
-function shuffle(arr){
-  const a = arr.slice();
-  for(let i=a.length-1;i>0;i--){
-    const j = Math.floor(Math.random()*(i+1));
-    [a[i],a[j]] = [a[j],a[i]];
-  }
-  return a;
-}
-
-let current = VERBS.slice();
-render(current);
-
-resetBtn.classList.add('active');
-
-function playUIClick(){ uiClick.currentTime = 0; uiClick.play(); }
-
-shuffleBtn.addEventListener('click', ()=>{
-  playUIClick();
-  current = shuffle(current);
-  flippedAll = false;
-  flipAllBtn.textContent = 'Flip All';
-  render(current);
-  shuffleBtn.classList.add('active');
-  resetBtn.classList.remove('active');
+  updateConnectedClasses();
+  if (countCorrect === PAIRS.length){ correctSound.currentTime=0; correctSound.play(); freezeTimerWithMessage(); bgm.pause(); showCongrats(); }
+  else { incorrectSound.currentTime=0; incorrectSound.play(); }
+  updateCheckState();
 });
 
 resetBtn.addEventListener('click', ()=>{
-  playUIClick();
-  current = VERBS.slice();
-  flippedAll = false;
-  flipAllBtn.textContent = 'Flip All';
-  render(current);
-  resetBtn.classList.add('active');
-  shuffleBtn.classList.remove('active');
+  if (isCongratsShowing) hideCongrats();
+  clickSound.currentTime = 0; clickSound.play();
+
+  const resetFromReveal   = (mode === 'reveal') || timerHiddenForAnswers === true;
+  const resetFromComplete = (mode === 'complete');
+
+  if (resetFromReveal || resetFromComplete){
+    showTimerResetToZero(); bgm.pause(); deferStartAfterReset = true;
+  } else {
+    showTimerIfHidden(); // mid-activity: keep timer/music running
+  }
+
+  wires.querySelectorAll('*').forEach(n=>n.remove());
+  connections.clear();
+  updateConnectedClasses(); updateCheckState();
+  rafRealign(); uniformBoxHeightsMobile(); clearPendingHighlight();
+  mode = 'active';
 });
 
-flipAllBtn.addEventListener('click', ()=>{
-  flipAllSound.currentTime = 0; 
-  flipAllSound.play();
-  const cards = Array.from(document.querySelectorAll('.card'));
-  flippedAll = !flippedAll;
-  cards.forEach(c=> c.classList.toggle('flipped', flippedAll));
-  flipAllBtn.textContent = flippedAll ? 'Unflip All' : 'Flip All';
+shuffleBtn.addEventListener('click', ()=>{
+  if (isCongratsShowing) return;
+  showTimerIfHidden(); startTimerAndMusic(false);
+  clickSound.currentTime=0; clickSound.play();
+  leftOrder = shuffle(PAIRS); rightOrder = shuffle(PAIRS);
+  wires.querySelectorAll('*').forEach(n=>n.remove());
+  connections.clear(); render(); uniformBoxHeightsMobile(); clearPendingHighlight();
 });
 
-search.addEventListener('input', (e)=>{
-  const q = e.target.value.toLowerCase().trim();
-  const filtered = current.filter(v=>
-    v.v1.includes(q) || v.v2.includes(q) || v.v3.toLowerCase().includes(q)
-  );
-  render(filtered);
+showBtn.addEventListener('click', ()=>{
+  if (isCongratsShowing) return;
+  showTimerIfHidden(); startTimerAndMusic(false);
+  clickSound.currentTime=0; clickSound.play();
+
+  wires.querySelectorAll('*').forEach(n=>n.remove());
+  connections.clear();
+
+  for(const pair of PAIRS){
+    const lH = leftCol.querySelector(`.item[data-id="${pair.id}"] .handle`);
+    const rH = rightCol.querySelector(`.item[data-id="${pair.id}"] .handle`);
+    if(lH && rH){
+      const a = handleCenter(lH), b = handleCenter(rH);
+      const wire = makeWire('--ok', 4);
+      setWireGeometry(wire, a, b);
+      wire.setAttribute('stroke-opacity', '1');
+      wires.appendChild(wire);
+      connections.set(pair.id, { rightId: pair.id, pathEl: wire });
+    }
+  }
+  updateConnectedClasses();
+  checkBtn.disabled = true;
+  bgm.pause(); hideTimerKeepSpace(); uniformBoxHeightsMobile(); clearPendingHighlight();
+  mode = 'reveal';
 });
 
-muteBtn.addEventListener('click', ()=>{
-  playUIClick();
-  bgMusic.muted = !bgMusic.muted;
-  setMuteIcon();
+/* Audio events */
+bgm.addEventListener('playing', ()=>{
+  if(!hasAudioPlayed){ hasAudioPlayed = true; muteBtn.style.visibility='visible'; syncMuteUI(); }
 });
+muteBtn.addEventListener('click', ()=>{ if (isCongratsShowing) return; bgm.muted = !bgm.muted; syncMuteUI(); });
+
+/* One-time audio unlock (no auto-start) */
+const opts = {once:true, passive:true};
+function unlockAudioOnce(){ ['pointerdown','pointerup','touchend','click','keydown'].forEach(t=>document.removeEventListener(t, unlockAudioOnce, opts)); }
+['pointerdown','pointerup','touchend','click'].forEach(t=>document.addEventListener(t, unlockAudioOnce, opts));
+document.addEventListener('keydown', unlockAudioOnce, {once:true});
+
+/* Init */
+(function init(){
+  timerEl.textContent = '00:00';
+  leftOrder = shuffle(PAIRS); rightOrder = shuffle(PAIRS);
+  render();
+  if (document.fonts?.ready) document.fonts.ready.then(()=>{ setColumnUniformWidths(); rafRealign(); uniformBoxHeightsMobile(); });
+  window.addEventListener('load', ()=>{ setColumnUniformWidths(); rafRealign(); uniformBoxHeightsMobile(); });
+})();
 </script>
 </body>
 </html>
