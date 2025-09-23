@@ -11,7 +11,39 @@
     --accent:#8A0000;
     --card:#fff;
     --ink-soft:#444;
+
+    /* Card sizing defaults (mobile & fallback) */
+    --card-min: 180px;           /* min width per card */
+    --card-ratio: 180/220;       /* width/height ratio ≈ 0.818 */
+    --card-radius: 16px;
+    --card-shadow: 0 3px 10px rgba(0,0,0,.06);
+
+    /* Typography defaults (mobile & fallback) */
+    --fs-v1: 28px;               /* big verb on front */
+    --fs-tag: 12px;
+    --fs-value: 18px;            /* V2 line */
+    --fs-v3: 24px;               /* V3 line */
+    --fs-index: 12px;
+    --fs-hint: 11px;
+    --fs-label: 12px;
   }
+
+  /* Desktop: make cards and text scale with viewport width, capping at original sizes */
+  @media (min-width: 768px){
+    :root{
+      /* Cards can shrink below 180px on narrower desktop/iframes */
+      --card-min: clamp(120px, 17vw, 180px);
+
+      /* Text scales down with viewport, capped at original sizes */
+      --fs-v1: clamp(18px, 1.8vw, 28px);
+      --fs-value: clamp(14px, 1.2vw, 18px);
+      --fs-v3: clamp(16px, 1.35vw, 24px);
+      --fs-index: clamp(10px, .9vw, 12px);
+      --fs-hint: clamp(9px, .8vw, 11px);
+      --fs-label: clamp(10px, .9vw, 12px);
+    }
+  }
+
   *,*::before,*::after{box-sizing:border-box}
   html,body{height:100%}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:"MS Reference Sans Serif", system-ui, sans-serif;}
@@ -28,30 +60,52 @@
   .search{flex:1;min-width:200px}
   .search input{width:100%;padding:10px 12px;border:1px solid #c7b9b9;border-radius:12px}
 
-  .grid{max-width:1100px;margin:0 auto;padding:0 16px 40px;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}
+  /* Key change: use vw-based clamp for card width and rely on aspect-ratio for height */
+  .grid{
+    max-width:1100px;margin:0 auto;padding:0 16px 40px;
+    display:grid;
+    grid-template-columns: repeat(auto-fill, minmax(var(--card-min), 1fr));
+    gap:16px;
+  }
 
   .card{perspective:1000px;cursor:pointer}
-  .inner{position:relative;width:100%;height:220px;transform-style:preserve-3d;transition:transform .5s;}
+  .inner{
+    position:relative;width:100%;
+    /* Was fixed height: 220px — now responsive by ratio */
+    aspect-ratio: var(--card-ratio);
+    transform-style:preserve-3d;transition:transform .5s;
+  }
   .card.flipped .inner{transform:rotateY(180deg)}
 
-  .face{position:absolute;inset:0;border:1px solid rgba(139,0,2,.3);border-radius:16px;background:var(--card);box-shadow:0 3px 10px rgba(0,0,0,.06);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px;backface-visibility:hidden}
-  .front .v1{font-size:28px;font-weight:600}
-  .front .tag{margin-top:8px;font-size:12px;color:var(--ink-soft)}
+  .face{
+    position:absolute;inset:0;border:1px solid rgba(139,0,2,.3);
+    border-radius:var(--card-radius);background:var(--card);
+    box-shadow:var(--card-shadow);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:14px;backface-visibility:hidden
+  }
+  .front .v1{font-size:var(--fs-v1);font-weight:600}
+  .front .tag{margin-top:8px;font-size:var(--fs-tag);color:var(--ink-soft)}
   .back{transform:rotateY(180deg)}
   .row{display:flex;gap:8px;align-items:baseline;margin:6px 0}
-  .label{font-size:12px;color:var(--ink-soft);width:28px;text-align:right}
-  .value{font-size:18px;font-weight:600}
-  .row.v3 .value{font-size:24px;color:var(--accent)}
+  .label{font-size:var(--fs-label);color:var(--ink-soft);width:28px;text-align:right}
+  .value{font-size:var(--fs-value);font-weight:600}
+  .row.v3 .value{font-size:var(--fs-v3);color:var(--accent)}
 
-  .index{position:absolute;top:8px;left:10px;font-size:12px;color:var(--ink-soft)}
-  .hint{position:absolute;bottom:10px;right:12px;font-size:11px;color:var(--ink-soft)}
+  .index{position:absolute;top:8px;left:10px;font-size:var(--fs-index);color:var(--ink-soft)}
+  .hint{position:absolute;bottom:10px;right:12px;font-size:var(--fs-hint);color:var(--ink-soft)}
 
   .sr{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 
   #muteBtn{width:38px;height:38px;margin-left:10px;border:1px solid var(--accent);background:transparent center/22px 22px no-repeat;border-radius:999px;font-weight:600;cursor:pointer;display:none}
   #muteBtn:hover{transform:scale(1.1)}
 
-  .speakBtn{position:absolute;top:8px;right:10px;width:34px;height:34px;border:1px solid var(--accent);border-radius:999px;background:#fff url('https://schredder222.github.io/Assets/Unmute.svg') center/18px 18px no-repeat;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.1)}
+  .speakBtn{
+    position:absolute;top:8px;right:10px;width:34px;height:34px;
+    border:1px solid var(--accent);border-radius:999px;
+    background:#fff url('https://schredder222.github.io/Assets/Unmute.svg') center/18px 18px no-repeat;
+    cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.1)
+  }
   .speakBtn:hover{transform:scale(1.08)}
 </style>
 </head>
@@ -192,7 +246,7 @@ function createCard(v, i){
     <span class="index">#${String(i+1).padStart(2,'0')}</span>
     <div class="row"><span class="label">V2</span><span class="value">${v.v2}</span></div>
     <div class="row v3"><span class="label">V3</span><span class="value">${v.v3}</span></div>
-    <div class="hint">Tap speaker for pronunciation</div>
+    <div class="hint"></div>
   `;
 
   inner.appendChild(front);
