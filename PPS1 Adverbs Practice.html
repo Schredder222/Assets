@@ -11,7 +11,7 @@
     --ink-soft:#555;
     --blue:#193873;
     --green:#1E8E3E;
-    --accent:#961917; /* Restart / Play Again buttons */
+    --accent:#961917;
   }
   *,*::before,*::after{box-sizing:border-box}
   html,body{height:100%}
@@ -20,12 +20,15 @@
     background:var(--bg);
     color:var(--ink);
     font-family:"MS Reference Sans Serif", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-    display:flex; align-items:center; justify-content:center;
-    padding:16px;
+  
+    display:flex;
+    justify-content:center;   /* keep it centered horizontally */
+    align-items:flex-start;   /* align to the top */
+    padding:24px 16px;        /* small top gap = 24px */
   }
   .app{ width:min(980px,100%); display:flex; flex-direction:column; gap:8px }
 
-  /* ===== Header & mobile title layout ===== */
+  /* ===== Header ===== */
   header{
     display:flex;
     align-items:flex-end;
@@ -39,29 +42,20 @@
   .sub .sub-l1, .sub .sub-l2{ display:inline }
   header h1, header .sub{ max-width:100% }
   .rightTools{ display:flex; align-items:center; gap:10px }
-
   @media (max-width:640px){
-    header{
-      flex-direction:column;
-      align-items:stretch;
-      gap:6px;
-      text-align:initial;
-    }
+    header{ flex-direction:column; align-items:stretch; gap:6px; text-align:initial; }
     .titleWrap{ text-align:left }
-    .sub .sub-l1, .sub .sub-l2{ display:block } /* split into two lines on mobile */
-    .rightTools{
-      align-self:flex-end;   /* keep mute/restart to the right on mobile */
-      justify-content:flex-end;
-    }
+    .sub .sub-l1, .sub .sub-l2{ display:block }
+    .rightTools{ align-self:flex-end; justify-content:flex-end }
   }
 
-  /* ===== Sentence stage & animations ===== */
+  /* ===== Sentence stage ===== */
   .stage{
     position:relative;
     min-height:140px;
     padding:2px 0;
     overflow:hidden;
-    margin-top:80px; /* larger gap from header */
+    margin-top:80px;
   }
   .sentence{
     margin:0;
@@ -76,26 +70,20 @@
     display:inline-block;
     min-width:6ch;
     padding:0 .35rem;
-    border-bottom:1px solid #000; /* simple thin black underline */
+    border-bottom:1px solid #000;
     margin:0 .25rem;
     line-height:1;
   }
   .sentence .blank.correctWord{
     color:var(--green);
-    font-weight:400; /* not bold */
+    font-weight:400;
   }
   .enterSentence{ animation:slideIn .45s ease-out forwards }
   .exitSentenceRight{ animation:slideOutRight .45s ease-in forwards }
-  @keyframes slideIn{
-    from{ transform:translateX(-120%); opacity:0 }
-    to{   transform:translateX(0);     opacity:1 }
-  }
-  @keyframes slideOutRight{
-    from{ transform:translateX(0);   opacity:1 }
-    to{   transform:translateX(120%); opacity:0 }
-  }
+  @keyframes slideIn{ from{transform:translateX(-120%);opacity:0} to{transform:translateX(0);opacity:1} }
+  @keyframes slideOutRight{ from{transform:translateX(0);opacity:1} to{transform:translateX(120%);opacity:0} }
 
-  /* ===== End panel (shows after overlay disappears) ===== */
+  /* ===== End panel ===== */
   .endPanel{
     position:absolute; inset:0;
     display:none;
@@ -105,47 +93,38 @@
   }
   .endPanel.show{ display:flex; }
 
-  /* ===== Choices & frame ===== */
+  /* ===== Choices ===== */
   .choicesFrame{ position:relative; margin:10px 0; }
-  .choices{
-    display:flex; gap:10px; flex-wrap:wrap; justify-content:center;
-    opacity:0;
-  }
+  .choices{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; opacity:0; }
   .choices.fadeIn{ animation:fadeInUp .35s ease-out .2s forwards }
-  @keyframes fadeInUp{
-    from{ opacity:0; transform:translateY(6px) }
-    to{   opacity:1; transform:translateY(0) }
-  }
+  @keyframes fadeInUp{ from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
   .choices button{
     appearance:none; border:none; cursor:pointer;
     padding:10px 16px; border-radius:999px;
     background:#fff; color:#000; font-weight:700;
-    outline:2px solid var(--blue);   /* blue border default */
+    outline:2px solid var(--blue);
     transition:transform .08s ease, filter .15s, outline-color .15s;
   }
   .choices button:hover{ transform:translateY(-1px) }
   .choices button:active{ transform:scale(.98) }
   .choices button[disabled]{ filter:grayscale(.9); cursor:not-allowed; outline-color:#bbb; color:#777 }
-  .choices .correctChoice{ outline-color:var(--green) } /* correct -> green border */
+  .choices .correctChoice{ outline-color:var(--green) }
 
-  /* ===== Celebratory overlay (fixed; we place it just under the sentence) ===== */
+  /* ===== Celebratory overlay (anchored top) ===== */
   #congratsOverlay{
     position:fixed;
     display:none;
+    top:20px; /* distance from top of viewport */
     left:50%;
-    transform:translate(-50%,-50%); /* center on provided top value */
+    transform:translateX(-50%);
     align-items:center; justify-content:center;
-    z-index:9999; pointer-events:none; background:transparent;
+    z-index:9999; pointer-events:none;
   }
   #congratsOverlay img{
     width:clamp(180px,60%,420px); height:auto;
     animation:none; will-change: transform, opacity;
   }
-  @keyframes congratsZoom{
-    0%{ transform:scale(0.70); opacity:0; }
-    8%{ opacity:1; }
-    100%{ transform:scale(1.0); opacity:1; }
-  }
+  @keyframes congratsZoom{ 0%{transform:scale(0.70);opacity:0;} 8%{opacity:1;} 100%{transform:scale(1.0);opacity:1;} }
 
   /* ===== HUD ===== */
   .hud{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:8px }
@@ -154,7 +133,7 @@
   .dot.done,.dot.current{ background:#000; border-color:#000 }
   .score{ font-weight:700; color:#000 }
 
-  /* ===== Buttons (pill shape to match adverbs) ===== */
+  /* ===== Buttons ===== */
   .btn{
     padding:10px 16px; border-radius:999px; border:2px solid var(--accent);
     background:var(--accent); color:#fff; font-weight:700; cursor:pointer;
@@ -164,7 +143,7 @@
   .btn:active{ transform:scale(.98) }
   .playAgain{ margin:0 auto }
 
-  /* Mute button: hidden until music starts after first click, then stays visible */
+  /* ===== Mute ===== */
   .muteBtn{
     visibility:hidden;
     display:inline-flex; background:transparent; border:none; padding:6px;
@@ -184,23 +163,18 @@
         </p>
       </div>
       <div class="rightTools">
-        <button class="muteBtn" id="muteBtn" aria-pressed="false" aria-label="Mute background music" title="Mute">
-          <img id="muteIcon" alt="" src="https://schredder222.github.io/Assets/Unmute.svg" />
-        </button>
+        <button class="muteBtn" id="muteBtn"><img id="muteIcon" alt="" src="https://schredder222.github.io/Assets/Unmute.svg" /></button>
         <button class="btn" id="restartBtn">Restart</button>
       </div>
     </header>
 
     <section class="stage" id="stage">
       <p id="sentence" class="sentence"></p>
-
-      <!-- End-of-quiz panel that shows after the celebratory image disappears -->
       <div id="endPanel" class="endPanel" aria-hidden="true">
         <button class="btn playAgain" id="playAgainBtn">Play Again</button>
       </div>
     </section>
 
-    <!-- Choices frame -->
     <div class="choicesFrame" id="choicesFrame">
       <div class="choices" id="choices">
         <button type="button" data-word="ever">ever</button>
@@ -208,15 +182,11 @@
         <button type="button" data-word="already">already</button>
         <button type="button" data-word="yet">yet</button>
         <button type="button" data-word="still">still</button>
-        <!-- NEW button for "just" -->
         <button type="button" data-word="just">just</button>
       </div>
     </div>
 
-    <!-- Celebratory overlay (we position it just below the sentence’s bottom) -->
-    <div id="congratsOverlay" aria-hidden="true">
-      <img id="congratsImg" src="" alt="Result">
-    </div>
+    <div id="congratsOverlay" aria-hidden="true"><img id="congratsImg" src="" alt="Result"></div>
 
     <footer class="hud" id="hud">
       <div class="dots" id="dots"></div>
@@ -227,7 +197,6 @@
     <audio id="sfx-correct" preload="auto" src="https://cdn.pixabay.com/download/audio/2022/03/24/audio_dcde83efa6.mp3?filename=ui_correct_button2-103167.mp3"></audio>
     <audio id="sfx-wrong" preload="auto" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_b0669294aa.mp3?filename=training-program-incorrect1-88736.mp3"></audio>
     <audio id="clickSound" preload="auto" src="https://cdn.pixabay.com/download/audio/2024/04/21/audio_1b8d3bcd3d.mp3?filename=click-buttons-ui-menu-sounds-effects-button-7-203601.mp3"></audio>
-    <!-- Looping background music (starts on first answer click) -->
     <audio id="bgm" preload="auto" loop src="https://cdn.pixabay.com/download/audio/2022/04/12/audio_53e27872d3.mp3"></audio>
     <audio id="applause" preload="auto" src="https://schredder222.github.io/Assets/Applause.mp3"></audio>
   </main>
@@ -236,292 +205,99 @@
 (function(){
   const ITEMS = [
     { s:"Have you [blank] taken the subway in New York?", a:"ever" },
-    { s:"I have [blank] been Europe. But one day I will!", a:"never" },
-    { s:"Has the new shopping centre opened [blank]?", a:"yet" },
-    { s:"Oh no, the tram has [blank] left the station. We missed it!", a:"already" },
+    { s:"I have [blank] visited the old town in Prague.", a:"never" },
+    { s:"Has the new shopping mall opened [blank]?", a:"yet" },
+    { s:"The tram has [blank] left the station.", a:"already" },
     { s:"They [blank] haven’t repaired the broken streetlight.", a:"still" },
-    { s:"We have [blank] tried the street food in Bangkok, but we want to.", a:"never" },
-    { s:"The bus [blank] hasn’t arrived, and people are waiting at the stop.", a:"still" },
+    { s:"We have [blank] tried the street food in Bangkok.", a:"never" },
+    { s:"The bus [blank] hasn’t arrived, and people are waiting.", a:"still" },
     { s:"The new library hasn’t opened [blank].", a:"yet" },
-    { s:"The shop has [blank] closed for the night. It's 11pm!.", a:"already" },
+    { s:"My cousin has [blank] moved to Sydney for work.", a:"already" },
     { s:"Have you [blank] climbed a skyscraper for the city view?", a:"ever" },
-    /* NEW “just” questions (urban life) */
-    { s:"The metro has [blank] arrived at Platform 3. Time to go.", a:"just" },
-    { s:"They’ve [blank] opened a new supermarket on our street. I'm excited to try it.", a:"just" }
+    { s:"I have [blank] bought tickets for the city concert.", a:"just" },
+    { s:"She has [blank] arrived at the central station.", a:"just" }
   ];
 
-  const stage = document.getElementById("stage");
-  const choicesFrame = document.getElementById("choicesFrame");
+  const sentenceEl=document.getElementById("sentence");
+  const choicesWrap=document.getElementById("choices");
+  const choiceBtns=Array.from(choicesWrap.querySelectorAll("button"));
+  const dotsEl=document.getElementById("dots");
+  const scoreEl=document.getElementById("score");
+  const restartBtn=document.getElementById("restartBtn");
+  const playAgainBtn=document.getElementById("playAgainBtn");
+  const endPanel=document.getElementById("endPanel");
+  const sfxCorrect=document.getElementById("sfx-correct");
+  const sfxWrong=document.getElementById("sfx-wrong");
+  const clickSound=document.getElementById("clickSound");
+  const bgm=document.getElementById("bgm");
+  const applause=document.getElementById("applause");
+  const overlay=document.getElementById("congratsOverlay");
+  const overlayImg=document.getElementById("congratsImg");
+  const muteBtn=document.getElementById("muteBtn");
+  const muteIcon=document.getElementById("muteIcon");
+  const MUTE_ICON_URL="https://schredder222.github.io/Assets/Mute.svg";
+  const UNMUTE_ICON_URL="https://schredder222.github.io/Assets/Unmute.svg";
 
-  const sentenceEl = document.getElementById("sentence");
-  const choicesWrap = document.getElementById("choices");
-  const choiceBtns = Array.from(choicesWrap.querySelectorAll("button"));
-  const dotsEl = document.getElementById("dots");
-  const scoreEl = document.getElementById("score");
-  const hud = document.getElementById("hud");
-  const restartBtn = document.getElementById("restartBtn");
-  const playAgainBtn = document.getElementById("playAgainBtn");
-  const endPanel = document.getElementById("endPanel");
-  const sfxCorrect = document.getElementById("sfx-correct");
-  const sfxWrong = document.getElementById("sfx-wrong");
-  const clickSound = document.getElementById("clickSound");
-  const bgm = document.getElementById("bgm");
-  const applause = document.getElementById("applause");
-  const overlay = document.getElementById("congratsOverlay");
-  const overlayImg = document.getElementById("congratsImg");
-  const muteBtn = document.getElementById("muteBtn");
-  const muteIcon = document.getElementById("muteIcon");
-  const MUTE_ICON_URL = "https://schredder222.github.io/Assets/Mute.svg";
-  const UNMUTE_ICON_URL = "https://schredder222.github.io/Assets/Unmute.svg";
-
-  let order = [];
-  let idx = 0;
-  let score = 0;
-  let locked = false;
-  let firstAttempt = true;
-
-  /* Music control */
-  let musicArmed = true;   // music starts on first answer click
-  let muteShown = false;   // once shown, keep visible across restarts
+  let order=[], idx=0, score=0, locked=false, firstAttempt=true;
+  let musicArmed=true, muteShown=false, overlayHideTimer=null;
 
   function startMusicIfArmed(){
     if(!musicArmed) return;
-    try{
-      bgm.volume = 0.12;
-      const p = bgm.play();
-      if (p?.then){
-        p.then(()=>{
-          if(!muteShown){
-            muteBtn.style.visibility = 'visible';
-            muteShown = true;
-          }
-          syncMuteUI();
-        }).catch(()=>{ /* ignored */ });
-      } else {
-        if(!muteShown){
-          muteBtn.style.visibility = 'visible';
-          muteShown = true;
-        }
-        syncMuteUI();
-      }
-    }catch(e){}
-    musicArmed = false;
+    try{ bgm.volume=0.12; bgm.play().then(()=>{ showMute(); }).catch(()=>{});}catch(e){}
+    musicArmed=false;
   }
-  function stopMusic(){ try{ bgm.pause(); }catch(e){} }
-  function armMusic(){ musicArmed = true; }
+  function showMute(){ if(!muteShown){ muteBtn.style.visibility='visible'; muteShown=true; } syncMuteUI(); }
+  function stopMusic(){ try{bgm.pause();}catch(e){} }
+  function armMusic(){ musicArmed=true; }
+  function syncMuteUI(){ muteIcon.src=bgm.muted?MUTE_ICON_URL:UNMUTE_ICON_URL; }
+  muteBtn.addEventListener("click",()=>{ bgm.muted=!bgm.muted; syncMuteUI(); });
 
-  function syncMuteUI(){
-    const muted = bgm.muted;
-    muteBtn.setAttribute('aria-pressed', String(muted));
-    muteIcon.src = muted ? MUTE_ICON_URL : UNMUTE_ICON_URL;
-    muteBtn.title = muted ? "Unmute" : "Mute";
-    muteBtn.setAttribute('aria-label', muted ? "Unmute background music" : "Mute background music");
-  }
-  muteBtn.addEventListener("click", ()=>{
-    bgm.muted = !bgm.muted;
-    syncMuteUI();
-  });
-
-  function shuffle(a){
-    const arr=a.slice();
-    for(let i=arr.length-1;i>0;i--){
-      const j=Math.floor(Math.random()*(i+1));
-      [arr[i],arr[j]]=[arr[j],arr[i]];
-    }
-    return arr;
-  }
-
-  function setSentence(text){
-    sentenceEl.className="sentence";
-    const html = text.replace("[blank]", `<span class="blank" aria-label="blank">&nbsp;</span>`);
-    sentenceEl.innerHTML = html;
-    requestAnimationFrame(()=> sentenceEl.classList.add("enterSentence"));
-  }
-
-  function renderDots(){
-    dotsEl.innerHTML="";
-    for(let i=0;i<ITEMS.length;i++){
-      const d=document.createElement("span");
-      let cls="dot";
-      if(i < idx){ cls+=" done"; }
-      else if(i === idx){ cls+=" current"; }
-      d.className=cls;
-      dotsEl.appendChild(d);
-    }
-  }
-
-  function resetChoices(){
-    choiceBtns.forEach(b=>{ b.disabled=false; b.classList.remove("correctChoice"); });
-    choicesWrap.classList.remove("fadeIn");
-    requestAnimationFrame(()=> choicesWrap.classList.add("fadeIn"));
-    firstAttempt = true;
-  }
-
-  function next(){
-    if(idx>=ITEMS.length){
-      finishQuiz();
-      return;
-    }
-    const item=ITEMS[order[idx]];
-    setSentence(item.s);
-    resetChoices();
-    renderDots();
-  }
-
-  /* Position overlay: center just under the sentence’s bottom edge */
-  function positionOverlayBelowSentence(){
-    const sRect = sentenceEl.getBoundingClientRect();
-    const offset = 8; // small breathing room
-    const topY = sRect.bottom + offset;         // this is the center Y of the image
-    overlay.style.top = `${topY}px`;
-    overlay.style.left = '50%';
-    overlay.style.transform = 'translate(-50%,-50%)'; /* center on that point */
-  }
-
-  let overlayHideTimer = null;
+  function shuffle(a){const arr=a.slice();for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
+  function setSentence(text){ sentenceEl.className="sentence"; sentenceEl.innerHTML=text.replace("[blank]", `<span class="blank">&nbsp;</span>`); requestAnimationFrame(()=> sentenceEl.classList.add("enterSentence")); }
+  function renderDots(){ dotsEl.innerHTML=""; for(let i=0;i<ITEMS.length;i++){ const d=document.createElement("span"); d.className="dot"+(i<idx?" done":i===idx?" current":""); dotsEl.appendChild(d);} }
+  function resetChoices(){ choiceBtns.forEach(b=>{b.disabled=false;b.classList.remove("correctChoice");}); choicesWrap.classList.remove("fadeIn"); requestAnimationFrame(()=> choicesWrap.classList.add("fadeIn")); firstAttempt=true; }
+  function next(){ if(idx>=ITEMS.length){ finishQuiz(); return;} const item=ITEMS[order[idx]]; setSentence(item.s); resetChoices(); renderDots(); }
 
   function init(){
-    order=shuffle([...Array(ITEMS.length).keys()]);
-    idx=0; score=0;
+    order=shuffle([...Array(ITEMS.length).keys()]); idx=0; score=0;
     scoreEl.textContent=`Score: ${score} / ${ITEMS.length}`;
-    choicesWrap.style.opacity=1;
-    choicesWrap.style.display="flex";
-    overlay.style.display="none";
-    overlayImg.src = "";          // clear previous image to avoid flashes
-    endPanel.classList.remove("show");
-    endPanel.setAttribute("aria-hidden","true");
-    playAgainBtn.blur();
-    restartBtn.style.display="inline-block";
-
-    if (overlayHideTimer){ clearTimeout(overlayHideTimer); overlayHideTimer=null; }
-
-    stopMusic();  // ensure music is stopped
-    armMusic();   // will start after first answer click
-    muteBtn.style.visibility = muteShown ? 'visible' : 'hidden';
-
-    sentenceEl.style.display="";
-    next();
+    choicesWrap.style.display="flex"; overlay.style.display="none"; overlayImg.src="";
+    endPanel.classList.remove("show"); restartBtn.style.display="inline-block";
+    if(overlayHideTimer){ clearTimeout(overlayHideTimer); overlayHideTimer=null; }
+    stopMusic(); armMusic(); muteBtn.style.visibility=muteShown?'visible':'hidden';
+    sentenceEl.style.display=""; next();
   }
 
   function finishQuiz(){
-    // stop the music on quiz finish
     stopMusic();
-
-    // Decide image FIRST to prevent any flicker
-    let imgSrc="";
-    if(score===ITEMS.length){
-      imgSrc="https://schredder222.github.io/Assets/Superb.png";
-      try{ applause.currentTime=0; applause.play(); }catch(e){}
-    } else if(score>=Math.ceil(ITEMS.length*0.7)){
-      imgSrc="https://schredder222.github.io/Assets/Not%20Bad.png";
-    } else {
-      imgSrc="https://schredder222.github.io/Assets/Keep%20Practising.png";
-    }
-    overlayImg.src = imgSrc;
-
-    // Keep the final sentence and adverb buttons visible during the animation.
-    // Place the celebratory PNG just under the sentence.
-    positionOverlayBelowSentence();
-    overlay.style.display="flex";
-
-    // Restart animation cleanly
-    overlayImg.style.animation="none";
-    void overlayImg.offsetWidth;
+    let imgSrc=""; if(score===ITEMS.length){ imgSrc="https://schredder222.github.io/Assets/Superb.png"; applause.play(); }
+    else if(score>=Math.ceil(ITEMS.length*0.7)){ imgSrc="https://schredder222.github.io/Assets/Not%20Bad.png"; }
+    else{ imgSrc="https://schredder222.github.io/Assets/Keep%20practising.png"; }
+    overlayImg.src=imgSrc; overlay.style.display="flex";
+    overlayImg.style.animation="none"; void overlayImg.offsetWidth;
     overlayImg.style.animation="congratsZoom 6s ease-out forwards";
-
-    const onResize = ()=>{ if(overlay.style.display==='flex') positionOverlayBelowSentence(); };
-    window.addEventListener('resize', onResize, { passive:true });
-
-    // After 6s: hide overlay, clear the sentence, then show Play Again centered.
-    overlayHideTimer = setTimeout(()=>{
-      overlay.style.display="none";
-      restartBtn.style.display="none";
-
-      // remove the sentence after the celebration
-      sentenceEl.innerHTML="";
-
-      // Hide choices after animation; score/HUD stays as-is
-      choicesWrap.style.display="none";
-
-      // Show end panel (Play Again in the sentence space)
-      endPanel.classList.add("show");
-      endPanel.setAttribute("aria-hidden","false");
-
-      // Re-arm music for the next run
-      armMusic();
-
-      window.removeEventListener('resize', onResize);
-      overlayHideTimer = null;
-    },6000);
+    overlayHideTimer=setTimeout(()=>{ overlay.style.display="none"; sentenceEl.innerHTML=""; choicesWrap.style.display="none"; endPanel.classList.add("show"); restartBtn.style.display="none"; armMusic(); overlayHideTimer=null; },6000);
   }
 
   choiceBtns.forEach(btn=>{
-    btn.addEventListener("click", ()=>{
-      if(locked||idx>=ITEMS.length) return;
-
-      // Start music & reveal mute on the first button click only
+    btn.addEventListener("click",()=>{
+      if(locked||idx>=ITEMS.length)return;
       startMusicIfArmed();
-
-      const guess=btn.dataset.word;
-      const current=ITEMS[order[idx]];
-
+      const guess=btn.dataset.word, current=ITEMS[order[idx]];
       if(guess===current.a){
-        btn.classList.add("correctChoice"); // green outline
-        if(firstAttempt){ score++; }
+        btn.classList.add("correctChoice"); if(firstAttempt)score++;
         scoreEl.textContent=`Score: ${score} / ${ITEMS.length}`;
-
-        const filled = current.s.replace("[blank]", `<span class="blank correctWord">${guess}</span>`);
-        sentenceEl.innerHTML = filled;
-
-        try { sfxCorrect.currentTime = 0; sfxCorrect.play(); } catch(e){}
-
-        locked=true;
-        choiceBtns.forEach(b=>{ if(b!==btn) b.disabled=true; });
-
-        const isLast = (idx === ITEMS.length - 1);
-
-        if (isLast){
-          // Keep the final sentence visible during the celebration.
-          setTimeout(()=>{
-            locked=false;
-            idx++;      // advance index to trigger finish
-            finishQuiz();
-          },1500);
-        } else {
-          // Normal flow: animate out then show next
-          setTimeout(()=>{
-            sentenceEl.classList.remove("enterSentence");
-            sentenceEl.classList.add("exitSentenceRight");
-            setTimeout(()=>{
-              idx++;
-              locked=false;
-              next();
-            },460);
-          },1500);
-        }
-
-      } else {
-        btn.disabled=true;
-        firstAttempt = false;
-        try { sfxWrong.currentTime = 0; sfxWrong.play(); } catch(e){}
-      }
+        sentenceEl.innerHTML=current.s.replace("[blank]", `<span class="blank correctWord">${guess}</span>`);
+        sfxCorrect.play(); locked=true; choiceBtns.forEach(b=>{if(b!==btn)b.disabled=true;});
+        const isLast=(idx===ITEMS.length-1);
+        if(isLast){ setTimeout(()=>{ locked=false; idx++; finishQuiz(); },1500);}
+        else{ setTimeout(()=>{ sentenceEl.classList.remove("enterSentence"); sentenceEl.classList.add("exitSentenceRight"); setTimeout(()=>{ idx++; locked=false; next();},460); },1500);}
+      } else { btn.disabled=true; firstAttempt=false; sfxWrong.play(); }
     });
   });
 
-  restartBtn.addEventListener("click", ()=>{
-    clickSound.currentTime=0; clickSound.play();
-    stopMusic();
-    armMusic();
-    muteBtn.style.visibility = muteShown ? 'visible' : 'hidden';
-    locked=false; sentenceEl.className="sentence";
-    choicesWrap.style.opacity=1;
-    init();
-  });
-
-  playAgainBtn.addEventListener("click", ()=>{
-    clickSound.currentTime=0; clickSound.play();
-    init();
-  });
+  restartBtn.addEventListener("click",()=>{ clickSound.play(); stopMusic(); armMusic(); muteBtn.style.visibility=muteShown?'visible':'hidden'; locked=false; sentenceEl.className="sentence"; choicesWrap.style.opacity=1; init(); });
+  playAgainBtn.addEventListener("click",()=>{ clickSound.play(); init(); });
 
   init();
 })();
