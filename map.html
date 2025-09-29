@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>World Map Embed</title>
+
+<style>
+  /* Make sure the map actually has room to render */
+  html, body { height: 100%; margin: 0; }
+  #map {
+    width: 100%;
+    height: 520px;      /* <-- set a real height (adjust as needed) */
+    outline: none;
+  }
+</style>
+</head>
+<body>
+
+<div id="map" role="img" aria-label="Interactive world map"></div>
+
+<!-- Order matters: mapdata first, then worldmap -->
+<script src="https://schredder222.github.io/World-Map/mapdata.js" defer></script>
+<script src="https://schredder222.github.io/World-Map/worldmap.js" defer></script>
+
+<!-- Optional: if your map library needs a manual init call, do it after load.
+<script>
+  window.addEventListener('DOMContentLoaded', () => {
+    // e.g. worldmap.init('map')  // depends on your library; many auto-init
+  });
+</script>
+-->
+
+</body>
+</html>
