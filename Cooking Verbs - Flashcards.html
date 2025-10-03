@@ -33,11 +33,11 @@
   .search{flex:1;min-width:200px}
   .search input{width:100%;padding:10px 12px;border:1px solid #c7b9b9;border-radius:12px}
 
-  /* Original mute button styling from your template */
+  /* Mute button: always visible */
   #muteBtn{
     width:38px;height:38px;margin-left:10px;border:1px solid var(--accent);
     background:transparent center/22px 22px no-repeat;border-radius:999px;
-    font-weight:600;cursor:pointer;display:none
+    font-weight:600;cursor:pointer;display:inline-block; /* was: none */
   }
   #muteBtn:hover{transform:scale(1.1)}
 
@@ -188,9 +188,14 @@ async function startAudioOnFirstGesture(){
   try{ await flipAllSound.play(); flipAllSound.pause(); flipAllSound.currentTime = 0; }catch(e){}
   try{ await bgMusic.play(); }catch(e){}
 
-  muteBtn.style.display = 'inline-block';
   setMuteIcon();
 }
+
+/* Make mute button visible & icon-painted immediately */
+document.addEventListener('DOMContentLoaded', () => {
+  muteBtn.style.display = 'inline-block';
+  setMuteIcon();
+});
 
 /* Listen to broad gesture set (covers older iOS/Android) */
 ['pointerdown','touchstart','touchend','click','keydown'].forEach(evt =>
@@ -314,47 +319,45 @@ function shuffle(arr){
 let base = CARDS.slice().sort((a,b)=>a.en.localeCompare(b.en));
 let current = base.slice();
 render(current);
-document.getElementById('resetOrder').classList.add('active');
+resetBtn.classList.add('active');
 
 /* Toolbar handlers */
 function playUIClick(){ uiClick.currentTime = 0; uiClick.play(); }
 
-document.getElementById('shuffle').addEventListener('click', ()=>{
+shuffleBtn.addEventListener('click', ()=>{
   startAudioOnFirstGesture(); playUIClick();
   current = shuffle(current);
-  flippedAll = false; document.getElementById('flipAll').textContent = 'Flip All';
+  flippedAll = false; flipAllBtn.textContent = 'Flip All';
   render(current);
-  document.getElementById('shuffle').classList.add('active');
-  document.getElementById('resetOrder').classList.remove('active');
+  shuffleBtn.classList.add('active'); resetBtn.classList.remove('active');
 });
 
-document.getElementById('resetOrder').addEventListener('click', ()=>{
+resetBtn.addEventListener('click', ()=>{
   startAudioOnFirstGesture(); playUIClick();
   current = base.slice();
-  flippedAll = false; document.getElementById('flipAll').textContent = 'Flip All';
+  flippedAll = false; flipAllBtn.textContent = 'Flip All';
   render(current);
-  document.getElementById('resetOrder').classList.add('active');
-  document.getElementById('shuffle').classList.remove('active');
+  resetBtn.classList.add('active'); shuffleBtn.classList.remove('active');
 });
 
-document.getElementById('flipAll').addEventListener('click', ()=>{
+flipAllBtn.addEventListener('click', ()=>{
   startAudioOnFirstGesture();
   uiClick.currentTime = 0; uiClick.play();
   const cards = Array.from(document.querySelectorAll('.card'));
   flippedAll = !flippedAll;
   cards.forEach(c=> c.classList.toggle('flipped', flippedAll));
-  document.getElementById('flipAll').textContent = flippedAll ? 'Unflip All' : 'Flip All';
+  flipAllBtn.textContent = flippedAll ? 'Unflip All' : 'Flip All';
 });
 
-document.getElementById('q').addEventListener('input', (e)=>{
+search.addEventListener('input', (e)=>{
   const q = e.target.value.toLowerCase().trim();
   const filtered = current.filter(it => it.en.toLowerCase().includes(q));
   render(filtered);
 });
 
-/* Mute / unmute (original behaviour) */
-muteBtn.addEventListener('click', ()=>{
-  startAudioOnFirstGesture();
+/* Mute / unmute */
+muteBtn.addEventListener('click', async ()=>{
+  await startAudioOnFirstGesture();
   uiClick.currentTime = 0; uiClick.play();
   bgMusic.muted = !bgMusic.muted;
   setMuteIcon();
