@@ -37,7 +37,7 @@
   #muteBtn{
     width:38px;height:38px;margin-left:10px;border:1px solid var(--accent);
     background:transparent center/22px 22px no-repeat;border-radius:999px;
-    font-weight:600;cursor:pointer;display:inline-block; /* was: none */
+    font-weight:600;cursor:pointer;display:inline-block;
   }
   #muteBtn:hover{transform:scale(1.1)}
 
@@ -73,6 +73,18 @@
   }
   .speakBtn:hover{transform:scale(1.08)}
   .speakBtn svg{width:18px;height:18px;display:block}
+
+  /* First-tap helper overlay for mobile */
+  .gate{
+    position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+    background:rgba(253,251,237,.92);z-index:9999;
+  }
+  .gate .panel{
+    background:#fff;border:1px solid rgba(139,0,2,.25);border-radius:16px;box-shadow:var(--card-shadow);
+    padding:18px 20px;text-align:center;max-width:320px
+  }
+  .gate .panel h2{margin:0 0 8px;font-size:18px}
+  .gate .panel p{margin:0 0 12px;color:var(--ink-soft);font-size:14px}
 </style>
 </head>
 <body>
@@ -92,6 +104,15 @@
   </header>
 
   <main class="grid" id="grid" aria-live="polite"></main>
+
+  <!-- “Enable sound” helper (shown only if needed) -->
+  <div class="gate" id="audioGate" role="dialog" aria-modal="true">
+    <div class="panel">
+      <h2>Enable sound</h2>
+      <p>Tap below once to allow audio (mobile browsers require it).</p>
+      <button class="btn" id="enableSound">Enable sound</button>
+    </div>
+  </div>
 
 <script>
 /* === DATA: your verbs with exact images === */
@@ -116,94 +137,111 @@ const CARDS = [
   { en:'grill',    src:'https://www.thespruceeats.com/thmb/Iud5JolcsQKK1vekclVq-orpzTI=/2000x0/filters:no_upscale():max_bytes(150000):strip_icc()/ses-charcoal-grills-test-char-broil-kettleman-tru-infrared-22-5in-rkilgore-105-47fbc864934943dba173e579bccc3858.jpg' }
 ];
 
-/* === AUDIO: SFX + BG music (mobile-safe + silent-switch safe) === */
-const uiClick = new Audio("https://cdn.pixabay.com/download/audio/2024/04/21/audio_1b8d3bcd3d.mp3?filename=click-buttons-ui-menu-sounds-effects-button-7-203601.mp3");
-const flipAllSound = new Audio("https://cdn.pixabay.com/download/audio/2025/07/30/audio_b3087a581e.mp3");
-const bgMusic = new Audio("https://cdn.pixabay.com/download/audio/2025/06/13/audio_cd802a7e4b.mp3");
+/* === AUDIO CORE (Web Audio background music + UI ticks) === */
+const MUSIC_URL = "https://cdn.pixabay.com/download/audio/2025/06/13/audio_cd802a7e4b.mp3";
+let audioCtx = null, musicGain = null, musicBuffer = null, musicSource = null;
+let audioStarted = false;
 
-[uiClick, flipAllSound, bgMusic].forEach(a => { a.preload = 'auto'; a.crossOrigin = 'anonymous'; });
-uiClick.volume = 0.4; flipAllSound.volume = 0.3; bgMusic.loop = true; bgMusic.volume = 0.12;
-
-let musicStarted = false;
 const muteBtn = document.getElementById('muteBtn');
 const ICON_MUTE   = "https://schredder222.github.io/Assets/Mute.svg";
 const ICON_UNMUTE = "https://schredder222.github.io/Assets/Unmute.svg";
-function setMuteIcon(){ muteBtn.style.backgroundImage = `url(${bgMusic.muted ? ICON_MUTE : ICON_UNMUTE})`; }
-
-/* Web Audio wiring (lets audio play even with iOS silent switch) */
-let audioCtx, wired = false;
-function wireWebAudio(){
-  try{
-    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if(wired) return;
-    [uiClick, flipAllSound, bgMusic].forEach(el=>{
-      if(!el._wired){
-        const src = audioCtx.createMediaElementSource(el);
-        src.connect(audioCtx.destination);
-        el._wired = true;
-      }
-    });
-    wired = true;
-  }catch(e){}
+function setMuteIcon(){
+  const isMuted = musicGain && musicGain.gain.value === 0;
+  muteBtn.style.backgroundImage = `url(${isMuted ? ICON_MUTE : ICON_UNMUTE})`;
 }
 
-/* Tiny, near-silent beep to fully unlock output route on some devices */
-function inaudibleBeep(){
+/* Create / resume context */
+async function ensureAudioContext(){
+  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if(audioCtx.state === 'suspended') await audioCtx.resume();
+  if(!musicGain){
+    musicGain = audioCtx.createGain();
+    musicGain.gain.value = 0.12;           // default music volume
+    musicGain.connect(audioCtx.destination);
+  }
+}
+
+/* Fetch & decode music once */
+async function loadMusic(){
+  if(musicBuffer) return musicBuffer;
+  await ensureAudioContext();
+  const res = await fetch(MUSIC_URL, { mode:'cors', cache:'force-cache' });
+  const arr = await res.arrayBuffer();
+  musicBuffer = await audioCtx.decodeAudioData(arr);
+  return musicBuffer;
+}
+
+/* Start looping music via BufferSource */
+function startMusic(){
+  if(!musicBuffer) return;
+  if(musicSource){ try{ musicSource.stop(); }catch{} musicSource.disconnect(); }
+  musicSource = audioCtx.createBufferSource();
+  musicSource.buffer = musicBuffer;
+  musicSource.loop = true;
+  musicSource.connect(musicGain);
+  musicSource.start(0);
+}
+
+/* Simple UI tick via oscillator (reliable on iOS) */
+function tick(freq=880, dur=0.04, gainVal=0.05){
   if(!audioCtx) return;
-  try{
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    gain.gain.value = 0.0001; // effectively silent
-    osc.connect(gain); gain.connect(audioCtx.destination);
-    osc.frequency.value = 440; osc.start(); osc.stop(audioCtx.currentTime + 0.05);
-  }catch(e){}
+  const osc = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  g.gain.value = gainVal;
+  osc.frequency.value = freq;
+  osc.connect(g); g.connect(audioCtx.destination);
+  const now = audioCtx.currentTime;
+  g.gain.setValueAtTime(gainVal, now);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+  osc.start(now); osc.stop(now + dur + 0.01);
 }
 
-/* iOS/Android unlock helpers */
-let speechPrimed = false;
-function primeSpeech(){
-  if(speechPrimed || !('speechSynthesis' in window)) return;
-  const u = new SpeechSynthesisUtterance(' ');
-  u.volume = 0; u.lang = 'en-GB';
-  speechSynthesis.speak(u);
-  speechPrimed = true;
-}
-
-/* Start & unlock everything exactly once, within a user gesture */
-async function startAudioOnFirstGesture(){
-  if(musicStarted) return;
-  musicStarted = true;
-
+/* One-time unlock on first user gesture */
+async function startAudioPipeline(){
+  if(audioStarted) return;
+  audioStarted = true;
+  await ensureAudioContext();
+  // micro “beep” to open route (silent-ish)
+  tick(440, 0.03, 0.001);
   try{
-    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    await audioCtx.resume();
-  }catch(e){}
-
-  wireWebAudio();
-  inaudibleBeep();      // ensure output path is opened
-  primeSpeech();
-
-  // “Touch” each element so Safari considers them user-initiated
-  try{ await uiClick.play(); uiClick.pause(); uiClick.currentTime = 0; }catch(e){}
-  try{ await flipAllSound.play(); flipAllSound.pause(); flipAllSound.currentTime = 0; }catch(e){}
-  try{ await bgMusic.play(); }catch(e){}
-
+    await loadMusic();
+    startMusic();
+  }catch(e){
+    // If fetching fails, show the gate so the user can try again
+    document.getElementById('audioGate').style.display = 'flex';
+  }
   setMuteIcon();
 }
 
-/* Make mute button visible & icon-painted immediately */
+/* “Enable sound” overlay button (just in case) */
+const audioGate = document.getElementById('audioGate');
+document.getElementById('enableSound').addEventListener('click', async ()=>{
+  await startAudioPipeline();
+  tick(1000, 0.06, 0.06);
+  audioGate.style.display = 'none';
+});
+
+/* Make the mute button live immediately + set icon */
 document.addEventListener('DOMContentLoaded', () => {
-  muteBtn.style.display = 'inline-block';
   setMuteIcon();
 });
 
-/* Listen to broad gesture set (covers older iOS/Android) */
+/* Broad gesture listeners to trigger the pipeline */
 ['pointerdown','touchstart','touchend','click','keydown'].forEach(evt =>
-  document.addEventListener(evt, startAudioOnFirstGesture, { once:true, passive:true })
+  document.addEventListener(evt, startAudioPipeline, { once:true, passive:true })
 );
 
+/* Mute/unmute toggles the gain node (not the buffer) */
+muteBtn.addEventListener('click', async ()=>{
+  await startAudioPipeline();
+  tick(700, 0.05, 0.04);
+  const isMuted = musicGain && musicGain.gain.value === 0;
+  if(musicGain) musicGain.gain.value = isMuted ? 0.12 : 0;
+  setMuteIcon();
+});
+
 /* === PRONUNCIATION (British English) === */
-let voiceGB = null;
+let voiceGB = null, speechPrimed = false;
 function pickGBVoice(){
   const vs = speechSynthesis.getVoices();
   voiceGB = vs.find(v => /en-GB/i.test(v.lang) || /United Kingdom|British English/i.test(v.name)) || null;
@@ -212,17 +250,27 @@ if ('speechSynthesis' in window){
   pickGBVoice();
   window.speechSynthesis.onvoiceschanged = pickGBVoice;
 }
+function primeSpeech(){
+  if(speechPrimed || !('speechSynthesis' in window)) return;
+  const u = new SpeechSynthesisUtterance(' ');
+  u.volume = 0; u.lang = 'en-GB';
+  speechSynthesis.speak(u);
+  speechPrimed = true;
+}
 function speakWord(word){
   if(!('speechSynthesis' in window)) return;
+  primeSpeech();
   const text = (word||'').replace(/\s*\(.*?\)\s*/g,'').replace(/\//g,' or ').trim();
   const u = new SpeechSynthesisUtterance(text);
   u.lang = 'en-GB'; if(voiceGB) u.voice = voiceGB;
   u.rate = 0.95; u.pitch = 1.0; u.volume = 1.0;
   if (speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel();
   speechSynthesis.speak(u);
+  // small audible tick so users get feedback even if TTS is blocked by OS policy
+  tick(1200, 0.03, 0.03);
 }
 
-/* === UI wiring === */
+/* === UI + Cards === */
 const grid = document.getElementById('grid');
 const search = document.getElementById('q');
 const shuffleBtn = document.getElementById('shuffle');
@@ -289,13 +337,14 @@ function createCard(item, i){
   function handleFlip(){
     if(card.classList.contains('flipped')) card.classList.remove('flipped');
     else { document.querySelectorAll('.card').forEach(c => c.classList.remove('flipped')); card.classList.add('flipped'); }
-    startAudioOnFirstGesture();
+    startAudioPipeline();
+    tick(880, 0.03, 0.03);
   }
   card.addEventListener('click', handleFlip);
   card.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); handleFlip(); } });
 
   card.querySelectorAll('.speakBtn').forEach(btn=>{
-    btn.addEventListener('click', (e)=>{ e.stopPropagation(); startAudioOnFirstGesture(); speakWord(item.en); });
+    btn.addEventListener('click', (e)=>{ e.stopPropagation(); startAudioPipeline(); speakWord(item.en); });
   });
 
   return card;
@@ -322,10 +371,8 @@ render(current);
 resetBtn.classList.add('active');
 
 /* Toolbar handlers */
-function playUIClick(){ uiClick.currentTime = 0; uiClick.play(); }
-
 shuffleBtn.addEventListener('click', ()=>{
-  startAudioOnFirstGesture(); playUIClick();
+  startAudioPipeline(); tick(900, 0.03, 0.03);
   current = shuffle(current);
   flippedAll = false; flipAllBtn.textContent = 'Flip All';
   render(current);
@@ -333,7 +380,7 @@ shuffleBtn.addEventListener('click', ()=>{
 });
 
 resetBtn.addEventListener('click', ()=>{
-  startAudioOnFirstGesture(); playUIClick();
+  startAudioPipeline(); tick(900, 0.03, 0.03);
   current = base.slice();
   flippedAll = false; flipAllBtn.textContent = 'Flip All';
   render(current);
@@ -341,8 +388,7 @@ resetBtn.addEventListener('click', ()=>{
 });
 
 flipAllBtn.addEventListener('click', ()=>{
-  startAudioOnFirstGesture();
-  uiClick.currentTime = 0; uiClick.play();
+  startAudioPipeline(); tick(700, 0.05, 0.04);
   const cards = Array.from(document.querySelectorAll('.card'));
   flippedAll = !flippedAll;
   cards.forEach(c=> c.classList.toggle('flipped', flippedAll));
@@ -353,14 +399,6 @@ search.addEventListener('input', (e)=>{
   const q = e.target.value.toLowerCase().trim();
   const filtered = current.filter(it => it.en.toLowerCase().includes(q));
   render(filtered);
-});
-
-/* Mute / unmute */
-muteBtn.addEventListener('click', async ()=>{
-  await startAudioOnFirstGesture();
-  uiClick.currentTime = 0; uiClick.play();
-  bgMusic.muted = !bgMusic.muted;
-  setMuteIcon();
 });
 </script>
 </body>
