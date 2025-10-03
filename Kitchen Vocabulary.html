@@ -8,14 +8,14 @@
   :root{
     --bg:#FDFBED; --ink:#222; --accent:#8A0000; --card:#fff; --ink-soft:#444;
     --card-min:180px; --card-ratio:180/220; --card-radius:16px; --card-shadow:0 3px 10px rgba(0,0,0,.06);
-    --fs-front:20px; --fs-tag:12px; --fs-index:12px; --fs-hint:11px;
+    --fs-front:24px; --fs-tag:12px; --fs-index:12px; --fs-hint:11px;
   }
   @media (min-width:768px){
     :root{
       --card-min: clamp(120px, 17vw, 180px);
-      --fs-front: clamp(18px, 1.8vw, 20px);
+      --fs-front: clamp(18px, 1.8vw, 24px);
       --fs-index: clamp(10px, .9vw, 12px);
-      --fs-hint: clamp(9px, .8vw, 11px);
+      --fs-hint:  clamp(9px,  .8vw, 11px);
     }
   }
   *,*::before,*::after{box-sizing:border-box}
@@ -33,7 +33,7 @@
   .search{flex:1;min-width:200px}
   .search input{width:100%;padding:10px 12px;border:1px solid #c7b9b9;border-radius:12px}
 
-  /* Original mute button styling from your template */
+  /* Original mute button styling (icon loads after first user interaction) */
   #muteBtn{
     width:38px;height:38px;margin-left:10px;border:1px solid var(--accent);
     background:transparent center/22px 22px no-repeat;border-radius:999px;
@@ -129,27 +129,56 @@ const CARDS = [
   { en:'oven mitt', src:'https://www.ikea.com/au/en/images/products/rinnig-oven-glove-grey__0918260_pe786433_s5.jpg' }
 ];
 
-/* === AUDIO: UI click, flip-all sound, and background music === */
-const uiClick = new Audio("https://cdn.pixabay.com/download/audio/2024/04/21/audio_1b8d3bcd3d.mp3?filename=click-buttons-ui-menu-sounds-effects-button-7-203601.mp3"); uiClick.volume = 0.4;
-const flipAllSound = new Audio("https://cdn.pixabay.com/download/audio/2025/07/30/audio_b3087a581e.mp3"); flipAllSound.volume = 0.3;
-const bgMusic = new Audio("https://cdn.pixabay.com/download/audio/2025/06/13/audio_cd802a7e4b.mp3"); bgMusic.loop = true; bgMusic.volume = 0.1;
-let musicStarted = false;
+/* === AUDIO: SFX + BG music (mobile-safe unlock) === */
+const uiClick = new Audio("https://cdn.pixabay.com/download/audio/2024/04/21/audio_1b8d3bcd3d.mp3?filename=click-buttons-ui-menu-sounds-effects-button-7-203601.mp3");
+const flipAllSound = new Audio("https://cdn.pixabay.com/download/audio/2025/07/30/audio_b3087a581e.mp3");
+const bgMusic = new Audio("https://cdn.pixabay.com/download/audio/2025/06/13/audio_cd802a7e4b.mp3");
 
-/* Original icon URLs from your template */
+[uiClick, flipAllSound, bgMusic].forEach(a => { a.preload = 'auto'; a.crossOrigin = 'anonymous'; });
+uiClick.volume = 0.4;
+flipAllSound.volume = 0.3;
+bgMusic.loop = true;
+bgMusic.volume = 0.1;
+
+let musicStarted = false;
 const muteBtn = document.getElementById('muteBtn');
 const ICON_MUTE   = "https://schredder222.github.io/Assets/Mute.svg";
 const ICON_UNMUTE = "https://schredder222.github.io/Assets/Unmute.svg";
-function setMuteIcon(){
-  muteBtn.style.backgroundImage = `url(${bgMusic.muted ? ICON_MUTE : ICON_UNMUTE})`;
+function setMuteIcon(){ muteBtn.style.backgroundImage = `url(${bgMusic.muted ? ICON_MUTE : ICON_UNMUTE})`; }
+
+/* iOS/Android audio unlock helpers */
+let audioCtx;
+function unlockAudioContext(){
+  try{
+    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+  }catch{}
 }
-function startMusicOnce(){
-  if(!musicStarted){
-    bgMusic.play().catch(()=>{});
-    musicStarted = true;
-    muteBtn.style.display = 'inline-block';
-    setMuteIcon();
-  }
+
+let speechPrimed = false;
+function primeSpeech(){
+  if(speechPrimed || !('speechSynthesis' in window)) return;
+  const u = new SpeechSynthesisUtterance(' ');
+  u.volume = 0; u.lang = 'en-GB';
+  speechSynthesis.speak(u);
+  speechPrimed = true;
 }
+
+/* Start bg music exactly once, inside a user gesture */
+async function startAudioOnFirstGesture(){
+  if(musicStarted) return;
+  musicStarted = true;
+  unlockAudioContext();
+  primeSpeech();
+  try { await bgMusic.play(); } catch(e) { /* user can tap later to start */ }
+  muteBtn.style.display = 'inline-block';
+  setMuteIcon();
+}
+
+/* Listen to multiple gesture types (covers iOS/older Android) */
+['pointerdown','touchend','click','keydown'].forEach(evt =>
+  document.addEventListener(evt, startAudioOnFirstGesture, { once:true, passive:true })
+);
 
 /* === PRONUNCIATION (British English) === */
 let voiceGB = null;
@@ -163,11 +192,13 @@ if ('speechSynthesis' in window){
 }
 function speakWord(word){
   if(!('speechSynthesis' in window)) return;
-  // Read slashes as "or" (e.g., "colander or strainer")
-  const clean = (word||'').replace(/\s*\(.*?\)\s*/g,'').replace(/\//g,' or ').trim();
-  const u = new SpeechSynthesisUtterance(clean);
-  u.lang = 'en-GB'; if(voiceGB) u.voice = voiceGB; u.rate = 0.95; u.pitch = 1.0; u.volume = 1.0;
-  speechSynthesis.cancel(); speechSynthesis.speak(u);
+  const text = (word||'').replace(/\s*\(.*?\)\s*/g,'').replace(/\//g,' or ').trim();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'en-GB';
+  if(voiceGB) u.voice = voiceGB;
+  u.rate = 0.95; u.pitch = 1.0; u.volume = 1.0;
+  if (speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel();
+  speechSynthesis.speak(u);
 }
 
 /* === UI wiring === */
@@ -237,13 +268,13 @@ function createCard(item, i){
   function handleFlip(){
     if(card.classList.contains('flipped')){ card.classList.remove('flipped'); }
     else { document.querySelectorAll('.card').forEach(c => c.classList.remove('flipped')); card.classList.add('flipped'); }
-    startMusicOnce();
+    startAudioOnFirstGesture();
   }
   card.addEventListener('click', handleFlip);
   card.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); handleFlip(); } });
 
   card.querySelectorAll('.speakBtn').forEach(btn=>{
-    btn.addEventListener('click', (e)=>{ e.stopPropagation(); speakWord(item.en); startMusicOnce(); });
+    btn.addEventListener('click', (e)=>{ e.stopPropagation(); startAudioOnFirstGesture(); speakWord(item.en); });
   });
 
   return card;
@@ -273,7 +304,7 @@ resetBtn.classList.add('active');
 function playUIClick(){ uiClick.currentTime = 0; uiClick.play(); }
 
 shuffleBtn.addEventListener('click', ()=>{
-  playUIClick(); startMusicOnce();
+  startAudioOnFirstGesture(); playUIClick();
   current = shuffle(current);
   flippedAll = false; flipAllBtn.textContent = 'Flip All';
   render(current);
@@ -281,7 +312,7 @@ shuffleBtn.addEventListener('click', ()=>{
 });
 
 resetBtn.addEventListener('click', ()=>{
-  playUIClick(); startMusicOnce();
+  startAudioOnFirstGesture(); playUIClick();
   current = base.slice();
   flippedAll = false; flipAllBtn.textContent = 'Flip All';
   render(current);
@@ -289,7 +320,8 @@ resetBtn.addEventListener('click', ()=>{
 });
 
 flipAllBtn.addEventListener('click', ()=>{
-  flipAllSound.currentTime = 0; flipAllSound.play(); startMusicOnce();
+  startAudioOnFirstGesture();
+  flipAllSound.currentTime = 0; flipAllSound.play();
   const cards = Array.from(document.querySelectorAll('.card'));
   flippedAll = !flippedAll;
   cards.forEach(c=> c.classList.toggle('flipped', flippedAll));
@@ -304,15 +336,11 @@ search.addEventListener('input', (e)=>{
 
 /* Mute / unmute (original behaviour) */
 muteBtn.addEventListener('click', ()=>{
+  startAudioOnFirstGesture();
   uiClick.currentTime = 0; uiClick.play();
   bgMusic.muted = !bgMusic.muted;
   setMuteIcon();
 });
-
-/* Start music on first interaction (reveals mute button with icon) */
-document.addEventListener('pointerdown', startMusicOnce, { once:true });
 </script>
 </body>
 </html>
-
-
