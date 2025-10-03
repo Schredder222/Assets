@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cooking Verbs – Picture Flashcards</title>
+<style>
+  :root{
+    --bg:#FDFBED; --ink:#222; --accent:#8A0000; --card:#fff; --ink-soft:#444;
+    --card-min:180px; --card-ratio:180/220; --card-radius:16px; --card-shadow:0 3px 10px rgba(0,0,0,.06);
+    --fs-front:28px; --fs-tag:12px; --fs-index:12px; --fs-hint:11px;
+  }
+  @media (min-width:768px){
+    :root{
+      --card-min: clamp(120px, 17vw, 180px);
+      --fs-front: clamp(18px, 1.8vw, 28px);
+      --fs-index: clamp(10px, .9vw, 12px);
+      --fs-hint: clamp(9px, .8vw, 11px);
+    }
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"MS Reference Sans Serif", system-ui, Arial, sans-serif}
+
+  header{max-width:1100px;margin:24px auto 0;padding:0 16px}
+  h1{letter-spacing:.5px;font-weight:600;font-size:25px;margin:0 0 4px;color:#000}
+  p.lead{margin:.25rem 0 1rem;color:var(--ink-soft)}
+
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0 18px}
+  .btn{appearance:none;border:1px solid var(--accent);background:transparent;color:var(--accent);padding:10px 14px;border-radius:999px;font-weight:600;cursor:pointer;transition:transform .2s}
+  .btn:hover{transform:scale(1.05)}
+  .btn.active{background:var(--accent);color:#fff}
+  .search{flex:1;min-width:200px}
+  .search input{width:100%;padding:10px 12px;border:1px solid #c7b9b9;border-radius:12px}
+
+  /* Restore original mute button styling from your template */
+  #muteBtn{
+    width:38px;height:38px;margin-left:10px;border:1px solid var(--accent);
+    background:transparent center/22px 22px no-repeat;border-radius:999px;
+    font-weight:600;cursor:pointer;display:none
+  }
+  #muteBtn:hover{transform:scale(1.1)}
+
+  .grid{
+    max-width:1100px;margin:0 auto;padding:0 16px 40px;
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--card-min),1fr));gap:16px;
+  }
+  .card{perspective:1000px;cursor:pointer}
+  .inner{position:relative;width:100%;aspect-ratio:var(--card-ratio);transform-style:preserve-3d;transition:transform .5s}
+  .card.flipped .inner{transform:rotateY(180deg)}
+
+  .face{
+    position:absolute;inset:0;border:1px solid rgba(139,0,2,.3);border-radius:var(--card-radius);
+    background:var(--card);box-shadow:var(--card-shadow);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px;backface-visibility:hidden
+  }
+  .front .word{font-size:var(--fs-front);font-weight:700;text-align:center;line-height:1.2}
+  .front .tag{margin-top:8px;font-size:var(--fs-tag);color:var(--ink-soft)}
+  .back{transform:rotateY(180deg);overflow:hidden;padding:0}
+  .imgWrap{position:relative;inset:0;width:100%;height:100%}
+  .imgWrap img{width:100%;height:100%;object-fit:cover;display:block}
+
+  .index{position:absolute;top:8px;left:10px;font-size:var(--fs-index);color:var(--ink-soft);z-index:2;background:rgba(255,255,255,.7);padding:2px 6px;border-radius:8px}
+  .hint{position:absolute;bottom:10px;right:12px;font-size:var(--fs-hint);color:var(--ink-soft)}
+  .sr{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+  /* Speaker button (inline SVG so it never disappears) */
+  .speakBtn{
+    position:absolute;top:8px;right:10px;width:34px;height:34px;
+    border:1px solid var(--accent);border-radius:999px;background:#fff;
+    color:var(--accent);cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.1);
+    display:flex;align-items:center;justify-content:center
+  }
+  .speakBtn:hover{transform:scale(1.08)}
+  .speakBtn svg{width:18px;height:18px;display:block}
+</style>
+</head>
+<body>
+  <header>
+    <h1>Cooking Verbs – Picture Flashcards</h1>
+    <p class="lead">Click / tap a card to flip. Tap 🔊 to hear the word (British English).</p>
+    <div class="toolbar">
+      <button class="btn" id="resetOrder">A–Z</button>
+      <button class="btn" id="shuffle">Shuffle</button>
+      <button class="btn" id="flipAll">Flip All</button>
+      <label class="search">
+        <span class="sr">Search words</span>
+        <input id="q" type="search" placeholder="Filter by verb… (e.g., chop)" />
+      </label>
+      <button id="muteBtn" aria-label="Mute/Unmute" title="Mute/Unmute"></button>
+    </div>
+  </header>
+
+  <main class="grid" id="grid" aria-live="polite"></main>
+
+<script>
+/* === DATA: your verbs with exact images === */
+const CARDS = [
+  { en:'grate',    src:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Grate-cheese.jpg/1200px-Grate-cheese.jpg' },
+  { en:'pour',     src:'https://vinepair.com/wp-content/uploads/2016/02/standard-pour-social.jpg' },
+  { en:'whisk',    src:'https://cdn.shoplightspeed.com/shops/633447/files/43560918/1500x4000x3/8-stainless-steel-whisk.jpg' },
+  { en:'fry',      src:'https://www.allrecipes.com/thmb/ozr6hSf2ipMA70J-Ui8P8VnhIlQ=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/Fish-Pan-Fry-by-Blaine-MoatsMeredith-1-1-5843f621f32b4fb4ab1ffb26658c860c.jpg' },
+  { en:'bake',     src:'https://sunnyhealthfitness.com/cdn/shop/articles/5-must-try-healthy-things-bake-recipes-01_750x.jpg?v=1607644890' },
+  { en:'peel',     src:'https://images.sbs.com.au/dims4/default/7a39af4/2147483647/strip/true/crop/1732x974+0+324/resize/1280x720!/quality/90/?url=http%3A%2F%2Fsbs-au-brightspot.s3.amazonaws.com%2Fdrupal%2Ffood%2Fpublic%2Fgettyimages-91617096.jpg' },
+  { en:'squeeze',  src:'https://media.istockphoto.com/id/1212150633/photo/female-hand-squeezing-orange-isolated-on-grey.jpg?s=612x612&w=0&k=20&c=nfag5YeQcB2-ew93vDsY7pL3qI0LVvlNRXdIu4nMTuo=' },
+  { en:'mash',     src:'https://www.healthygreenkitchen.com/wp-content/uploads/2023/11/mashing-potatoes.jpg' },
+  { en:'sprinkle', src:'https://i.ytimg.com/vi/ObG4vN1FGJc/maxresdefault.jpg' },
+  { en:'strain',   src:'https://img.huffingtonpost.com/asset/5ab166782000007d06eb27bb.jpeg?cache=hZrbcYlT0K&ops=1200_630' },
+  { en:'stir',     src:'https://www.firstforwomen.com/wp-content/uploads/sites/2/2021/11/best-way-to-stir-dishes.png?quality=86&strip=all' },
+  { en:'boil',     src:'https://www.partstown.com/about-us/wp-content/uploads/2022/10/Pasta-Cooking-Tips-Use-a-Lot-of-Water.jpg' },
+  { en:'slice',    src:'https://www.finedininglovers.com/sites/default/files/article_content_images/How%20To%20Slice%20Every%20Fruit%20_%20Method%20Mastery%20_%20Epicurious%2022-40%20screenshot.png' },
+  { en:'chop',     src:'https://www.allrecipes.com/thmb/qLDUZGI5ztr-eaCq7_x1Sjki75Y=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/GettyImages-574135073-2000-786125b3e86e49d18b5a9d63ace8bea3.jpg' },
+  { en:'dice',     src:'https://www.seriouseats.com/thmb/2cC2L1A-Gat8mrbSJlf_JExchQI=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/20220511-CuttingOnions-AmandaSuarez-_361-e0fb46e9615943d5b6c58c386a0ff958.JPG' },
+  { en:'mix',      src:'https://www.foodandwine.com/thmb/surkGCHX-NzUvIkMWt6q809VTjA=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/How-to-Upgrade-Boxed-Brownie-Mix-FT-BLOG0123-43d80822bc8441a3b331c949a4f58bd6.jpg' },
+  { en:'roast',    src:'https://www.simplyrecipes.com/thmb/KAUCCGjMOMJEdGjGqpTJq91Na_I=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/Simply-Recipes-Roast-Beef-METHOD-4-3fb2b106c25348bea8273625f6697331.jpg' },
+  { en:'grill',    src:'https://www.thespruceeats.com/thmb/Iud5JolcsQKK1vekclVq-orpzTI=/2000x0/filters:no_upscale():max_bytes(150000):strip_icc()/ses-charcoal-grills-test-char-broil-kettleman-tru-infrared-22-5in-rkilgore-105-47fbc864934943dba173e579bccc3858.jpg' }
+];
+
+/* === AUDIO: UI click, flip-all sound, and background music === */
+const uiClick = new Audio("https://cdn.pixabay.com/download/audio/2024/04/21/audio_1b8d3bcd3d.mp3?filename=click-buttons-ui-menu-sounds-effects-button-7-203601.mp3"); uiClick.volume = 0.4;
+const flipAllSound = new Audio("https://cdn.pixabay.com/download/audio/2025/07/30/audio_b3087a581e.mp3"); flipAllSound.volume = 0.3;
+const bgMusic = new Audio("https://cdn.pixabay.com/download/audio/2025/06/13/audio_cd802a7e4b.mp3"); bgMusic.loop = true; bgMusic.volume = 0.1;
+let musicStarted = false;
+
+/* Restore original icon URLs + setter */
+const muteBtn = document.getElementById('muteBtn');
+const ICON_MUTE   = "https://schredder222.github.io/Assets/Mute.svg";
+const ICON_UNMUTE = "https://schredder222.github.io/Assets/Unmute.svg";
+function setMuteIcon(){
+  muteBtn.style.backgroundImage = `url(${bgMusic.muted ? ICON_MUTE : ICON_UNMUTE})`;
+}
+function startMusicOnce(){
+  if(!musicStarted){
+    bgMusic.play().catch(()=>{});
+    musicStarted = true;
+    muteBtn.style.display = 'inline-block';
+    setMuteIcon();
+  }
+}
+
+/* === PRONUNCIATION (British English) === */
+let voiceGB = null;
+function pickGBVoice(){
+  const vs = speechSynthesis.getVoices();
+  voiceGB = vs.find(v => /en-GB/i.test(v.lang) || /United Kingdom|British English/i.test(v.name)) || null;
+}
+if ('speechSynthesis' in window){
+  pickGBVoice();
+  window.speechSynthesis.onvoiceschanged = pickGBVoice;
+}
+function speakWord(word){
+  if(!('speechSynthesis' in window)) return;
+  const u = new SpeechSynthesisUtterance((word||'').replace(/\s*\(.*?\)\s*/g,'').trim());
+  u.lang = 'en-GB'; if(voiceGB) u.voice = voiceGB; u.rate = 0.95; u.pitch = 1.0; u.volume = 1.0;
+  speechSynthesis.cancel(); speechSynthesis.speak(u);
+}
+
+/* === UI wiring === */
+const grid = document.getElementById('grid');
+const search = document.getElementById('q');
+const shuffleBtn = document.getElementById('shuffle');
+const resetBtn = document.getElementById('resetOrder');
+const flipAllBtn = document.getElementById('flipAll');
+let flippedAll = false;
+
+function svgFallback(word){
+  const svg =
+`<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#f3efe1"/></linearGradient></defs>
+  <rect width="100%" height="100%" fill="url(#g)"/>
+  <g font-family="Arial, Helvetica, sans-serif" fill="#8A0000" text-anchor="middle">
+    <text x="400" y="310" font-size="64" font-weight="700">${(word||'').replace(/&/g,'&amp;')}</text>
+  </g>
+</svg>`;
+  return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
+}
+
+function speakerButtonHTML(){
+  return `
+    <button class="speakBtn" aria-label="Play pronunciation" title="Play pronunciation">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 10v4h4l5 4V6L7 10H3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M16 8c1.5 1.5 1.5 4.5 0 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M19 5c3 3 3 9 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>`;
+}
+
+function createCard(item, i){
+  const card = document.createElement('article');
+  card.className = 'card'; card.tabIndex = 0; card.setAttribute('role','button');
+  card.setAttribute('aria-label', `${item.en}: show picture`);
+
+  const inner = document.createElement('div'); inner.className = 'inner';
+
+  const front = document.createElement('div');
+  front.className = 'face front';
+  front.innerHTML = `
+    <span class="index">#${String(i+1).padStart(2,'0')}</span>
+    ${speakerButtonHTML()}
+    <div class="word">${item.en}</div>
+    <div class="tag">English</div>
+    <div class="hint">Click / tap to flip</div>
+  `;
+
+  const back = document.createElement('div');
+  back.className = 'face back';
+  back.innerHTML = `
+    ${speakerButtonHTML()}
+    <span class="index">#${String(i+1).padStart(2,'0')}</span>
+    <div class="imgWrap">
+      <img alt="Image: ${item.en}" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+    </div>
+  `;
+
+  inner.appendChild(front); inner.appendChild(back); card.appendChild(inner);
+
+  const img = back.querySelector('img');
+  img.src = item.src || svgFallback(item.en);
+  img.onerror = ()=>{ img.src = svgFallback(item.en); };
+
+  function handleFlip(){
+    if(card.classList.contains('flipped')){ card.classList.remove('flipped'); }
+    else { document.querySelectorAll('.card').forEach(c => c.classList.remove('flipped')); card.classList.add('flipped'); }
+    startMusicOnce();
+  }
+  card.addEventListener('click', handleFlip);
+  card.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); handleFlip(); } });
+
+  card.querySelectorAll('.speakBtn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{ e.stopPropagation(); speakWord(item.en); startMusicOnce(); });
+  });
+
+  return card;
+}
+
+function render(list){
+  grid.innerHTML = '';
+  list.forEach((item,i)=> grid.appendChild(createCard(item,i)));
+}
+
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+
+/* Initial render (A–Z) */
+let base = CARDS.slice().sort((a,b)=>a.en.localeCompare(b.en));
+let current = base.slice();
+render(current);
+resetBtn.classList.add('active');
+
+/* Toolbar handlers */
+function playUIClick(){ uiClick.currentTime = 0; uiClick.play(); }
+
+shuffleBtn.addEventListener('click', ()=>{
+  playUIClick(); startMusicOnce();
+  current = shuffle(current);
+  flippedAll = false; flipAllBtn.textContent = 'Flip All';
+  render(current);
+  shuffleBtn.classList.add('active'); resetBtn.classList.remove('active');
+});
+
+resetBtn.addEventListener('click', ()=>{
+  playUIClick(); startMusicOnce();
+  current = base.slice();
+  flippedAll = false; flipAllBtn.textContent = 'Flip All';
+  render(current);
+  resetBtn.classList.add('active'); shuffleBtn.classList.remove('active');
+});
+
+flipAllBtn.addEventListener('click', ()=>{
+  flipAllSound.currentTime = 0; flipAllSound.play(); startMusicOnce();
+  const cards = Array.from(document.querySelectorAll('.card'));
+  flippedAll = !flippedAll;
+  cards.forEach(c=> c.classList.toggle('flipped', flippedAll));
+  flipAllBtn.textContent = flippedAll ? 'Unflip All' : 'Flip All';
+});
+
+search.addEventListener('input', (e)=>{
+  const q = e.target.value.toLowerCase().trim();
+  const filtered = current.filter(it => it.en.toLowerCase().includes(q));
+  render(filtered);
+});
+
+/* Mute / unmute (original behaviour) */
+muteBtn.addEventListener('click', ()=>{
+  uiClick.currentTime = 0; uiClick.play();
+  bgMusic.muted = !bgMusic.muted;
+  setMuteIcon();
+});
+
+/* Start music on first interaction (shows the mute button with icon) */
+document.addEventListener('pointerdown', startMusicOnce, { once:true });
+</script>
+</body>
+</html>
