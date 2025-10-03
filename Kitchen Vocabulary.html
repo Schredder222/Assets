@@ -96,23 +96,23 @@
 <script>
 /* === DATA: your vocab with exact image URLs === */
 const CARDS = [
-  { en:'Microwave', src:'https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcRTOhNFo2FU2lZbauIb4LMeHSEojMyFC7M-x7ZhH6ISmYjmQgjKkopeCJmq7o1QWRLOofOgRs-46R9aOHyPSAP_yWMe9TcbwBehVPZmzaz7mjP1JpXxE-xp' },
-  { en:'Toaster', src:'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQjb7myBnJVRN30xYohtvb1FPPIkdAshdz8aw&s' },
-  { en:'Kettle', src:'https://cuisinart.com.au/sites/cuisinart/media/products/cpk-18bxa/black-kettle.png' },
-  { en:'Oven', src:'https://hartandcoappliances.com.au/img/containers/products/8/c/wfep9717dd_03_med-8cb4b28c8578a75f99647716ef8a7847.jpg/2a1fcfee5713fdeb7b65d24c0ddcd0ba/wfep9717dd_03_med-8cb4b28c8578a75f99647716ef8a7847.jpg' },
-  { en:'Stove', src:'https://www.bigw.com.au/medias/sys_master/images/images/h8a/h43/100349472636958.jpg' },
-  { en:'Blender', src:'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSgxfbI7OC-vISlN6hPPeqfU_cEHK_4WCOnkQ&s' },
-  { en:'Fridge', src:'https://www.townappliance.com/cdn/shop/articles/Bm0SrO8A4Qv1EKnJJsanbChAFKLnkbYo1661523178_b576f749-5cd6-4285-b011-05c5ec17e4e5.jpg?v=1749549800' },
-  { en:'Freezer', src:'https://www.whirlpool.com/content/dam/business-unit/whirlpoolv2/en-us/marketing-content/site-assets/page-content/oc-articles/guide-to-the-parts-of-a-freezer/freezer-guide_Thumbnail.jpg' },
-  { en:'Sink', src:'https://www.arova.com.au/cdn/shop/files/alto-685mm-stainless-steel-kitchen-laundry-sink-single-bowl-top-undermount-sinks-arova-332935.jpg?v=1747385981&width=1267' },
-  { en:'Drawer', src:'https://www.deancabinetry.com/wp-content/uploads/2022/05/3-drawer-and-4-drawer-1.jpg' },
-  { en:'Cupboard', src:'https://www.nakedkitchens.com/image/cache/catalog/naked-kitchens/slideshow/raynham/Raynham-4-1500x1500.webp' },
+  { en:'microwave', src:'https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcRTOhNFo2FU2lZbauIb4LMeHSEojMyFC7M-x7ZhH6ISmYjmQgjKkopeCJmq7o1QWRLOofOgRs-46R9aOHyPSAP_yWMe9TcbwBehVPZmzaz7mjP1JpXxE-xp' },
+  { en:'toaster', src:'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQjb7myBnJVRN30xYohtvb1FPPIkdAshdz8aw&s' },
+  { en:'kettle', src:'https://cuisinart.com.au/sites/cuisinart/media/products/cpk-18bxa/black-kettle.png' },
+  { en:'oven', src:'https://hartandcoappliances.com.au/img/containers/products/8/c/wfep9717dd_03_med-8cb4b28c8578a75f99647716ef8a7847.jpg/2a1fcfee5713fdeb7b65d24c0ddcd0ba/wfep9717dd_03_med-8cb4b28c8578a75f99647716ef8a7847.jpg' },
+  { en:'stove', src:'https://www.bigw.com.au/medias/sys_master/images/images/h8a/h43/100349472636958.jpg' },
+  { en:'blender', src:'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSgxfbI7OC-vISlN6hPPeqfU_cEHK_4WCOnkQ&s' },
+  { en:'fridge', src:'https://www.townappliance.com/cdn/shop/articles/Bm0SrO8A4Qv1EKnJJsanbChAFKLnkbYo1661523178_b576f749-5cd6-4285-b011-05c5ec17e4e5.jpg?v=1749549800' },
+  { en:'freezer', src:'https://www.whirlpool.com/content/dam/business-unit/whirlpoolv2/en-us/marketing-content/site-assets/page-content/oc-articles/guide-to-the-parts-of-a-freezer/freezer-guide_Thumbnail.jpg' },
+  { en:'sink', src:'https://www.arova.com.au/cdn/shop/files/alto-685mm-stainless-steel-kitchen-laundry-sink-single-bowl-top-undermount-sinks-arova-332935.jpg?v=1747385981&width=1267' },
+  { en:'drawer', src:'https://www.deancabinetry.com/wp-content/uploads/2022/05/3-drawer-and-4-drawer-1.jpg' },
+  { en:'cupboard', src:'https://www.nakedkitchens.com/image/cache/catalog/naked-kitchens/slideshow/raynham/Raynham-4-1500x1500.webp' },
   { en:'knife', src:'https://images.immediate.co.uk/production/volatile/sites/30/2020/08/1._chef_knife-bb260f9.jpg?quality=90&fit=700,350' },
   { en:'grater', src:'https://www.ikea.com/au/en/images/products/idealisk-grater-stainless-steel__0713134_pe729282_s5.jpg?f=s' },
   { en:'peeler', src:'https://m.media-amazon.com/images/I/61p4EhExkSL.jpg' },
   { en:'whisk', src:'https://media.nisbets.com/asset/core/prodimage/large_new/df117_1.jpg' },
   { en:'mixing bowl', src:'https://www.harrisscarfe.com.au/medias/BP562593-nc.jpg-SPOTWF-productHero?context=bWFzdGVyfGltYWdlc3wzMzYwMXxpbWFnZS9qcGVnfGltYWdlcy9oMjAvaGZkLzE1NzA1MzQ5MDYyNjg2L0JQNTYyNTkzLW5jLmpwZ19TUE9UV0ZfcHJvZHVjdEhlcm98YjI1YzYzYzY1ZTEzNDI4MjZiNGU2Njk0MmEyZjAxZTViYThiYTVmNzc1NGY0MGI0MTg4OTU5NjI3YmM0ZWMxNg' },
-  { en:'Ladle', src:'https://m.media-amazon.com/images/I/61VvpCMtfLL.jpg' },
+  { en:'ladle', src:'https://m.media-amazon.com/images/I/61VvpCMtfLL.jpg' },
   { en:'colander/strainer', src:'https://relishcateringhire.co.uk/wp-content/uploads/2023/11/Colander.jpg' },
   { en:'tongs', src:'https://m.media-amazon.com/images/I/51PUCSovndL._UF894,1000_QL80_.jpg' },
   { en:'egg lifter/spatula', src:'https://i.ebayimg.com/images/g/hu8AAOSwipdarapz/s-l1200.jpg' },
@@ -120,7 +120,7 @@ const CARDS = [
   { en:'funnel', src:'https://m.media-amazon.com/images/I/51oy3OeFNIL.jpg' },
   { en:'apron', src:'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRDywM10QZOfro03Rio76CiLGOco8_W3WUxAw&s' },
   { en:'jug', src:'https://attachments.qcc.com.au/products/images_large/573216.jpg?r=1582032608' },
-  { en:'Potato masher', src:'https://m.media-amazon.com/images/I/51rKrGHQIqL._UF894,1000_QL80_.jpg' },
+  { en:'potato masher', src:'https://m.media-amazon.com/images/I/51rKrGHQIqL._UF894,1000_QL80_.jpg' },
   { en:'tray', src:'https://media.teaching.com.au/uploads/tam4008/zoom/tam4008_melamine-tray-white-38-x-24cm.webp' },
   { en:'frying pan', src:'https://agaaustralia.com.au/wp-content/uploads/2022/03/AGA-Black-Iron-28cm-Fry-Pan.jpg' },
   { en:'pot', src:'https://assets.manufactum.de/p/025/025438/25438_02.jpg/pot-stainless-steel.jpg' },
@@ -344,3 +344,4 @@ muteBtn.addEventListener('click', ()=>{
 </script>
 </body>
 </html>
+
