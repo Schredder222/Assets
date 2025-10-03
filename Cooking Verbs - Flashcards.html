@@ -33,7 +33,7 @@
   .search{flex:1;min-width:200px}
   .search input{width:100%;padding:10px 12px;border:1px solid #c7b9b9;border-radius:12px}
 
-  /* Restore original mute button styling from your template */
+  /* Original mute button styling from your template */
   #muteBtn{
     width:38px;height:38px;margin-left:10px;border:1px solid var(--accent);
     background:transparent center/22px 22px no-repeat;border-radius:999px;
@@ -78,7 +78,7 @@
 <body>
   <header>
     <h1>Cooking Verbs – Picture Flashcards</h1>
-    <p class="lead">Click / tap a card to flip. Tap 🔊 to hear the word (British English).</p>
+    <p class="lead">Tap a card to flip. Tap 🔊 to hear the word (British English).</p>
     <div class="toolbar">
       <button class="btn" id="resetOrder">A–Z</button>
       <button class="btn" id="shuffle">Shuffle</button>
@@ -116,27 +116,86 @@ const CARDS = [
   { en:'grill',    src:'https://www.thespruceeats.com/thmb/Iud5JolcsQKK1vekclVq-orpzTI=/2000x0/filters:no_upscale():max_bytes(150000):strip_icc()/ses-charcoal-grills-test-char-broil-kettleman-tru-infrared-22-5in-rkilgore-105-47fbc864934943dba173e579bccc3858.jpg' }
 ];
 
-/* === AUDIO: UI click, flip-all sound, and background music === */
-const uiClick = new Audio("https://cdn.pixabay.com/download/audio/2024/04/21/audio_1b8d3bcd3d.mp3?filename=click-buttons-ui-menu-sounds-effects-button-7-203601.mp3"); uiClick.volume = 0.4;
-const flipAllSound = new Audio("https://cdn.pixabay.com/download/audio/2025/07/30/audio_b3087a581e.mp3"); flipAllSound.volume = 0.3;
-const bgMusic = new Audio("https://cdn.pixabay.com/download/audio/2025/06/13/audio_cd802a7e4b.mp3"); bgMusic.loop = true; bgMusic.volume = 0.1;
-let musicStarted = false;
+/* === AUDIO: SFX + BG music (mobile-safe + silent-switch safe) === */
+const uiClick = new Audio("https://cdn.pixabay.com/download/audio/2024/04/21/audio_1b8d3bcd3d.mp3?filename=click-buttons-ui-menu-sounds-effects-button-7-203601.mp3");
+const flipAllSound = new Audio("https://cdn.pixabay.com/download/audio/2025/07/30/audio_b3087a581e.mp3");
+const bgMusic = new Audio("https://cdn.pixabay.com/download/audio/2025/06/13/audio_cd802a7e4b.mp3");
 
-/* Restore original icon URLs + setter */
+[uiClick, flipAllSound, bgMusic].forEach(a => { a.preload = 'auto'; a.crossOrigin = 'anonymous'; });
+uiClick.volume = 0.4; flipAllSound.volume = 0.3; bgMusic.loop = true; bgMusic.volume = 0.12;
+
+let musicStarted = false;
 const muteBtn = document.getElementById('muteBtn');
 const ICON_MUTE   = "https://schredder222.github.io/Assets/Mute.svg";
 const ICON_UNMUTE = "https://schredder222.github.io/Assets/Unmute.svg";
-function setMuteIcon(){
-  muteBtn.style.backgroundImage = `url(${bgMusic.muted ? ICON_MUTE : ICON_UNMUTE})`;
+function setMuteIcon(){ muteBtn.style.backgroundImage = `url(${bgMusic.muted ? ICON_MUTE : ICON_UNMUTE})`; }
+
+/* Web Audio wiring (lets audio play even with iOS silent switch) */
+let audioCtx, wired = false;
+function wireWebAudio(){
+  try{
+    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if(wired) return;
+    [uiClick, flipAllSound, bgMusic].forEach(el=>{
+      if(!el._wired){
+        const src = audioCtx.createMediaElementSource(el);
+        src.connect(audioCtx.destination);
+        el._wired = true;
+      }
+    });
+    wired = true;
+  }catch(e){}
 }
-function startMusicOnce(){
-  if(!musicStarted){
-    bgMusic.play().catch(()=>{});
-    musicStarted = true;
-    muteBtn.style.display = 'inline-block';
-    setMuteIcon();
-  }
+
+/* Tiny, near-silent beep to fully unlock output route on some devices */
+function inaudibleBeep(){
+  if(!audioCtx) return;
+  try{
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    gain.gain.value = 0.0001; // effectively silent
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.frequency.value = 440; osc.start(); osc.stop(audioCtx.currentTime + 0.05);
+  }catch(e){}
 }
+
+/* iOS/Android unlock helpers */
+let speechPrimed = false;
+function primeSpeech(){
+  if(speechPrimed || !('speechSynthesis' in window)) return;
+  const u = new SpeechSynthesisUtterance(' ');
+  u.volume = 0; u.lang = 'en-GB';
+  speechSynthesis.speak(u);
+  speechPrimed = true;
+}
+
+/* Start & unlock everything exactly once, within a user gesture */
+async function startAudioOnFirstGesture(){
+  if(musicStarted) return;
+  musicStarted = true;
+
+  try{
+    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    await audioCtx.resume();
+  }catch(e){}
+
+  wireWebAudio();
+  inaudibleBeep();      // ensure output path is opened
+  primeSpeech();
+
+  // “Touch” each element so Safari considers them user-initiated
+  try{ await uiClick.play(); uiClick.pause(); uiClick.currentTime = 0; }catch(e){}
+  try{ await flipAllSound.play(); flipAllSound.pause(); flipAllSound.currentTime = 0; }catch(e){}
+  try{ await bgMusic.play(); }catch(e){}
+
+  muteBtn.style.display = 'inline-block';
+  setMuteIcon();
+}
+
+/* Listen to broad gesture set (covers older iOS/Android) */
+['pointerdown','touchstart','touchend','click','keydown'].forEach(evt =>
+  document.addEventListener(evt, startAudioOnFirstGesture, { once:true, passive:true })
+);
 
 /* === PRONUNCIATION (British English) === */
 let voiceGB = null;
@@ -150,9 +209,12 @@ if ('speechSynthesis' in window){
 }
 function speakWord(word){
   if(!('speechSynthesis' in window)) return;
-  const u = new SpeechSynthesisUtterance((word||'').replace(/\s*\(.*?\)\s*/g,'').trim());
-  u.lang = 'en-GB'; if(voiceGB) u.voice = voiceGB; u.rate = 0.95; u.pitch = 1.0; u.volume = 1.0;
-  speechSynthesis.cancel(); speechSynthesis.speak(u);
+  const text = (word||'').replace(/\s*\(.*?\)\s*/g,'').replace(/\//g,' or ').trim();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'en-GB'; if(voiceGB) u.voice = voiceGB;
+  u.rate = 0.95; u.pitch = 1.0; u.volume = 1.0;
+  if (speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel();
+  speechSynthesis.speak(u);
 }
 
 /* === UI wiring === */
@@ -200,7 +262,7 @@ function createCard(item, i){
     ${speakerButtonHTML()}
     <div class="word">${item.en}</div>
     <div class="tag">English</div>
-    <div class="hint">Click / tap to flip</div>
+    <div class="hint">Tap to flip</div>
   `;
 
   const back = document.createElement('div');
@@ -220,15 +282,15 @@ function createCard(item, i){
   img.onerror = ()=>{ img.src = svgFallback(item.en); };
 
   function handleFlip(){
-    if(card.classList.contains('flipped')){ card.classList.remove('flipped'); }
+    if(card.classList.contains('flipped')) card.classList.remove('flipped');
     else { document.querySelectorAll('.card').forEach(c => c.classList.remove('flipped')); card.classList.add('flipped'); }
-    startMusicOnce();
+    startAudioOnFirstGesture();
   }
   card.addEventListener('click', handleFlip);
   card.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); handleFlip(); } });
 
   card.querySelectorAll('.speakBtn').forEach(btn=>{
-    btn.addEventListener('click', (e)=>{ e.stopPropagation(); speakWord(item.en); startMusicOnce(); });
+    btn.addEventListener('click', (e)=>{ e.stopPropagation(); startAudioOnFirstGesture(); speakWord(item.en); });
   });
 
   return card;
@@ -252,36 +314,39 @@ function shuffle(arr){
 let base = CARDS.slice().sort((a,b)=>a.en.localeCompare(b.en));
 let current = base.slice();
 render(current);
-resetBtn.classList.add('active');
+document.getElementById('resetOrder').classList.add('active');
 
 /* Toolbar handlers */
 function playUIClick(){ uiClick.currentTime = 0; uiClick.play(); }
 
-shuffleBtn.addEventListener('click', ()=>{
-  playUIClick(); startMusicOnce();
+document.getElementById('shuffle').addEventListener('click', ()=>{
+  startAudioOnFirstGesture(); playUIClick();
   current = shuffle(current);
-  flippedAll = false; flipAllBtn.textContent = 'Flip All';
+  flippedAll = false; document.getElementById('flipAll').textContent = 'Flip All';
   render(current);
-  shuffleBtn.classList.add('active'); resetBtn.classList.remove('active');
+  document.getElementById('shuffle').classList.add('active');
+  document.getElementById('resetOrder').classList.remove('active');
 });
 
-resetBtn.addEventListener('click', ()=>{
-  playUIClick(); startMusicOnce();
+document.getElementById('resetOrder').addEventListener('click', ()=>{
+  startAudioOnFirstGesture(); playUIClick();
   current = base.slice();
-  flippedAll = false; flipAllBtn.textContent = 'Flip All';
+  flippedAll = false; document.getElementById('flipAll').textContent = 'Flip All';
   render(current);
-  resetBtn.classList.add('active'); shuffleBtn.classList.remove('active');
+  document.getElementById('resetOrder').classList.add('active');
+  document.getElementById('shuffle').classList.remove('active');
 });
 
-flipAllBtn.addEventListener('click', ()=>{
-  flipAllSound.currentTime = 0; flipAllSound.play(); startMusicOnce();
+document.getElementById('flipAll').addEventListener('click', ()=>{
+  startAudioOnFirstGesture();
+  uiClick.currentTime = 0; uiClick.play();
   const cards = Array.from(document.querySelectorAll('.card'));
   flippedAll = !flippedAll;
   cards.forEach(c=> c.classList.toggle('flipped', flippedAll));
-  flipAllBtn.textContent = flippedAll ? 'Unflip All' : 'Flip All';
+  document.getElementById('flipAll').textContent = flippedAll ? 'Unflip All' : 'Flip All';
 });
 
-search.addEventListener('input', (e)=>{
+document.getElementById('q').addEventListener('input', (e)=>{
   const q = e.target.value.toLowerCase().trim();
   const filtered = current.filter(it => it.en.toLowerCase().includes(q));
   render(filtered);
@@ -289,13 +354,11 @@ search.addEventListener('input', (e)=>{
 
 /* Mute / unmute (original behaviour) */
 muteBtn.addEventListener('click', ()=>{
+  startAudioOnFirstGesture();
   uiClick.currentTime = 0; uiClick.play();
   bgMusic.muted = !bgMusic.muted;
   setMuteIcon();
 });
-
-/* Start music on first interaction (shows the mute button with icon) */
-document.addEventListener('pointerdown', startMusicOnce, { once:true });
 </script>
 </body>
 </html>
